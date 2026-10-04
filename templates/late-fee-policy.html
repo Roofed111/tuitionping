@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Daycare Late Fee Policy Template — Free & Customizable{% endblock %}
+{% block meta_description %}<meta name="description" content="A free daycare late fee policy template you can copy into your tuition agreement: grace period, fee amount, when it applies, and how to enforce it consistently without awkward conversations.">{% endblock %}
+{% block content %}
+<div class="page-head"><div>
+  <h1>Daycare late fee policy template</h1>
+  <p class="sub">Copy this into your tuition agreement, fill in the blanks, and enforce it the same way every month.</p>
+</div></div>
+
+<div class="card">
+  <h2>The policy</h2>
+  <p><em>Copy, customize, and include with enrollment:</em></p>
+  <div style="background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:18px" id="policy-text">
+  <p><strong>Late payment policy — [Your Program Name]</strong></p>
+  <p>Tuition is due on the <strong>[1st]</strong> of each month. A grace period of <strong>[5]</strong> days applies — payments received after the <strong>[6th]</strong> are considered late.</p>
+  <p>A late fee of <strong>$[25]</strong> will be added to any account with an unpaid balance after the grace period. The late fee applies automatically each month the balance remains unpaid.</p>
+  <p>Accounts more than <strong>[30]</strong> days past due may result in suspension of care until the balance is paid in full. Returned payments incur a <strong>$[35]</strong> fee.</p>
+  <p>Payment methods accepted: <strong>[online link / check / cash]</strong>. Questions about your balance? Just ask — we're happy to help.</p>
+  </div>
+  <p style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
+    <button class="btn btn-sm" id="copy-policy" type="button">Copy policy text</button>
+    <button class="btn btn-ghost btn-sm" id="print-policy" type="button">Print</button>
+    <span id="copy-status" role="status" style="font-size:.85em;color:var(--ok);align-self:center"></span>
+  </p>
+  <p style="font-size:.82em;color:var(--muted)"><em>Template only — not legal advice. Late-fee rules vary by state and contract; have your agreement reviewed by a local attorney before you enforce it.</em></p>
+</div>
+<script>
+(function(){
+  var btn = document.getElementById('copy-policy');
+  var status = document.getElementById('copy-status');
+  btn.addEventListener('click', function(){
+    var text = document.getElementById('policy-text').innerText;
+    function done(){ status.textContent = 'Copied — fill in the [brackets] before you use it.'; }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function(){ fallback(); });
+    } else { fallback(); }
+    function fallback(){
+      var ta = document.createElement('textarea');
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); done(); } catch(e){ status.textContent = 'Copy failed — select the text manually.'; }
+      document.body.removeChild(ta);
+    }
+  });
+  document.getElementById('print-policy').addEventListener('click', function(){ window.print(); });
+})();
+</script>
+
+<div class="card">
+  <h2>How to pick your numbers</h2>
+  <p><strong>Grace period (3–5 days).</strong> Short enough to matter, long enough to feel fair. Weekends and bank holidays cause most "late" payments — a few days absorbs them.</p>
+  <p><strong>Fee amount ($25–$50).</strong> High enough to change behavior, low enough that no one quits over it. Flat fees beat percentages for daycare — they're easy to explain and easy to automate.</p>
+  <p><strong>Escalation point (30 days).</strong> State it now, in writing, so the conversation later is about the agreement. Most owners never need it — the written line does the work.</p>
+</div>
+
+<div class="card">
+  <h2>Making it stick</h2>
+  <p><strong>Collect it at enrollment.</strong> A policy signed on day one is ten times easier to enforce than one introduced mid-year.</p>
+  <p><strong>Apply it every time.</strong> The first waiver teaches every parent that the fee is negotiable. Consistency is the whole policy.</p>
+  <p><strong>Let the system be the bad guy.</strong> When the fee is automatic — added by software, stated in the agreement — it's not you vs. the parent. It's just how the program works. (TuitionPing adds your late fee automatically after your grace period and tells the parent in their next reminder.)</p>
+</div>
+
+<div class="final-cta">
+  <h2>Enforce this without lifting a finger.</h2>
+  <p>TuitionPing applies your late fee after your grace period, reminds the family with the new balance, and confirms when they reply PAID. The policy does the talking.</p>
+  <a class="btn" href="/signup?plan=growth" style="font-size:1.1em;padding:14px 32px">Start free — 30-day trial</a>
+  <p style="margin-top:14px"><small>Card on file at signup · no charge for 30 days · cancel anytime</small></p>
+</div>
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Import results — TuitionPing{% endblock %}
+{% block content %}
+<h1>Import results</h1>
+<div class="card" style="max-width:640px">
+  <p><strong>{{ imported }}</strong> famil{{ "y" if imported == 1 else "ies" }} imported.</p>
+  {% if errors %}
+  <p><strong>{{ errors|length }}</strong> row{{ "s" if errors|length != 1 else "" }} skipped:</p>
+  <table>
+    <thead><tr><th scope="col">Row</th><th scope="col">Problem</th></tr></thead>
+    <tbody>
+    {% for row_num, msg in errors %}
+    <tr><td>{{ row_num }}</td><td>{{ msg }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p style="color:#166534">Every row imported cleanly. ✓</p>
+  {% endif %}
+  <p><a class="btn" href="/dashboard">Back to dashboard</a></p>
+</div>
+{% endblock %}

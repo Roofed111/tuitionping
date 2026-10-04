@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="tabs"><a href="/admin">Customers</a><a href="/admin/abuse" class="active">Abuse monitor</a><a href="/admin/suggestions">Suggestions</a><a href="/admin/attribution">Attribution</a></div>
+<h2>Abuse monitor</h2>
+<p class="muted">Every provider's sending activity at a glance. Flags are heuristics — investigate before suspending.</p>
+{% if not admin_configured %}
+<p class="alert">ADMIN_EMAILS isn't set, so this page is reachable by nobody. Add your login email as <code>ADMIN_EMAILS</code> in Railway variables to lock it to your account.</p>
+{% endif %}
+<div class="card" style="overflow-x:auto">
+<table class="table">
+  <tr><th scope="col">Provider</th><th scope="col">Joined</th><th scope="col">Families</th><th scope="col">Sent 24h</th><th scope="col">Sent 30d</th><th scope="col">Opt-outs</th><th scope="col">Flags</th><th scope="col"></th></tr>
+  {% for s in stats %}
+  <tr>
+    <td>{{ s["name"] }}<br><span class="family-phone">{{ s["email"] }}</span></td>
+    <td>{{ s["created_at"][:10] }}</td>
+    <td>{{ s["families"] }}</td>
+    <td>{{ s["sent_24h"] }}</td>
+    <td>{{ s["sent_30d"] }}</td>
+    <td>{{ s["optouts"] }}{% if s["sent_30d"] %} <span class="family-phone">({{ (s["optout_rate"]*100)|round(1) }}%)</span>{% endif %}</td>
+    <td>
+      {% for kind, text in s["flags"] %}
+      <span class="flag flag-{{ kind }}">{{ text }}</span>
+      {% endfor %}
+      {% if not s["flags"] %}<span class="muted">—</span>{% endif %}
+    </td>
+    <td>
+      <form method="post" action="/admin/suspend" style="display:inline">
+        {{ csrf_input(request) }}
+        <input type="hidden" name="provider_id" value="{{ s['id'] }}">
+        {% if s["suspended"] %}
+        <input type="hidden" name="suspend" value="0">
+        <button class="btn btn-ghost btn-small" type="submit">Unsuspend</button>
+        {% else %}
+        <input type="hidden" name="suspend" value="1">
+        <button class="btn btn-small" type="submit" onclick="return confirm('Suspend {{ s['email'] }}? Their reminders stop and they cannot log in.')">Suspend</button>
+        {% endif %}
+      </form>
+      <form method="post" action="/admin/delete" style="display:inline" onsubmit="return confirmDelete(this, '{{ s['email'] }}')">
+        {{ csrf_input(request) }}
+        <input type="hidden" name="provider_id" value="{{ s['id'] }}">
+        <input type="hidden" name="confirm_email" value="">
+        <button class="btn btn-small btn-danger-ghost" type="submit">Delete</button>
+      </form>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+</div>
+<p class="muted">Suspending stops all reminders for the provider and blocks their login. Structural limits already cap every family at 4 texts/month — this page catches the edge cases.</p>
+<script>
+function confirmDelete(form, email) {
+  var typed = prompt("Type the account's email to permanently delete it and all its data:\n" + email);
+  if (typed === null) return false;
+  form.confirm_email.value = typed;
+  return confirm("Last chance — this cannot be undone. Delete " + email + "?");
+}
+</script>
+{% endblock %}

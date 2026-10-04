@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Suggestions — Admin{% endblock %}
+{% block content %}
+<div class="tabs"><a href="/admin">Customers</a><a href="/admin/abuse">Abuse monitor</a><a href="/admin/suggestions" class="active">Suggestions</a><a href="/admin/attribution">Attribution</a></div>
+<h2>Feature suggestions</h2>
+<p class="muted">{{ suggestions|length }} total · newest first.</p>
+{% for s in suggestions %}
+<div class="card">
+  <p style="margin:0 0 6px"><strong>{{ s["body"] }}</strong></p>
+  <p class="muted" style="margin:0">{{ s["name"] or "—" }} · {{ s["email"] or "—" }} · {{ s["company"] or "account #" ~ s["provider_id"] }} · {{ (s["created_at"] or "")[:16] }}</p>
+  <form method="post" action="/admin/suggestions/delete" style="margin-top:8px">
+    {{ csrf_input(request) }}
+    <input type="hidden" name="suggestion_id" value="{{ s['id'] }}">
+    <button class="btn btn-danger" type="submit" onclick="return confirm('Delete this suggestion?')">Delete</button>
+  </form>
+</div>
+{% else %}
+<div class="card"><p class="muted">No suggestions yet.</p></div>
+{% endfor %}
+{% endblock %}

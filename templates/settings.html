@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Settings — TuitionPing{% endblock %}
+{% block content %}
+<h1>Settings</h1>
+
+<div class="card">
+  <h2>👤 Account</h2>
+  {% if saved_profile %}<p style="color:#166534"><strong>Saved ✓</strong></p>{% endif %}
+  <form method="post" action="/settings/company">
+    {{ csrf_input(request) }}
+    <div class="form-grid">
+      <label>Daycare / company name<input name="company" value="{{ provider.get('company') or '' }}" placeholder="Sunny Sprouts Daycare"></label>
+      <label>Tax ID (EIN) <span style="color:var(--muted);font-weight:400">— printed on family tax statements</span><input name="tax_id" value="{{ tax_id or '' }}" placeholder="12-3456789"></label>
+      <label>Google review link <span style="color:var(--muted);font-weight:400">— texted to families after their 3rd payment</span><input name="review_url" value="{{ review_url or '' }}" placeholder="https://g.page/…"></label>
+      <div><button class="btn btn-ghost">Save</button></div>
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <h2>🕐 Sending hours &amp; timezone</h2>
+  {% if saved_sending %}<p style="color:#166534"><strong>Saved ✓</strong></p>{% endif %}
+  <p style="color:var(--muted)">Reminders only go out during these hours, in your timezone.
+  If a run happens outside the window, the texts wait until the next morning — nobody gets a 2&nbsp;a.m. text.</p>
+  <form method="post" action="/settings/sending">
+    {{ csrf_input(request) }}
+    <div class="form-grid">
+      <label>Timezone
+        <select name="timezone">
+          {% for tz in timezones %}
+          <option value="{{ tz }}" {% if tz == sending.timezone %}selected{% endif %}>{{ tz.replace("_", " ") }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>No texts before
+        <select name="quiet_start">
+          {% for v, label in hours %}
+          <option value="{{ v }}" {% if v == sending.quiet_start %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>No texts after
+        <select name="quiet_end">
+          {% for v, label in hours %}
+          <option value="{{ v }}" {% if v == sending.quiet_end %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <div><button class="btn btn-ghost">Save sending hours</button></div>
+      <label>Your mobile number <span style="font-weight:400">(optional — get a morning text listing families still unpaid)</span>
+        <input name="owner_phone" value="{{ owner_phone or '' }}" placeholder="(555) 123-4567"></label>
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <h2>📱 How your texts look to parents</h2>
+  <p><label><strong>Template language</strong>
+    <select id="tpl_lang_sel" onchange="location.href='/settings?tpl_lang='+this.value" style="font-size:1em;padding:4px 8px">
+      <option value="en"{% if tpl_lang == "en" %} selected{% endif %}>English</option>
+      <option value="es"{% if tpl_lang == "es" %} selected{% endif %}>Español</option>
+    </select></label>
+    <span style="color:var(--muted)"> — one choice switches every template below.</span></p>
+  <p>Make the texts sound like you. Available placeholders:
+  <code>{name}</code> <code>{amount}</code> <code>{location}</code> <code>{due_date}</code> <code>{pay_link}</code> <span style="color:var(--muted)">— {pay_link} becomes "Pay online: …" using the payment link you set per location on your dashboard (blank if none set).</span></p>
+  {% for p in previews %}
+  <p style="margin:12px 0 5px;font-size:.85em;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:650">{{ p.stage }}</p>
+  <div style="max-width:440px;background:#e3f5ee;border:1px solid #a9e2cd;border-radius:14px 14px 14px 4px;padding:10px 14px;font-size:.95em">{{ p.text }}</div>
+  {% endfor %}
+  <p style="color:var(--muted);font-size:.88em;margin-top:14px">Sample parent: {% if tpl_lang == "es" %}María (Español){% else %}Jane (English){% endif %} · $1,850.00 · due Oct 01. Names are shown as first name only. Each family gets the language you set for them.</p>
+</div>
+
+{% if saved %}<p style="color:#166534"><strong>Saved ✓</strong></p>{% endif %}
+<form method="post" action="/settings">
+  {{ csrf_input(request) }}
+  <input type="hidden" name="tpl_lang" value="{{ tpl_lang }}">
+  {% if tpl_lang == "es" %}
+  <h2>✏️ Plantillas en español</h2>
+  <p style="color:var(--muted)">Families you mark as Spanish get these. They reply <code>PAID</code> just like everyone else.</p>
+  <label><strong>3 días antes del vencimiento</strong><br>
+    <textarea name="tpl_before_es" rows="2" cols="80">{{ tpl["tpl_before_es"] }}</textarea></label><br><br>
+  <label><strong>Día de vencimiento</strong><br>
+    <textarea name="tpl_due_es" rows="2" cols="80">{{ tpl["tpl_due_es"] }}</textarea></label><br><br>
+  <label><strong>3 días de retraso</strong><br>
+    <textarea name="tpl_late3_es" rows="2" cols="80">{{ tpl["tpl_late3_es"] }}</textarea></label><br><br>
+  <label><strong>7 días de retraso</strong><br>
+    <textarea name="tpl_late7_es" rows="2" cols="80">{{ tpl["tpl_late7_es"] }}</textarea></label><br><br>
+  {% else %}
+  <h2>✏️ English templates</h2>
+  <label><strong>3 days before due</strong><br>
+    <textarea name="tpl_before" rows="2" cols="80">{{ tpl["tpl_before"] }}</textarea></label><br><br>
+  <label><strong>Due date</strong><br>
+    <textarea name="tpl_due" rows="2" cols="80">{{ tpl["tpl_due"] }}</textarea></label><br><br>
+  <label><strong>3 days late</strong><br>
+    <textarea name="tpl_late3" rows="2" cols="80">{{ tpl["tpl_late3"] }}</textarea></label><br><br>
+  <label><strong>7 days late</strong><br>
+    <textarea name="tpl_late7" rows="2" cols="80">{{ tpl["tpl_late7"] }}</textarea></label><br><br>
+  {% endif %}
+  <button class="btn">Save templates</button>
+</form>
+{% endblock %}
