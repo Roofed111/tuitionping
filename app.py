@@ -173,6 +173,7 @@ _NO_SUB_EXACT = {
     "/healthz", "/sitemap.xml", "/robots.txt", "/favicon.ico",
     "/terms", "/privacy", "/security", "/sms-privacy", "/sms-consent",
     "/guide", "/postcard", "/late-fee-policy", "/compare/brightwheel",
+    "/tools/late-fee-calculator",
 }
 _NO_SUB_PREFIXES = ("/billing/", "/admin", "/webhooks/", "/internal/",
                     "/static/", "/s/")
@@ -215,6 +216,7 @@ async def static_cache(request: Request, call_next):
 # Public marketing pages whose visits are logged (first-party analytics —
 # hashed IP only, no personal identity; see Privacy Policy).
 _TRACKED_PATHS = {"/", "/guide", "/postcard", "/late-fee-policy",
+                  "/tools/late-fee-calculator",
                   "/terms", "/privacy", "/security", "/sms-privacy",
                   "/sms-consent", "/support", "/login", "/signup"}
 _TRACKED_PREFIXES = ("/compare/",)
