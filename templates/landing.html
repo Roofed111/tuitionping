@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}TuitionPing — Automatic Tuition Reminders by Text for Daycares{% endblock %}
+{% block title %}Daycare Tuition Reminder Software by Text | TuitionPing{% endblock %}
 {% block meta_description %}<meta name="description" content="TuitionPing automatically texts your daycare families tuition reminders — 3 days before, on the due date, and late nudges after. Parents reply PAID. 30-day free trial, no awkward pickup conversations.">{% endblock %}
 {% block content %}
 {% if postcard_offer %}
@@ -115,10 +115,11 @@
 <div class="hero">
   <div>
     <span class="eyebrow">For daycare &amp; childcare providers</span>
-    <h1>Never chase tuition <span class="accent">again.</span></h1>
+    <h1>Automatic daycare tuition reminders <span class="accent">by text.</span></h1>
+    <p class="resource-kicker">Spend less time chasing tuition.</p>
     <p class="lede">TuitionPing automatically texts your families tuition reminders —
     3 days before it's due, on the due date, and with polite late nudges after.
-    Parents reply <strong>PAID</strong>. You watch the tuition come in. No awkward
+    Parents reply <strong>PAID</strong>; you verify the payment in the system you already use. No awkward
     pickup conversations, no spreadsheets, no "I forgot the checkbook."</p>
     <div class="hero-ctas">
       <a class="btn" href="/signup?plan=growth" style="font-size:1.08em;padding:14px 28px">Start 30-day free trial</a>
@@ -134,17 +135,17 @@
           <div class="bubble them"><span class="lbl">3 days before</span>TuitionPing: Hi Sarah, friendly reminder that tuition of $1,200 for Sunshine Daycare is due on Oct 1. Thanks!</div>
           <div class="bubble them"><span class="lbl">Due date</span>TuitionPing: Hi Sarah, just a reminder that tuition of $1,200 for Sunshine Daycare is due today (Oct 1). Thanks!</div>
           <div class="bubble me">PAID</div>
-          <div class="bubble them">Thanks Sarah! Receipt: $1,200.00 for October 2026 received. 🎉</div>
+          <div class="bubble them">Thanks Sarah! Your payment is reported. Sunshine Daycare will verify it against their records.</div>
         </div>
       </div>
     </div>
-    <p class="phone-caption">Real example messages — parents just get normal texts.</p>
+    <p class="phone-caption">Illustrative conversation. PAID is parent-reported; the provider verifies receipt.</p>
   </div>
 </div>
 
 <div class="section">
   <h2>You didn't open a daycare to chase checks</h2>
-  <p class="sub">The money conversation is the worst part of the job. TuitionPing takes it off your plate entirely.</p>
+  <p class="sub">The money conversation is the worst part of the job. TuitionPing handles scheduled reminders so you can focus on families and verify payments.</p>
   <div class="pains">
     <div class="pain"><span class="ico" aria-hidden="true">😬</span><p><strong>The pickup-line ambush.</strong> Cornering a parent at 5:45pm about an overdue balance while their toddler melts down.</p></div>
     <div class="pain"><span class="ico" aria-hidden="true">📒</span><p><strong>The 10pm spreadsheet.</strong> Cross-referencing who paid, who didn't, and who you already reminded twice.</p></div>
@@ -158,7 +159,7 @@
   <div class="steps">
     <div class="step"><div class="num">1</div><h3>Add your families</h3><p>Parent name, phone number, tuition amount, due date, classroom — typed in or imported from a CSV in one click.</p></div>
     <div class="step"><div class="num">2</div><h3>We text automatically</h3><p>Reminders go out 3 days before, on the due date, and at +3 and +7 days late — only while the balance is unpaid.</p></div>
-    <div class="step"><div class="num">3</div><h3>Parents reply PAID</h3><p>Your dashboard updates itself the moment they reply. Anyone can text STOP to opt out, START to rejoin.</p></div>
+    <div class="step"><div class="num">3</div><h3>Parents reply PAID</h3><p>Your dashboard records their reply as reported paid for you to verify. Anyone can text STOP to opt out, START to rejoin.</p></div>
   </div>
 </div>
 
@@ -175,7 +176,7 @@
 
 <div class="section">
   <h2>Everything handled, down to the details</h2>
-  <p class="sub">Built for one job — collecting tuition — instead of being one tab in a giant management suite.</p>
+  <p class="sub">Focused on tuition reminders and follow-up. Keep your existing payment method.</p>
   <div class="features">
     <div class="feature"><span class="ico" aria-hidden="true">💬</span><h3>Two-way texting</h3><p>Parents reply PAID, STOP, START, or HELP from any phone. No app to install, nothing to learn.</p></div>
     <div class="feature"><span class="ico" aria-hidden="true">🌙</span><h3>Quiet hours, their timezone</h3><p>Texts only go out during hours you choose, in your program's timezone. A reminder due at 2am waits for morning.</p></div>
@@ -187,9 +188,21 @@
   </div>
 </div>
 
+<section class="section" aria-labelledby="free-resources-heading">
+  <h2 id="free-resources-heading">Free tools for getting daycare tuition organized</h2>
+  <p class="sub">Start with a clear policy, ready-to-send messages, and a payment record. No signup required.</p>
+  <div class="resource-grid">
+    <div class="card"><h3><a href="/late-fee-policy">Daycare late-fee policy template</a></h3><p>Customize a weekly or monthly policy. Download an editable Word document or printable PDF.</p></div>
+    <div class="card"><h3><a href="/guides/tuition-reminder-templates">Tuition reminder text templates</a></h3><p>Before-due and overdue messages in English and Spanish, with a separate payment-verification acknowledgment.</p></div>
+    <div class="card"><h3><a href="/tools/late-fee-calculator">Daycare late-fee calculator</a></h3><p>Compare five fee models with grace periods, prior credits, and caps. Print or share the breakdown.</p></div>
+    <div class="card"><h3><a href="/tools/tuition-payment-tracker">Free tuition payment tracker</a></h3><p>An Excel spreadsheet with balances and overdue status. Import it into Google Sheets if you prefer.</p></div>
+  </div>
+  <p style="text-align:center;margin-top:20px"><a href="/guides">Explore all free tools &amp; templates</a> · <a href="/guide">Read the tuition collection checklist</a></p>
+</section>
+
 <div class="section" id="pricing">
   <h2>Simple pricing</h2>
-  <p class="sub">Every plan starts with a 30-day free trial. One on-time tuition payment covers a year.</p>
+  <p class="sub">Every plan starts with a 30-day free trial. Choose the family capacity that fits your program.</p>
   <div class="founding">
     <span class="tag">FOUNDING MEMBERS</span>
     <div><b>50% off for 6 months — {{ spots_left }} of 25 spots left</b><p>The first 25 providers lock in half price for half a year. After that, full price — still less than one late tuition payment a month.</p></div>
@@ -235,24 +248,25 @@
 </div>
 
 <div class="section" id="roi">
-  <h2>What is late tuition costing you?</h2>
-  <p class="sub">Move the sliders to match your program — then look at the <b>yearly</b> numbers.</p>
+  <h2>Explore a tuition reminder scenario</h2>
+  <p class="sub">Choose your inputs and an assumed improvement. This is a planning scenario, not measured customer results.</p>
   <div class="card roi-card">
     <div class="roi-grid">
       <label>Families enrolled<br><input type="range" id="roi-fam" min="5" max="200" value="40" style="width:100%">
         <b id="roi-fam-v">40</b></label>
       <label>Avg. monthly tuition<br><input type="range" id="roi-tui" min="200" max="2500" step="50" value="900" style="width:100%">
         <b id="roi-tui-v">$900</b></label>
-      <label>Families who pay late in a typical month<br><input type="range" id="roi-late" min="1" max="40" value="10" style="width:100%">
+      <label>Families who pay late in a typical month<br><input type="range" id="roi-late" min="0" max="40" value="10" style="width:100%">
         <b id="roi-late-v">10</b> <span class="roi-of">of <span id="roi-late-of">40</span></span></label>
+      <label>Assumed reduction in late payments (%)<br><input type="range" id="roi-improvement" min="0" max="100" step="5" value="25" style="width:100%"><b id="roi-improvement-v">25%</b></label>
     </div>
     <div class="roi-out">
-      <div class="roi-stat"><span class="roi-num" id="roi-money">$0</span><span class="roi-cap">of tuition landing <b>on time instead of late</b> — every year*</span><span class="roi-sub" id="roi-money-m"></span></div>
-      <div class="roi-stat"><span class="roi-num" id="roi-time">0h</span><span class="roi-cap">of chasing <b>back in your evenings</b> — every year*</span><span class="roi-sub" id="roi-time-d"></span></div>
-      <div class="roi-stat"><span class="roi-num" id="roi-texts">0</span><span class="roi-cap">reminder texts <b>sent for you</b> — every year</span><span class="roi-sub">while you're with the kids, not your phone</span></div>
+      <div class="roi-stat"><span class="roi-num" id="roi-money">$0</span><span class="roi-cap">of tuition potentially shifted <b>from late to on time</b> — per year*</span><span class="roi-sub" id="roi-money-m"></span></div>
+      <div class="roi-stat"><span class="roi-num" id="roi-time">0h</span><span class="roi-cap">of follow-up time potentially saved — per year*</span><span class="roi-sub" id="roi-time-d"></span></div>
+      <div class="roi-stat"><span class="roi-num" id="roi-texts">0</span><span class="roi-cap">scheduled reminder opportunities — per year*</span><span class="roi-sub">actual sends depend on payment status and opt-outs</span></div>
     </div>
     <p class="roi-punch" id="roi-punch"></p>
-    <p class="roi-fine">*Illustrative estimate. Assumes automatic reminders cut late payments in half and each late payment costs you ~30 minutes of follow-ups across the month — your actual results depend on your families. TuitionPing Micro is $19/mo after a free 30-day trial.</p>
+    <p class="roi-fine">*Hypothetical annual scenario: 12 identical months, your assumed reduction, 30 minutes of follow-up per late bill, and up to four reminder stages per family per month. Tuition shifted earlier is not extra revenue. Actual results and text delivery vary. TuitionPing Micro is $19/mo after a free 30-day trial.</p>
     <p style="margin-top:14px"><a class="btn" href="/signup?plan=micro">Start free — 30-day trial</a></p>
   </div>
 </div>
@@ -277,6 +291,7 @@
 <script>
 (function(){
   var fam = document.getElementById('roi-fam'), tui = document.getElementById('roi-tui'), late = document.getElementById('roi-late');
+  var improvement = document.getElementById('roi-improvement');
   var MONTHLY_COST = 19; // Micro $19/mo
   function fmt(n){ return '$' + Math.round(n).toLocaleString('en-US'); }
   function vals(){
@@ -285,11 +300,12 @@
     var l = Math.min(+late.value, f);
     if (+late.value !== l) late.value = l;
     return { f: f, t: t, l: l,
-             money: l * t * 0.5 * 12,    // half of late tuition lands on time, annualized
-             hours: l * 0.5 * (30/60) * 12,  // ~30 min of follow-ups per late payment, annualized
-             texts: l * 4 * 12 };        // 4 reminder stages, monthly
+             money: l * t * (+improvement.value / 100) * 12,    // user-selected hypothetical improvement, annualized
+             hours: l * (+improvement.value / 100) * (30/60) * 12,  // ~30 min of follow-ups per late payment, annualized
+             texts: f * 4 * 12 };        // 4 reminder stages, monthly
   }
   function render(v){
+    document.getElementById('roi-improvement-v').textContent = improvement.value + '%';
     document.getElementById('roi-fam-v').textContent = v.f;
     document.getElementById('roi-tui-v').textContent = '$' + v.t;
     document.getElementById('roi-late-v').textContent = v.l;
@@ -303,8 +319,8 @@
     document.getElementById('roi-texts').textContent = Math.round(v.texts).toLocaleString('en-US');
     var p = document.getElementById('roi-punch');
     if (v.money > 0) {
-      p.innerHTML = 'TuitionPing Micro is <b>$' + MONTHLY_COST + '/mo</b> — to keep <b>' +
-        fmt(v.money / 12) + '/mo</b> landing on time.';
+      p.innerHTML = 'TuitionPing Micro is <b>$' + MONTHLY_COST + '/mo</b>. This scenario shifts <b>' +
+        fmt(v.money / 12) + '/mo</b> earlier; it is not a guarantee.';
     } else { p.textContent = ''; }
   }
   function countUp(){
@@ -325,7 +341,7 @@
   }
   var seen = false;
   function onInput(){ render(vals()); }
-  [fam, tui, late].forEach(function(el){ el.addEventListener('input', onInput); });
+  [fam, tui, late, improvement].forEach(function(el){ el.addEventListener('input', onInput); });
   if ('IntersectionObserver' in window) {
     var io = new IntersectionObserver(function(es){
       if (es[0].isIntersecting && !seen) { seen = true; io.disconnect(); countUp(); }
@@ -352,7 +368,7 @@
 </div>
 
 <div class="final-cta">
-  <h2>Your next tuition cycle could collect itself.</h2>
+  <h2>Put your tuition reminders on a schedule.</h2>
   <p>Join the founding members — 50% off for 6 months, 30-day free trial.</p>
   <a class="btn" href="/signup?plan=growth" style="font-size:1.1em;padding:14px 32px">Start free — it takes 10 minutes</a>
   <p style="margin-top:14px"><small>Card on file at signup · no charge for 30 days · cancel anytime</small></p>

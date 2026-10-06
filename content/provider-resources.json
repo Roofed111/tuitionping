@@ -1,0 +1,25 @@
+{
+  "updated": "2026-10-06",
+  "policy": [
+    "Late tuition payment policy — [Program Name]",
+    "Tuition of $[amount] is due [each Monday / on the 1st of each month] by [time and timezone], for [billing period]. Accepted payment methods: [methods or payment link].",
+    "A grace period of [number] calendar days applies. The due date is day 0; the next day is day 1. Weekends and holidays [count / are handled as follows: explain].",
+    "If a tuition balance remains after the grace period, a one-time late fee of $[amount] applies to that bill. The fee is not charged again each week or month for the same bill. Any different recurring or daily fee must be stated separately in the agreement.",
+    "The maximum late fee for one bill is $[cap / not applicable]. Approved credits and verified payments will be recorded against the balance. Contact [name and contact details] if you need a balance review or payment arrangement.",
+    "Returned-payment terms: [describe any permitted charge and when it applies, or remove this clause]. Any change to care arrangements follows [notice procedure and timing] and the program's enrollment agreement and applicable rules.",
+    "A parent reporting payment does not confirm that funds have arrived. We verify payments against our records before confirming receipt. Any exceptions or arrangements will be documented in writing.",
+    "Program contact: [name, phone and email]. Effective date: [date]. Parent/guardian acknowledgment: [signature and date]."
+  ],
+  "examples": [
+    {"title": "Weekly billing example", "text": "Tuition is due Monday, October 5, 2026. With two calendar grace days, Tuesday and Wednesday are grace days; the first fee-bearing day is Thursday, October 8. A $300 unpaid bill with a one-time $15 fee totals $315. These are example numbers, not recommended charges."},
+    {"title": "Monthly billing example", "text": "Tuition is due October 1, 2026. With five calendar grace days, October 2 through 6 are grace days; the first fee-bearing day is October 7. A $1,000 unpaid bill with a one-time $25 fee totals $1,025. These are example numbers, not recommended charges."}
+  ],
+  "reminders": [
+    {"title": "Before the due date", "use": "Send before tuition is due. Replace each placeholder and use the family's preferred language.", "en": "Hi {Parent}, tuition of ${Amount} for {Program} is due {Date}. Please pay using {PaymentMethod}. Thank you!", "es": "Hola {Parent}, la cuota de ${Amount} de {Program} vence el {Date}. Pague mediante {PaymentMethod}. ¡Gracias!"},
+    {"title": "Due today", "use": "Send only if your records still show the bill as unpaid.", "en": "Hi {Parent}, tuition of ${Amount} for {Program} is due today ({Date}). Payment details: {PaymentMethod}. Thank you!", "es": "Hola {Parent}, la cuota de ${Amount} de {Program} vence hoy ({Date}). Cómo pagar: {PaymentMethod}. ¡Gracias!"},
+    {"title": "Gentle overdue reminder", "use": "Check your payment records before sending. Ask about discrepancies privately.", "en": "Hi {Parent}, our records show ${Balance} outstanding for {Program}, due {Date}. Please pay using {PaymentMethod}, or contact us if you have already paid.", "es": "Hola {Parent}, nuestros registros muestran un saldo de ${Balance} de {Program}, con vencimiento el {Date}. Pague mediante {PaymentMethod} o contáctenos si ya pagó."},
+    {"title": "Firm overdue follow-up", "use": "Use only a deadline and next step already supported by your written policy. This does not assess a new fee.", "en": "Hi {Parent}, ${Balance} for {Program} remains overdue, including ${AssessedFee} in fees already assessed under our policy. Please pay by {Deadline} or contact {Contact} to discuss next steps.", "es": "Hola {Parent}, el saldo de ${Balance} de {Program} sigue vencido e incluye ${AssessedFee} en recargos ya aplicados según nuestra política. Pague antes del {Deadline} o contacte a {Contact}."},
+    {"title": "Parent reported PAID — not yet verified", "use": "Acknowledge a report without issuing a receipt or claiming that money arrived. In TuitionPing, keep PAID as the reply keyword in either language.", "en": "Thanks {Parent}. Your payment is reported. {Program} will check its records and follow up if anything is missing.", "es": "Gracias {Parent}. Hemos registrado su aviso de pago. {Program} revisará sus registros y le avisará si falta algo."},
+    {"title": "Payment received — provider verified", "use": "Send only after you have verified the amount and billing period against your payment records. This is a manual provider template, not a bank confirmation from TuitionPing.", "en": "Thanks {Parent}. We have verified receipt of ${Amount} for {Period} at {Program}. Remaining balance: ${Balance}.", "es": "Gracias {Parent}. Hemos confirmado la recepción de ${Amount} de {Period} en {Program}. Saldo pendiente: ${Balance}."}
+  ]
+}

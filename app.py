@@ -20,6 +20,7 @@ Routes:
   GET  /healthz                 200 when alive
 """
 import os
+import json
 import re
 from datetime import date, datetime, timedelta, timezone
 
@@ -41,6 +42,26 @@ import billing
 from sms import DEMO_MODE as SMS_DEMO_MODE
 
 app = FastAPI(title="TuitionPing")
+
+# Dates describe substantive page edits, not filesystem timestamps at deployment.
+PUBLIC_PAGES = {
+    "/": ("landing.html", "2026-10-06"),
+    "/guide": ("guide.html", "2026-10-06"),
+    "/late-fee-policy": ("late-fee-policy.html", "2026-10-06"),
+    "/compare/brightwheel": ("compare-brightwheel.html", "2026-10-06"),
+    "/guides": ("guides.html", "2026-10-06"),
+    "/guides/tuition-reminder-templates": ("guide_templates.html", "2026-10-06"),
+    "/guides/handling-late-paying-parents": ("guide_late_parents.html", "2026-10-06"),
+    "/tools/late-fee-calculator": ("tool_late_fee_calc.html", "2026-10-06"),
+    "/tools/tuition-payment-tracker": ("tool_payment_tracker.html", "2026-10-06"),
+    "/about": ("about.html", "2026-10-06"),
+    "/support": ("support.html", None),
+    "/privacy": ("privacy.html", None),
+    "/terms": ("terms.html", None),
+    "/sms-consent": ("sms_consent.html", None),
+    "/sms-privacy": ("sms_privacy.html", None),
+    "/security": ("security.html", None),
+}
 
 
 @app.middleware("http")
@@ -175,6 +196,7 @@ _NO_SUB_EXACT = {
     "/guide", "/postcard", "/late-fee-policy", "/compare/brightwheel",
     "/tools/late-fee-calculator",
 }
+_NO_SUB_EXACT.update(PUBLIC_PAGES)
 _NO_SUB_PREFIXES = ("/billing/", "/admin", "/webhooks/", "/internal/",
                     "/static/", "/s/")
 
@@ -219,6 +241,7 @@ _TRACKED_PATHS = {"/", "/guide", "/postcard", "/late-fee-policy",
                   "/tools/late-fee-calculator",
                   "/terms", "/privacy", "/security", "/sms-privacy",
                   "/sms-consent", "/support", "/login", "/signup"}
+_TRACKED_PATHS.update(PUBLIC_PAGES)
 _TRACKED_PREFIXES = ("/compare/",)
 
 
@@ -247,6 +270,27 @@ async def track_site_visits(request: Request, call_next):
 app.mount("/static", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "static")), name="static")
 templates = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), "templates"))
 templates.env.globals["csrf_input"] = csrf_input
+with open(os.path.join(os.path.dirname(__file__), "content", "provider-resources.json"), encoding="utf-8") as resource_file:
+    templates.env.globals["provider_resources"] = json.load(resource_file)
+
+
+@app.middleware("http")
+async def public_search_headers(request: Request, call_next):
+    # Canonicalize marketing GET/HEAD pages only. Keep account sessions,
+    # billing, POSTs and machine callbacks on their original host.
+    if (request.method in ("GET", "HEAD")
+            and request.url.hostname == "tuitionping.com"
+            and request.url.path in PUBLIC_PAGES):
+        target = "https://www.tuitionping.com" + request.url.path
+        if request.url.query:
+            target += "?" + request.url.query
+        return RedirectResponse(target, status_code=308)
+    response = await call_next(request)
+    if request.url.path in {"/login", "/signup", "/forgot-password", "/reset-password", "/verify-email"}:
+        response.headers["X-Robots-Tag"] = "noindex"
+    if request.url.path.startswith("/static/downloads/"):
+        response.headers["X-Robots-Tag"] = "noindex"
+    return response
 
 
 @app.exception_handler(404)
@@ -510,38 +554,11 @@ def robots_txt():
 
 @app.get("/sitemap.xml")
 def sitemap_xml(request: Request):
-    urls = ["/", "/signup", "/guide", "/late-fee-policy", "/compare/brightwheel",
-            "/guides", "/guides/tuition-reminder-templates",
-            "/guides/handling-late-paying-parents",
-            "/tools/late-fee-calculator",
-            "/support", "/privacy", "/terms", "/sms-consent", "/sms-privacy",
-            "/security"]
-    template_for = {"/": "landing.html", "/signup": "signup.html",
-                    "/guide": "guide.html",
-                    "/late-fee-policy": "late-fee-policy.html",
-                    "/compare/brightwheel": "compare-brightwheel.html",
-                    "/guides": "guides.html",
-                    "/guides/tuition-reminder-templates": "guide_templates.html",
-                    "/guides/handling-late-paying-parents": "guide_late_parents.html",
-                    "/tools/late-fee-calculator": "tool_late_fee_calc.html",
-                    "/support": "support.html", "/privacy": "privacy.html",
-                    "/terms": "terms.html", "/sms-consent": "sms_consent.html",
-                    "/sms-privacy": "sms_privacy.html",
-                    "/security": "security.html"}
-    tpl_dir = os.path.join(os.path.dirname(__file__), "templates")
-
-    def lastmod(u):
-        try:
-            ts = os.path.getmtime(os.path.join(tpl_dir, template_for[u]))
-            return datetime.fromtimestamp(ts, tz=timezone.utc).date().isoformat()
-        except OSError:
-            return ""
-
+    from xml.sax.saxutils import escape
     items = "\n".join(
-        f'  <url><loc>https://www.tuitionping.com{u}</loc>'
-        f'<lastmod>{lastmod(u)}</lastmod>'
-        f'<changefreq>{"weekly" if u == "/" else "monthly"}</changefreq></url>'
-        for u in urls)
+        '  <url><loc>' + escape("https://www.tuitionping.com" + path) + '</loc>'
+        + (f'<lastmod>{updated}</lastmod>' if updated else '') + '</url>'
+        for path, (_, updated) in PUBLIC_PAGES.items())
     xml = f'<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n{items}\n</urlset>'
     return Response(content=xml, media_type="application/xml")
 
@@ -599,6 +616,18 @@ def tool_late_fee_calc(request: Request):
     provider = current_provider(request)
     return templates.TemplateResponse(request, "tool_late_fee_calc.html",
                                       {"request": request, "provider": provider})
+
+
+@app.get("/tools/tuition-payment-tracker", response_class=HTMLResponse)
+def tool_payment_tracker(request: Request):
+    return templates.TemplateResponse(request, "tool_payment_tracker.html",
+                                      {"request": request, "provider": current_provider(request)})
+
+
+@app.get("/about", response_class=HTMLResponse)
+def about_page(request: Request):
+    return templates.TemplateResponse(request, "about.html",
+                                      {"request": request, "provider": current_provider(request)})
 
 
 @app.get("/suggest", response_class=HTMLResponse)
