@@ -283,6 +283,23 @@ def _sync_from_subscription(provider_id: int, sub) -> None:
                    subscription_id=sub.get("id"))
     if meta.get("founding") in ("1", "0"):
         _set_founding(provider_id, meta.get("founding") == "1")
+    # Existing subscription callbacks/return-sync also confirm conversions,
+    # so measurement does not depend on adding new Stripe webhook event types.
+    if sub.get("livemode") is True:
+        import growth
+        if status == "trialing":
+            growth.milestone(provider_id, "trial_started")
+        elif status == "active" and sub.get("latest_invoice") and growth.needs_milestone(provider_id, "paid_customer"):
+            try:
+                invoice = sub["latest_invoice"]
+                if isinstance(invoice, str):
+                    invoice = _stripe_lib().Invoice.retrieve(invoice)
+                invoice = _as_dict(invoice)
+                if (invoice.get("livemode") is True and invoice.get("status") == "paid"
+                        and (invoice.get("amount_paid") or 0) > 0):
+                    growth.milestone(provider_id, "paid_customer")
+            except Exception:
+                print("[analytics] paid invoice confirmation unavailable", flush=True)
 
 
 def _plan_from_price(sub) -> str | None:
@@ -374,6 +391,11 @@ def handle_stripe_event(event) -> dict:
             if lid:
                 _sync_from_subscription(lid, sub)
                 _maybe_grant_referral_reward(lid, sub)
+                if session.get("livemode") is True:
+                    import growth
+                    growth.milestone(lid, "checkout_completed")
+                    if sub.get("status") == "trialing":
+                        growth.milestone(lid, "trial_started")
         return {"received": True, "type": etype}
 
     if etype in ("customer.subscription.updated", "customer.subscription.deleted"):
@@ -392,6 +414,20 @@ def handle_stripe_event(event) -> dict:
                 set_stripe_ids(lid, subscription_id=sub.get("id"))
             else:
                 _sync_from_subscription(lid, sub)
+        return {"received": True, "type": etype}
+
+    if etype in ("invoice.paid", "invoice.payment_succeeded"):
+        inv = _as_dict((event.get("data") or {}).get("object") or {})
+        if inv.get("livemode") is True and (inv.get("amount_paid") or 0) > 0:
+            # Support both old and current Stripe invoice shapes.
+            parent = _as_dict(inv.get("parent") or {})
+            details = _as_dict(parent.get("subscription_details") or {})
+            if inv.get("subscription") or details.get("subscription"):
+                from store import get_provider_by_stripe_customer
+                provider = get_provider_by_stripe_customer(inv.get("customer"))
+                if provider:
+                    import growth
+                    growth.milestone(provider["id"], "paid_customer")
         return {"received": True, "type": etype}
 
     if etype == "invoice.payment_failed":
