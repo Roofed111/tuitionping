@@ -1,118 +1,117 @@
 {% extends "base.html" %}
-{% block title %}Daycare Late Fee Calculator — How Much Is Late Tuition Costing You?{% endblock %}
-{% block meta_description %}<meta name="description" content="Free daycare late fee calculator: enter tuition, days late, and your fee policy to see exactly what a family owes — and what chronic lateness costs you per year.">{% endblock %}
-{% block content %}
-<style>
-  .calc { max-width: 640px; margin: 0 auto; }
-  .calc .card { margin-bottom: 16px; }
-  .calc label { display: block; font-size: .9em; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
-  .calc input[type="number"], .calc select { width: 100%; padding: 10px 12px; font-size: 1em;
-      border: 1px solid var(--line); border-radius: 10px; box-sizing: border-box; }
-  .calc input[type="range"] { width: 100%; }
-  .calc .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  @media (max-width: 560px) { .calc .row { grid-template-columns: 1fr; } }
-  .result { background: var(--brand-soft); border-radius: 14px; padding: 24px; text-align: center; }
-  .result .big { font-size: 2.6em; font-weight: 800; color: var(--brand-dark); letter-spacing: -.02em; }
-  .result .lbl { font-size: .9em; color: var(--ink-soft); margin-top: 4px; }
-  .result .breakdown { text-align: left; margin: 16px auto 0; max-width: 380px; font-size: .93em; }
-  .result .breakdown div { display: flex; justify-content: space-between; padding: 6px 0;
-                           border-bottom: 1px solid rgba(0,0,0,.08); }
-  .result .breakdown div:last-child { border-bottom: 0; font-weight: 700; }
-  .yearly { background: #fef9c3; border: 1px solid #eab308; border-radius: 14px; padding: 20px;
-            text-align: center; margin-top: 16px; }
-  .yearly b { color: #713f12; }
-  .tool-cta { text-align: center; margin-top: 24px; }
-</style>
-
-<div class="page-head"><div>
-  <h1>Daycare late fee calculator</h1>
-  <p class="sub">Enter the numbers — see exactly what a late family owes, and what chronic lateness costs you every year.</p>
-</div></div>
-
-<div class="calc">
-  <div class="card">
-    <div class="row">
-      <div><label>Monthly tuition ($)</label><input type="number" id="c-tuition" value="1200" min="1" step="50"></div>
-      <div><label>Days overdue</label><input type="range" id="c-days" min="1" max="60" value="7" style="margin-top:14px"><b id="c-days-v">7 days</b></div>
-    </div>
-  </div>
-  <div class="card">
-    <div class="row">
-      <div><label>Late fee type</label>
-        <select id="c-type">
-          <option value="flat">Flat fee (one-time)</option>
-          <option value="daily">Per day</option>
-          <option value="pct">% of tuition (one-time)</option>
-        </select>
-      </div>
-      <div><label id="c-amt-lbl">Fee amount ($)</label><input type="number" id="c-amt" value="25" min="0" step="1"></div>
-    </div>
-    <div style="margin-top:14px"><label>Grace period (days before fee kicks in)</label>
-      <input type="range" id="c-grace" min="0" max="14" value="0" style="margin-top:6px"> <b id="c-grace-v">0 days</b>
-    </div>
-  </div>
-  <div class="card">
-    <label>Families late in a typical month (for the yearly cost)</label>
-    <input type="range" id="c-fams" min="1" max="50" value="5" style="margin-top:6px"> <b id="c-fams-v">5 families</b>
-  </div>
-
-  <div class="result">
-    <div class="big" id="r-total">$1,225</div>
-    <div class="lbl">total owed by one family</div>
-    <div class="breakdown">
-      <div><span>Tuition</span><span id="r-tui">$1,200</span></div>
-      <div><span>Late fee</span><span id="r-fee">$25</span></div>
-      <div><span>Total due</span><span id="r-tot2">$1,225</span></div>
-    </div>
-  </div>
-
-  <div class="yearly">
-    <b id="r-yearly">$1,500</b> in late fees left on the table every year
-    <div style="font-size:.88em;color:#713f12;margin-top:6px" id="r-yearly-sub">if 5 families pay 7 days late each month and you don't enforce the fee</div>
-  </div>
-
-  <div class="tool-cta">
-    <p style="color:var(--muted);font-size:.95em">TuitionPing applies your late fee automatically — same day, every time, no awkward conversation.</p>
-    <a class="btn" href="/signup?plan=growth" style="font-size:1.05em;padding:13px 28px">Start free 30-day trial</a>
-  </div>
-</div>
-
-<script>
-(function(){
-  var $ = function(id){ return document.getElementById(id); };
-  var tuition = $('c-tuition'), days = $('c-days'), type = $('c-type'),
-      amt = $('c-amt'), grace = $('c-grace'), fams = $('c-fams');
-  function fmt(n){ return '$' + Math.round(n).toLocaleString('en-US'); }
-  function calc(){
-    var t = Math.max(0, +tuition.value || 0),
-        d = +days.value,
-        g = +grace.value,
-        a = Math.max(0, +amt.value || 0),
-        f = +fams.value,
-        fee = 0;
-    $('c-days-v').textContent = d + (d === 1 ? ' day' : ' days');
-    $('c-grace-v').textContent = g + (g === 1 ? ' day' : ' days');
-    $('c-fams-v').textContent = f + (f === 1 ? ' family' : ' families');
-    $('c-amt-lbl').textContent = type.value === 'pct' ? 'Fee percent (%)' : 'Fee amount ($)';
-    if (d > g) {
-      var billable = d - g;
-      if (type.value === 'flat') fee = a;
-      else if (type.value === 'daily') fee = a * billable;
-      else fee = t * a / 100;
-    }
-    $('r-tui').textContent = fmt(t);
-    $('r-fee').textContent = fmt(fee);
-    $('r-tot2').textContent = fmt(t + fee);
-    $('r-total').textContent = fmt(t + fee);
-    var yearly = fee * f * 12;
-    $('r-yearly').textContent = fmt(yearly);
-    $('r-yearly-sub').textContent = 'if ' + f + (f === 1 ? ' family pays ' : ' families pay ') +
-      d + ' days late each month and you don\'t enforce the fee';
-  }
-  [tuition, days, type, amt, grace, fams].forEach(function(el){
-    el.addEventListener('input', calc); el.addEventListener('change', calc);
-  });
-  calc();
-})();
+{% block title %}Daycare Late Fee Calculator: Grace Periods, Caps & Daily Fees | TuitionPing{% endblock %}
+{% block meta_description %}
+<meta name="description" content="Free daycare tuition late fee calculator. Compare flat, daily, weekly and percentage fees with grace periods, payment credits and caps. Print or share your results.">
+<link rel="stylesheet" href="/static/late-fee-calculator.css?v=2">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@graph":[{"@type":"WebApplication","name":"Daycare Late Fee Calculator","url":"https://www.tuitionping.com/tools/late-fee-calculator","applicationCategory":"BusinessApplication","operatingSystem":"Any","browserRequirements":"Requires JavaScript","isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"description":"Calculate daycare tuition late fees with grace periods, caps and payment credits. Compare five fee models and print or export the results.","publisher":{"@type":"Organization","name":"TuitionPing"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.tuitionping.com/"},{"@type":"ListItem","position":2,"name":"Resources","item":"https://www.tuitionping.com/guides"},{"@type":"ListItem","position":3,"name":"Late fee calculator","item":"https://www.tuitionping.com/tools/late-fee-calculator"}]}]}
 </script>
+{% endblock %}
+{% block og_title %}Free Daycare Late Fee Calculator — Compare Policies & Print Results{% endblock %}
+{% block og_description %}Calculate flat, daily, weekly or percentage tuition late fees. Add grace periods, payment credits and caps, then compare policies or share a calculation.{% endblock %}
+{% block content %}
+<div class="lfc">
+  <header class="hero">
+    <div class="eyebrow">TuitionPing · Free tools for childcare providers</div>
+    <h1>Daycare late fee calculator</h1>
+    <p class="lead">Know what’s owed. See how your policy adds up.</p>
+    <p>Calculate overdue tuition, compare five late-fee policies, and create a clear breakdown for your records. For daycare, preschool, after-school and other childcare tuition.</p>
+    <div class="chips"><span>No signup</span><span>USD · cents included</span><span>Print & export</span><span>Runs in your browser</span></div>
+  </header>
+  <h2 class="print-title" hidden>TuitionPing · Tuition late-fee estimate</h2>
+  <noscript><div class="error">Enable JavaScript to calculate a fee. The formulas and worked example below are still available.</div></noscript>
+  <div class="workspace">
+    <form id="lfc-form" class="inputs" novalidate>
+      <section class="card">
+        <div class="section-head"><span class="step" aria-hidden="true">1</span><h2>Tuition & timing</h2></div>
+        <div class="fields">
+          <div><label for="tuition">Tuition due ($)</label><input id="tuition" name="tuition" type="number" min="0" max="1000000" step="0.01" value="1200" required></div>
+          <div><label for="credit">Paid or credited before fees ($)</label><input id="credit" name="credit" type="number" min="0" max="1000000" step="0.01" value="0" required aria-describedby="credit-help"></div>
+        </div>
+        <p class="hint" id="credit-help">Credits reduce tuition before any fee accrues. This tool does not reconstruct fees already earned before a later payment.</p>
+        <fieldset><legend>How do you want to count lateness?</legend>
+          <div class="toggle"><label><input type="radio" name="timing" value="days" checked><span>Enter days overdue</span></label><label><input type="radio" name="timing" value="dates"><span>Use actual dates</span></label></div>
+          <div id="days-fields"><label for="days">Calendar days overdue</label><input id="days" name="days" type="number" min="0" max="3660" step="1" value="7" required></div>
+          <div class="fields" id="date-fields" hidden>
+            <div><label for="due">Tuition due date</label><input id="due" name="due" type="date" min="1900-01-01" max="9999-12-31" disabled required></div>
+            <div><label for="asof">Payment / calculation date</label><input id="asof" name="asof" type="date" min="1900-01-01" max="9999-12-31" disabled required></div>
+          </div>
+          <span class="hint">The due date is day 0. The next calendar day is day 1; weekends and holidays count.</span>
+        </fieldset>
+      </section>
+      <section class="card">
+        <div class="section-head"><span class="step" aria-hidden="true">2</span><h2>Your fee policy</h2></div>
+        <div class="fields">
+          <div><label for="type">Late fee model</label><select id="type" name="type"><option value="flat">One-time flat fee</option><option value="daily">Fee per day</option><option value="weekly">Fee per started week</option><option value="percent">One-time percentage</option><option value="flat_daily">Flat fee + daily fee</option></select></div>
+          <div><label id="amount-label" for="amount">Flat fee ($)</label><input id="amount" name="amount" type="number" min="0" max="1000000" step="0.01" value="25" required></div>
+          <div id="daily-field" hidden><label for="dailyRate">Additional daily fee ($)</label><input id="dailyRate" name="dailyRate" type="number" min="0" max="1000000" step="0.01" value="5" disabled required></div>
+          <div><label for="grace">Grace period (calendar days)</label><input id="grace" name="grace" type="number" min="0" max="365" step="1" value="0" required></div>
+          <div><label for="cap">Maximum late fee ($, optional)</label><input id="cap" name="cap" type="number" min="0" max="1000000" step="0.01" placeholder="No cap" aria-describedby="cap-help"><span class="hint" id="cap-help">Limits fees for this tuition bill. Enter 0 to waive fees.</span></div>
+        </div>
+        <p class="hint" id="model-help">A single fee applies on the first day after the grace period.</p>
+        <button class="btn" type="submit">Calculate late fee</button>
+        <button class="btn btn-ghost" id="reset" type="button">Reset</button>
+        <div class="error" id="calc-error" role="alert" hidden></div>
+      </section>
+    </form>
+    <div>
+      <section class="result-card" aria-labelledby="result-heading">
+        <div class="result-top"><div class="eyebrow" id="result-heading">Total remaining due</div><div class="total" id="total">—</div><div id="timing-summary">Enter your policy to calculate.</div></div>
+        <div class="result-body">
+          <dl><div class="line"><dt>Original tuition</dt><dd id="r-tuition">—</dd></div><div class="line"><dt>Prior payment / credit</dt><dd id="r-credit">—</dd></div><div class="line"><dt>Unpaid tuition</dt><dd id="r-balance">—</dd></div><div class="line"><dt>Late fee</dt><dd id="r-fee">—</dd></div><div class="line"><dt>Total remaining due</dt><dd id="r-total">—</dd></div></dl>
+          <p class="hint" id="selected-policy"></p>
+          <p class="formula" id="formula"></p>
+          <p class="notice" id="cap-note" hidden></p>
+          <p class="notice">Planning estimate using your inputs. It does not determine whether a fee is permitted. Use your written agreement and applicable rules. It does not charge a family or change your TuitionPing settings.</p>
+          <div class="tools no-print" style="margin-top:16px"><button type="button" class="btn btn-ghost result-action" id="copy-summary">Copy breakdown</button><button type="button" class="btn btn-ghost result-action" id="print">Print / save PDF</button><button type="button" class="btn btn-ghost result-action" id="export">Download CSV</button><button type="button" class="btn btn-ghost result-action" id="share">Copy calculation link</button></div>
+          <p class="hint no-print">A calculation link includes your numbers in the URL. Share only figures you’re comfortable making public; no family names are needed.</p>
+          <div class="status no-print" id="action-status" role="status" aria-live="polite"></div>
+          <div class="visually-hidden" id="result-announcement" role="status" aria-live="polite"></div>
+        </div>
+      </section>
+      <section class="card" aria-labelledby="timeline-heading"><h2 id="timeline-heading">If payment arrives later</h2><p class="hint">Same unpaid balance and policy; no additional payments. Days shown are measured from the due date.</p><div class="table-wrap"><table><caption class="visually-hidden">Late fees and remaining totals at different overdue days</caption><thead><tr><th scope="col">Days overdue</th><th scope="col">Late fee</th><th scope="col">Total due</th></tr></thead><tbody id="timeline"></tbody></table></div></section>
+    </div>
+  </div>
+  <section class="card section" aria-labelledby="compare-heading">
+    <h2 id="compare-heading">Compare late-fee policies</h2>
+    <p class="muted-text">See how different structures affect the same bill. Example rates are illustrations, not recommended fees. Your grace period, credit and cap apply to every row.</p>
+    <div class="table-wrap"><table><caption class="visually-hidden">Current policy compared with illustrative fee structures</caption><thead><tr><th scope="col">Policy</th><th scope="col">Calculation</th><th scope="col">Late fee</th></tr></thead><tbody id="comparison"></tbody></table></div>
+  </section>
+  <section class="card section" aria-labelledby="impact-heading">
+    <h2 id="impact-heading">What repeated lateness looks like</h2>
+    <p class="muted-text">Model a repeated scenario—not a forecast or a promise of fee collections.</p>
+    <div class="fields no-print"><div><label for="families">Late tuition bills per cycle</label><input id="families" type="number" min="0" max="10000" step="1" value="5" required></div><div><label for="cycles">Billing cycles per year</label><select id="cycles"><option value="12">Monthly · 12</option><option value="26">Every two weeks · 26</option><option value="52">Weekly · 52</option><option value="1">One cycle · 1</option></select></div></div>
+    <div class="impact-grid"><div class="impact-stat"><span>Tuition delayed in one cycle</span><strong id="delayed">—</strong></div><div class="impact-stat"><span>Hypothetical fees over the year</span><strong id="annual">—</strong></div></div>
+    <p class="hint" id="impact-assumptions"></p>
+    <p class="hint">Delayed tuition is a timing issue, not automatically lost revenue. Hypothetical fees are assessed amounts before waivers, collection rates, taxes or other costs.</p>
+  </section>
+  <section class="card section">
+    <h2>How the late-fee calculation works</h2>
+    <p>Start with <strong>unpaid tuition = original tuition − prior payment or credit</strong>. Then calculate <strong>billable days = days overdue − grace days</strong>, with a minimum of zero. Fees begin only after the grace period and only if tuition remains unpaid.</p>
+    <div class="table-wrap"><table><caption class="visually-hidden">Formulas for the five supported late fee types</caption><thead><tr><th scope="col">Fee model</th><th scope="col">Formula after grace ends</th></tr></thead><tbody><tr><td>One-time flat</td><td>Flat fee once</td></tr><tr><td>Daily</td><td>Daily rate × billable days</td></tr><tr><td>Per started week</td><td>Weekly rate × billable days rounded up to groups of 7</td></tr><tr><td>One-time percentage</td><td>Unpaid tuition × percentage ÷ 100</td></tr><tr><td>Flat + daily</td><td>Flat fee + daily rate × billable days</td></tr></tbody></table></div>
+    <p>A cap limits only the late fee, not tuition. Percentage fees round to the nearest cent; fees do not compound.</p>
+    <h3>Worked example: $1,200 tuition, 7 days late</h3>
+    <p>With a $200 prior credit, a 2-day grace period, a $5 daily rate and a $20 cap: unpaid tuition is $1,000, billable days are 5, and the uncapped fee is $25. The cap reduces the fee to $20. <strong>Total remaining due: $1,020.</strong></p>
+    <button class="btn btn-ghost no-print" id="load-example" type="button">Try this example</button>
+  </section>
+  <section class="card section faq">
+    <h2>Frequently asked questions</h2>
+    <details><summary>Does a grace period erase the earlier overdue days?</summary><p>In this calculator, grace days are excluded from the fee calculation. Seven days overdue with two grace days means five billable days. Some agreements assess fees retroactively after grace expires; this tool does not model that rule.</p></details>
+    <details><summary>How are weekly late fees counted?</summary><p>A started week is any group of up to seven billable calendar days. Days 1–7 count as one week, 8–14 as two. The calculation begins after grace ends.</p></details>
+    <details><summary>Can I calculate a fee on a partially paid bill?</summary><p>Yes, when the payment or credit occurred before late fees began. The tool subtracts it from tuition, and percentage fees apply to the remaining balance. Payments made after fees started require a dated payment history and are not modeled here.</p></details>
+    <details><summary>Is this a late pickup fee calculator?</summary><p>No. This tool calculates late tuition payments by day. Late pickup charges based on minutes after closing use a different policy and calculation.</p></details>
+    <details><summary>What if tuition is fully paid or payment is not overdue?</summary><p>The estimated new late fee is zero when the remaining tuition balance is zero, payment is on or before the due date, or the grace period has not ended. Fees already accrued before a payment are outside this estimate.</p></details>
+    <details><summary>Do I need an account, and are my inputs saved?</summary><p>No account is needed. Calculations run in your browser; this tool does not submit your inputs to TuitionPing or save them in an account. The site’s normal visit analytics still apply. Copying a calculation link puts its inputs in the URL, where recipients can see them.</p></details>
+    <details><summary>Will this update my provider account’s fee policy?</summary><p>No. This is a standalone planning tool. Its five models may differ from the fee options available in your TuitionPing account.</p></details>
+  </section>
+  <section class="card section resources no-print">
+    <h2>Link to this free calculator</h2><p>Writing a childcare handbook, provider resource page or article about tuition policies? Give readers a way to check the numbers. This calculator is free and requires no account.</p>
+    <label for="link-snippet">Ready-to-use HTML link</label><textarea class="link-snippet" id="link-snippet" rows="3" readonly>&lt;a href="https://www.tuitionping.com/tools/late-fee-calculator"&gt;Free daycare tuition late fee calculator&lt;/a&gt;</textarea>
+    <div class="tools" style="margin-top:12px"><button class="btn btn-ghost" id="copy-link" type="button">Copy page link</button><button class="btn btn-ghost" id="copy-html" type="button">Copy HTML link</button></div><p class="status" id="link-status" role="status" aria-live="polite"></p>
+  </section>
+  <section class="section resources"><h2>Put your policy into practice</h2><div class="resource-grid"><div class="card"><a href="/late-fee-policy">Late-fee policy template</a><p class="muted-text">Write down the due date, grace period and fee structure.</p></div><div class="card"><a href="/guides/tuition-reminder-templates">Tuition reminder templates</a><p class="muted-text">Find clear messages for before and after tuition is due.</p></div><div class="card"><a href="/guides/handling-late-paying-parents">Handling late-paying parents</a><p class="muted-text">Build a consistent follow-up process.</p></div></div></section>
+  <section class="cta"><h2>Spend less time chasing tuition.</h2><p>TuitionPing helps childcare providers send tuition reminder texts and follow up on overdue payments.</p><a class="btn" href="/signup?plan=growth">Start your free trial</a></section>
+</div>
+<script src="/static/late-fee-math.js?v=2" defer></script>
+<script src="/static/late-fee-calculator.js?v=2" defer></script>
 {% endblock %}
