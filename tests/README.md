@@ -31,3 +31,19 @@ retroactively charged, weekly fees count started weeks, percentages apply to
 unpaid tuition once, and credits are assumed to precede fee accrual. The tool
 cannot reconstruct a dated history of partial payments or determine legal
 applicability. It does not alter account fee rules or create invoices.
+
+## Public resources and workbook
+
+The Python suite also checks marketing redirects, auth/download indexing headers,
+free access for expired subscribers, sitemap dates, resource links and ZIP contents.
+For formula checks on the actual shipped spreadsheet (development dependencies only):
+
+```sh
+npm install --prefix /tmp/tuitionping-workbook-qa xlsx xlsx-calc
+NODE_PATH=/tmp/tuitionping-workbook-qa/node_modules node --test tests/payment-tracker.test.cjs
+```
+
+To rebuild the downloads, install development-only `reportlab`, `python-docx` and
+`openpyxl`, then run `python scripts/build_resource_downloads.py`. Shared policy and
+message content lives in `content/provider-resources.json`. Keep the workbook
+Google Sheets import check manual: the Worked example should show $190 and 7 days.

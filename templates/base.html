@@ -11,6 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="TuitionPing">
 <title>{% block title %}TuitionPing{% endblock %}</title>
 {% block meta_description %}{% endblock %}
+<meta property="og:url" content="https://www.tuitionping.com{{ request.url.path }}">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="TuitionPing">
 <meta property="og:title" content="{% block og_title %}TuitionPing — Automatic Tuition Reminders by Text for Daycares{% endblock %}">
@@ -205,6 +206,7 @@
     .page-head h1 { font-size: 1.4em; }
   }
 </style>
+<link rel="stylesheet" href="/static/resources.css?v=1">
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
@@ -219,7 +221,7 @@
         <a href="/support"{% if request.url.path == '/support' %} class="active" aria-current="page"{% endif %}>Support</a>
         <form class="inline" method="post" action="/logout">{{ csrf_input(request) }}<button class="btn btn-ghost btn-sm" style="margin-left:8px">Log out</button></form>
       {% else %}
-        <a href="/support">Support</a><a href="/login">Log in</a><a class="btn btn-sm" href="/signup?plan=growth" style="margin-left:8px">Start free trial</a>
+        <a href="/guides"{% if request.url.path == "/guides" %} aria-current="page"{% endif %}>Free tools &amp; templates</a><a href="/login">Log in</a><a class="btn btn-sm" href="/signup?plan=growth" style="margin-left:8px">Start free trial</a>
       {% endif %}
     </nav>
   </div>
@@ -228,6 +230,6 @@
 {% block content %}{% endblock %}
 </div>
 <footer>TuitionPing · automated tuition reminders by text message<br>A product of Hirsch Commerce LLC · Concord, California{% if demo %} · demo mode: texts are simulated{% endif %}<br>
-<a href="/guides">Guides</a> · <a href="/support">Support</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="/security">Security</a>{% if provider %} · <a href="/suggest">Suggest a feature</a>{% endif %}{% if provider and provider["is_admin"] %} · <a href="/admin">Admin</a>{% endif %}</footer>
+<a href="/guides">Free tools &amp; templates</a> · <a href="/about">About</a> · <a href="/support">Support</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="/security">Security</a>{% if provider %} · <a href="/suggest">Suggest a feature</a>{% endif %}{% if provider and provider["is_admin"] %} · <a href="/admin">Admin</a>{% endif %}</footer>
 </body>
 </html>
