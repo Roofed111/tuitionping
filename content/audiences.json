@@ -1,0 +1,81 @@
+{
+  "/home-daycare-tuition-reminders": {
+    "title": "Home Daycare Tuition Reminders by Text | TuitionPing",
+    "description": "Schedule tuition reminder texts for your home daycare. Keep your payment method, use your own wording, and verify parent-reported payments. Try the public demo.",
+    "kicker": "For family child care and home daycare owners",
+    "heading": "Tuition reminders for the home daycare you run yourself.",
+    "intro": "When you're caring for children, preparing meals and talking with families, tuition follow-up can become an evening job. TuitionPing gives each family a reminder schedule, while you keep control of the payment policy and verify what actually arrived.",
+    "workflow_heading": "A simple routine for a small roster",
+    "steps": [
+      ["Write down the agreement", "Give each family the amount, due date, payment method and any late-fee terms before enrollment. A reminder reinforces that agreement; it does not replace it."],
+      ["Enter each family's details", "Add the parent contact, tuition amount and due date, then choose English or Spanish. Obtain permission for tuition texts before adding a phone number."],
+      ["Let the schedule handle follow-up", "The app schedules a heads-up three days before the due date, a due-day reminder, and unpaid follow-ups at three and seven days overdue. Customize the message wording to sound like your program."],
+      ["Check your actual receipts", "Review checks, transfers or the payment platform you already use. A parent replying PAID records a report for review. Mark the tuition paid after you confirm receipt."]
+    ],
+    "example_heading": "Example: six families with different due dates",
+    "example": "One family's monthly tuition is due on the 5th and another's on the 10th. Put their own dates and amounts on their records. A due-day text can say: ‘Hi Alex, tuition of $800 for Little Oak Daycare is due today. Please use our usual payment method and reply PAID once sent.’ You still check your records before verifying payment.",
+    "example_note": "Illustrative program and amount. Your enrollment agreement determines the actual amount and timing.",
+    "fit_heading": "Keep the system you already trust",
+    "fit": "This can fit an owner who needs tuition follow-up without moving enrollment, attendance and payments to a full management platform. It does not process tuition or replace your bookkeeping. If you need an integrated billing and payment platform, compare that broader requirement before choosing.",
+    "faq": [
+      ["Do parents need another app?", "Parents receive ordinary text messages and can reply. They do not need a TuitionPing parent account."],
+      ["Can I keep taking checks or transfers?", "Yes. TuitionPing handles reminders and parent replies. You continue using your existing payment method and verify receipt yourself."],
+      ["Can I start with the free tracker instead?", "Yes. The tuition payment tracker works independently of TuitionPing. It helps organize balances but does not send reminders."]
+    ],
+    "resources": [["/late-fee-policy", "Customize a written tuition policy"], ["/tools/tuition-payment-tracker", "Download the free payment tracker"]],
+    "plan": "micro"
+  },
+  "/small-daycare-tuition-reminders": {
+    "title": "Tuition Reminder Software for Small Daycare Centers | TuitionPing",
+    "description": "Organize tuition reminders across classrooms at a small daycare center. Import families, review message history and verify payments using your existing records.",
+    "kicker": "For directors of small daycare centers",
+    "heading": "A repeatable tuition follow-up process for your small center.",
+    "intro": "A director needs to know which family was reminded, which payment was reported, and which receipt has been checked. TuitionPing organizes families by location and classroom and records tuition messages, so follow-up has a clear place in your office routine.",
+    "workflow_heading": "From roster to a daily office check",
+    "steps": [
+      ["Prepare a clean roster", "Use a CSV import or enter families individually. Check the parent phone number, amount, due date and classroom. One accurate record is more useful than separate reminder lists in several inboxes."],
+      ["Set the program's message wording", "Use a consistent explanation of the due date and payment method. Customize before-due, due-day and overdue messages, and configure quiet hours for your timezone."],
+      ["Review replies in the dashboard", "Parents can reply PAID. Treat those replies as a review queue, then compare them with the center's payment records. Message history helps you see what was sent and received."],
+      ["Finish reconciliation", "Confirm the actual payment before marking tuition paid. Keep bookkeeping and tuition receipts in the records your center already uses. The reminder system does not verify bank deposits."]
+    ],
+    "example_heading": "Example: two classrooms, one tuition process",
+    "example": "A center has an infant room and a preschool room. Organize both rosters by classroom, while preserving each family's own tuition amount and due date. At the office check, review parent payment reports against your payment platform, verify the receipts that match, and privately follow up on unresolved balances.",
+    "example_note": "Illustrative workflow. This does not imply separate staff permissions, bank reconciliation or an accounting integration.",
+    "fit_heading": "Focused reminders alongside your existing tools",
+    "fit": "Choose a focused reminder tool when your enrollment and payment systems already work, but tuition follow-up is inconsistent. If your center needs attendance, staff management, parent portfolios and integrated payment processing, a broader childcare management suite may be a better fit. Compare the entire workflow, not just the reminder feature.",
+    "faq": [
+      ["Can I organize families by classroom?", "Yes. Families are organized under classrooms and locations. Keep the contact details and tuition schedule accurate for each family."],
+      ["Does TuitionPing collect tuition?", "No. TuitionPing sends reminders and records replies. Your existing payment method collects the tuition, and you verify receipt."],
+      ["What happens when a parent opts out?", "A parent can reply STOP to stop texts. Use an appropriate alternative for tuition communication and update the family's records rather than repeatedly texting them."]
+    ],
+    "resources": [["/guide", "Build an on-time tuition checklist"], ["/compare/brightwheel", "Compare focused reminders with a management suite"]],
+    "plan": "starter"
+  },
+  "/bilingual-daycare-tuition-reminders": {
+    "title": "English & Spanish Daycare Tuition Reminders | TuitionPing",
+    "description": "Send daycare tuition reminder texts in each family's preferred English or Spanish. Preview bilingual examples, customize wording and verify payment reports.",
+    "kicker": "For programs serving English- and Spanish-speaking families",
+    "heading": "Send tuition reminders in the language each family prefers.",
+    "intro": "A useful tuition reminder needs to be understandable: the amount, due date, payment method and next step should be clear. TuitionPing lets you choose English or Spanish for each family and edit the reminder templates in both languages.",
+    "workflow_heading": "Keep the meaning consistent in both languages",
+    "steps": [
+      ["Ask the family which language they prefer", "Record the preference on the family's contact details. Do not infer it from a name. Obtain permission for tuition texts and explain how replies and opt-outs work."],
+      ["Review both sets of templates", "Customize English and Spanish wording to match your program's agreement. Keep amounts, dates, payment instructions and late-fee terms consistent across languages."],
+      ["Preview before you send", "Check a sample message for the correct family, amount and date. Avoid abbreviations that make the next action unclear. The public demo lets you switch languages on the same sample reminder."],
+      ["Separate a report from a receipt", "Explain that replying PAID tells the provider to check the records. Verify the payment before treating it as received, regardless of the language of the original reminder."]
+    ],
+    "example_heading": "The same due-day reminder, two clear versions",
+    "example": "English: ‘Sunshine Daycare: Tuition of $1,200 is due today, October 8. Please use our usual payment method and reply PAID once you have sent it.’",
+    "spanish": "Español: ‘Sunshine Daycare: Su pago de $1,200 vence hoy, 8 de octubre. Use nuestro método de pago habitual y responda PAID cuando haya enviado el pago.’",
+    "example_note": "Fictional example. PAID is the reply keyword shown here; payment still requires provider verification. STOP opts out of texts.",
+    "fit_heading": "Language preferences belong to individual families",
+    "fit": "One program can have families receiving English reminders and others receiving Spanish reminders. This feature concerns the text messages; it does not promise a fully Spanish-language staff dashboard or interpretation services. Review the wording with someone familiar with your families and program policies.",
+    "faq": [
+      ["Can English and Spanish families be in the same classroom?", "Yes. The reminder language is set per family, rather than requiring a separate classroom."],
+      ["Can I edit the Spanish wording?", "Yes. Both template sets are editable. Check that the meaning matches your English version and your written agreement."],
+      ["Are the bilingual templates free?", "The downloadable English and Spanish reminder templates are free, with no signup required. Automated messaging is part of TuitionPing's paid service after its trial."]
+    ],
+    "resources": [["/guides/tuition-reminder-templates", "Download English and Spanish text templates"], ["/sms-consent", "Review model SMS consent language"]],
+    "plan": "micro"
+  }
+}

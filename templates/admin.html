@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="tabs"><a href="/admin" class="active">Customers</a><a href="/admin/abuse">Abuse monitor</a><a href="/admin/suggestions">Suggestions</a><a href="/admin/attribution">Attribution</a><a href="/admin/visitors">Visitors</a></div>
+<div class="tabs"><a href="/admin" class="active">Customers</a><a href="/admin/abuse">Abuse monitor</a><a href="/admin/suggestions">Suggestions</a><a href="/admin/attribution">Attribution</a><a href="/admin/visitors">Visitors</a><a href="/admin/conversions">Conversions</a></div>
 <h2>Customers</h2>
 <p class="muted">{{ stats|length }} accounts{% if new_count %} · <strong>{{ new_count }} new this week</strong> 🎉{% endif %} · click a column header to sort · good for spotting long-time customers to reward.</p>
 {% if not admin_configured %}

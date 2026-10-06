@@ -115,7 +115,7 @@
            padding: 12px 16px; margin: 12px 0; }
 
   /* ---------- admin tabs ---------- */
-  .tabs { display: flex; gap: 6px; margin-bottom: 18px; }
+  .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; }
   .tabs a { padding: 8px 18px; border-radius: 999px; text-decoration: none;
             color: var(--muted); font-weight: 650; background: #f1f5f9; }
   .tabs a.active { background: var(--brand); color: #fff; }
@@ -208,6 +208,7 @@
   }
 </style>
 <link rel="stylesheet" href="/static/resources.css?v=2">
+{% if request.state.growth_token %}<meta name="tp-analytics-token" content="{{ request.state.growth_token }}"><script src="/static/growth.js?v=1" defer></script>{% endif %}
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
@@ -222,7 +223,7 @@
         <a href="/support"{% if request.url.path == '/support' %} class="active" aria-current="page"{% endif %}>Support</a>
         <form class="inline" method="post" action="/logout">{{ csrf_input(request) }}<button class="btn btn-ghost btn-sm" style="margin-left:8px">Log out</button></form>
       {% else %}
-        <a href="/guides"{% if request.url.path == "/guides" %} aria-current="page"{% endif %}>Free tools &amp; templates</a><a href="/login">Log in</a><a class="btn btn-sm" href="/signup?plan=growth" style="margin-left:8px">Start free trial</a>
+        <a href="/demo"{% if request.url.path == "/demo" %} aria-current="page"{% endif %}>Try the demo</a><a href="/guides"{% if request.url.path == "/guides" %} aria-current="page"{% endif %}>Free tools &amp; templates</a><a href="/login">Log in</a><a class="btn btn-sm" href="/signup?plan=growth" style="margin-left:8px">Start free trial</a>
       {% endif %}
     </nav>
   </div>

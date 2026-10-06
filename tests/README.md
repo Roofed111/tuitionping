@@ -34,6 +34,33 @@ applicability. It does not alter account fee rules or create invoices.
 
 ## Public resources and workbook
 
+## Demo and acquisition conversions
+
+The public `/demo` is a browser-only fictional roster. It has no account,
+SMS-send or payment endpoint. Run its DOM workflow with:
+
+```sh
+NODE_PATH=/tmp/tuitionping-ui/node_modules node --test tests/demo-ui.test.cjs
+```
+
+`test_growth.py` checks public access, signed identity/token validation,
+first-touch attribution, query exclusion, opt-out/bot filtering, per-account
+deduplication, retention, admin access and live/test/zero-dollar billing
+boundaries. Billing and Twilio are mocked; tests send no real messages and
+create no external accounts or charges. Conversion reporting is at
+`/admin/conversions`. Public campaign labels use `utm_source`, `utm_medium`,
+and `utm_campaign`; the signup dropdown remains a separate self-report.
+Business milestones start with newly attributed accounts, rather than
+backfilling earlier customers. `invoice.paid`/`invoice.payment_succeeded`
+are supported; existing subscription callbacks and billing return-sync
+also confirm a positive paid invoice. No Stripe webhook settings change
+is required. First scheduled tuition reminder records Twilio acceptance, not delivery.
+
+The three audience pages have distinct workflows, examples and questions.
+They are linked from the homepage/resources and included in the sitemap.
+
+### Resource workbook checks
+
 The Python suite also checks marketing redirects, auth/download indexing headers,
 free access for expired subscribers, sitemap dates, resource links and ZIP contents.
 For formula checks on the actual shipped spreadsheet (development dependencies only):

@@ -39,6 +39,7 @@ from reminders import run_reminders, today, open_period, family_status, period_o
     provider_local_now, render_template, due_date_for_family, cash_forecast, \
     pending_reminders, in_quiet_hours
 import billing
+import growth
 from sms import DEMO_MODE as SMS_DEMO_MODE
 
 app = FastAPI(title="TuitionPing")
@@ -55,6 +56,10 @@ PUBLIC_PAGES = {
     "/tools/late-fee-calculator": ("tool_late_fee_calc.html", "2026-10-06"),
     "/tools/tuition-payment-tracker": ("tool_payment_tracker.html", "2026-10-06"),
     "/about": ("about.html", "2026-10-06"),
+    "/demo": ("demo.html", "2026-10-06"),
+    "/home-daycare-tuition-reminders": ("audience.html", "2026-10-06"),
+    "/small-daycare-tuition-reminders": ("audience.html", "2026-10-06"),
+    "/bilingual-daycare-tuition-reminders": ("audience.html", "2026-10-06"),
     "/support": ("support.html", None),
     "/privacy": ("privacy.html", None),
     "/terms": ("terms.html", None),
@@ -104,12 +109,13 @@ import secrets as _secrets
 # POST paths that must NOT get CSRF-checked: machine callbacks (Twilio/Stripe
 # signatures already authenticate them), the cron token endpoint, and the
 # pre-session auth forms.
+# /analytics/event validates its own signed-cookie-bound token and event allowlist.
 _CSRF_EXEMPT_PREFIXES = ("/webhooks/", "/internal/")
 # /logout is exempt on purpose: a forged logout can only end the victim's own
 # session (nuisance, not data loss), while a strict check strands users on
 # stale tabs with "Security check failed" after any re-login rotates the
 # session-bound token. The handler still deletes the session server-side.
-_CSRF_EXEMPT_EXACT = {"/login", "/forgot-password", "/reset-password", "/logout"}
+_CSRF_EXEMPT_EXACT = {"/login", "/forgot-password", "/reset-password", "/logout", "/analytics/event"}
 
 
 def csrf_token_for_session(session_token: str) -> str:
@@ -197,6 +203,7 @@ _NO_SUB_EXACT = {
     "/tools/late-fee-calculator",
 }
 _NO_SUB_EXACT.update(PUBLIC_PAGES)
+_NO_SUB_EXACT.add("/analytics/event")
 _NO_SUB_PREFIXES = ("/billing/", "/admin", "/webhooks/", "/internal/",
                     "/static/", "/s/")
 
@@ -244,6 +251,68 @@ _TRACKED_PATHS = {"/", "/guide", "/postcard", "/late-fee-policy",
 _TRACKED_PATHS.update(PUBLIC_PAGES)
 _TRACKED_PREFIXES = ("/compare/",)
 
+# Downloads are recorded only after a successful file response.
+_GROWTH_DOWNLOADS = {"/static/downloads/" + name for name in (
+    "daycare-late-fee-policy.pdf", "daycare-late-fee-policy.docx",
+    "daycare-tuition-reminders.pdf", "daycare-tuition-reminders.docx",
+    "daycare-tuition-payment-tracker.xlsx", "daycare-tuition-collection-kit.zip")}
+
+
+@app.middleware("http")
+async def track_conversions(request: Request, call_next):
+    path = request.url.path
+    public = path in _TRACKED_PATHS or path in _GROWTH_DOWNLOADS
+    visitor = ""
+    if not growth.excluded(request):
+        visitor = growth.visitor_from_cookie(request.cookies.get(growth.COOKIE, ""))
+        if request.method == "GET" and public:
+            visitor = visitor or _secrets.token_hex(16)
+    request.state.growth_visitor = visitor
+    request.state.growth_token = growth.token(visitor) if visitor and public else ""
+    response = await call_next(request)
+    if visitor and public and request.method == "GET" and response.status_code == 200:
+        try:
+            source, medium, campaign = growth.attribution(request)
+            growth.register(visitor, source, medium, campaign, path)
+            if path in _GROWTH_DOWNLOADS:
+                growth.record(visitor, "download", path.rsplit("/", 1)[-1], path)
+            else:
+                growth.record(visitor, "page_view", path=path)
+            if not growth.visitor_from_cookie(request.cookies.get(growth.COOKIE, "")):
+                response.set_cookie(growth.COOKIE, growth.cookie_value(visitor), max_age=30*24*3600,
+                                    httponly=True, secure=PUBLIC_BASE_URL.startswith("https://"), samesite="lax")
+            response.headers["Cache-Control"] = "private, no-store"
+        except Exception:
+            pass  # Product access must not depend on acquisition analytics.
+    return response
+
+
+@app.post("/analytics/event")
+async def conversion_event(request: Request):
+    visitor = getattr(request.state, "growth_visitor", "")
+    if (not visitor or growth.excluded(request)
+            or not _hmac.compare_digest(request.headers.get("x-tp-analytics", ""), growth.token(visitor))):
+        return Response(status_code=403)
+    body = await request.body()
+    if len(body) > 1024:
+        return Response(status_code=413)
+    try:
+        data = json.loads(body)
+        if not isinstance(data, dict):
+            raise ValueError()
+        event, detail, path = data.get("event"), data.get("detail", ""), data.get("path", "")
+        if (not isinstance(event, str) or not isinstance(detail, str) or not isinstance(path, str)
+                or event not in growth.CLIENT_EVENTS or detail not in growth.CLIENT_EVENTS[event]
+                or path not in _TRACKED_PATHS
+                or (event.startswith("demo_") and path != "/demo")):
+            raise ValueError()
+        growth.record(visitor, event, detail, path)
+    except (ValueError, TypeError):
+        return Response(status_code=400)
+    except Exception:
+        return Response(status_code=503)
+    return Response(status_code=204)
+
 
 @app.middleware("http")
 async def track_site_visits(request: Request, call_next):
@@ -272,6 +341,9 @@ templates = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), "t
 templates.env.globals["csrf_input"] = csrf_input
 with open(os.path.join(os.path.dirname(__file__), "content", "provider-resources.json"), encoding="utf-8") as resource_file:
     templates.env.globals["provider_resources"] = json.load(resource_file)
+with open(os.path.join(os.path.dirname(__file__), "content", "audiences.json"), encoding="utf-8") as audience_file:
+    AUDIENCES = json.load(audience_file)
+templates.env.globals["audiences"] = AUDIENCES
 
 
 @app.middleware("http")
@@ -563,6 +635,19 @@ def sitemap_xml(request: Request):
     return Response(content=xml, media_type="application/xml")
 
 
+@app.get("/demo", response_class=HTMLResponse)
+def public_demo(request: Request):
+    return templates.TemplateResponse(request, "demo.html", {"request": request, "provider": None})
+
+
+@app.get("/home-daycare-tuition-reminders", response_class=HTMLResponse)
+@app.get("/small-daycare-tuition-reminders", response_class=HTMLResponse)
+@app.get("/bilingual-daycare-tuition-reminders", response_class=HTMLResponse)
+def audience_page(request: Request):
+    return templates.TemplateResponse(request, "audience.html", {"request": request, "provider": None,
+                                                               "page": AUDIENCES[request.url.path]})
+
+
 @app.get("/guide", response_class=HTMLResponse)
 def tuition_guide(request: Request):
     """SEO guide: practical, product-honest advice on collecting daycare tuition."""
@@ -746,6 +831,10 @@ def signup(request: Request, name: str = Form(...), email: str = Form(...),
     provider_id = store.create_provider(name, email, password, company,
                                        heard_about=heard_about,
                                        signup_source=signup_source)
+    try:
+        growth.bind_account(getattr(request.state, "growth_visitor", ""), provider_id)
+    except Exception:
+        pass
     # Referral: link the new account to whoever referred them (no self-referrals,
     # invalid codes are ignored silently).
     referrer = store.get_provider_by_referral_code(referral_code)
@@ -774,6 +863,7 @@ def signup(request: Request, name: str = Form(...), email: str = Form(...),
         postcard = request.cookies.get("tp_src", "") == "postcard"
         checkout_url = billing.create_checkout_session(provider, plan, cycle,
                                                        base_url, postcard=postcard)
+        growth.milestone(provider_id, "checkout_started")
     except Exception as e:
         print(f"[stripe] signup-checkout error: {e}", flush=True)
         resp = login_response(provider_id, request)
@@ -2196,7 +2286,8 @@ def subscribe(request: Request, plan: str = Form(...), cycle: str = Form("monthl
         base_url = PUBLIC_BASE_URL
         postcard = request.cookies.get("tp_src", "") == "postcard"
         checkout_url = billing.create_checkout_session(provider, plan, cycle, base_url,
-                                                     postcard=postcard)
+                                                       postcard=postcard)
+        growth.milestone(provider["id"], "checkout_started")
     except Exception as e:
         print(f"[stripe] checkout error: {e}", flush=True)
         return HTMLResponse("Couldn't start checkout. Please try again.", status_code=502)
@@ -2623,6 +2714,18 @@ def admin_attribution(request: Request):
          "attributed": len(attributed), "customers": len(customers),
          "signup_rate": pct(len(attributed), visits),
          "customer_rate": pct(len(customers), len(attributed))})
+
+
+@app.get("/admin/conversions", response_class=HTMLResponse)
+def admin_conversions(request: Request, days: int = 28):
+    provider, redirect = require_admin(request)
+    if redirect:
+        return redirect
+    response = templates.TemplateResponse(request, "admin_conversions.html", {
+        "request": request, "provider": provider, "report": growth.report(90 if days == 90 else 28)})
+    response.headers["Cache-Control"] = "private, no-store"
+    response.headers["X-Robots-Tag"] = "noindex"
+    return response
 
 
 @app.get("/admin/visitors", response_class=HTMLResponse)

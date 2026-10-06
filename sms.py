@@ -23,7 +23,7 @@ def _real_credentials_present():
                 and os.getenv("TWILIO_FROM_NUMBER"))
 
 
-def send_sms(to: str, body: str, provider_id=None, family_id=None):
+def send_sms(to: str, body: str, provider_id=None, family_id=None, *, tuition_reminder=False):
     """Send one SMS. Always logs to message_log; returns a small result dict."""
     from store import log_message  # lazy import: store must not import sms
 
@@ -44,4 +44,7 @@ def send_sms(to: str, body: str, provider_id=None, family_id=None):
     )
     log_message(provider_id, family_id, "out", body, f"sent ({msg.sid})",
                 twilio_sid=msg.sid)
+    if tuition_reminder and provider_id and family_id:
+        import growth
+        growth.milestone(provider_id, "first_reminder")
     return {"demo": False, "sid": msg.sid}
