@@ -19,5 +19,7 @@
 .resource-example { border:1px solid var(--line); background:var(--bg); padding:16px; border-radius:10px; margin:14px 0; }
 .resource-example p:last-child { margin-bottom:0; }
 .topbar-inner { height:auto; min-height:62px; }
+.nav a.btn { color:#fff; }
+.nav a.btn:hover { background:#055f43; color:#fff; }
 @media(max-width:720px) { .resource-grid { grid-template-columns:1fr; } .topbar-inner { flex-wrap:wrap; gap:8px; padding-top:10px; padding-bottom:10px; } .nav { max-width:100%; } .nav a { padding:6px 8px; font-size:.85rem; } }
 @media print { .topbar,footer,.download-box,.resource-related,.resource-cta { display:none !important; } .wrap { padding:0; } .card { box-shadow:none; } a { color:inherit; } }
