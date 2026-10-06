@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Email Me the Free Daycare Tuition Kit | TuitionPing{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Your free daycare tuition collection kit</h1></div>
+{% if error %}<div class="banner banner-warn" role="alert">{{ error }}</div>{% endif %}
+{% if sent %}
+<section class="card"><h2>Check your inbox</h2><p>If your address is eligible, the requested email will be sent. Check spam too. Repeat requests are limited to one email per address per day.</p><p>If you selected tips and updates, use the confirmation link in the email to join the marketing list.</p></section>
+{% else %}{% include "email_form.html" %}{% endif %}
+<section class="card"><h2>Download it now</h2><p>You can always get the complete kit directly.</p><a class="btn btn-ghost" href="/static/downloads/daycare-tuition-collection-kit.zip" download>Download the free kit</a> <a href="/guides">See all free resources</a></section>
+{% endblock %}

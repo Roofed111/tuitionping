@@ -40,6 +40,7 @@ from reminders import run_reminders, today, open_period, family_status, period_o
     pending_reminders, in_quiet_hours
 import billing
 import growth
+import email_engagement
 from sms import DEMO_MODE as SMS_DEMO_MODE
 
 app = FastAPI(title="TuitionPing")
@@ -116,6 +117,9 @@ _CSRF_EXEMPT_PREFIXES = ("/webhooks/", "/internal/")
 # stale tabs with "Security check failed" after any re-login rotates the
 # session-bound token. The handler still deletes the session server-side.
 _CSRF_EXEMPT_EXACT = {"/login", "/forgot-password", "/reset-password", "/logout", "/analytics/event"}
+# Email preference/confirmation links are authenticated by opaque capability
+# tokens. GET never changes consent; POST also serves RFC 8058 one-click opt-out.
+_CSRF_EXEMPT_EXACT.update({"/email-list/confirm", "/email-list/preferences"})
 
 
 def csrf_token_for_session(session_token: str) -> str:
@@ -151,7 +155,7 @@ async def csrf_protect(request: Request, call_next):
             session_token = request.cookies.get(SESSION_COOKIE, "")
             if session_token:
                 expected = csrf_token_for_session(session_token)
-            elif path == "/signup":
+            elif path in ("/signup", "/email-list/join"):
                 expected = csrf_token_for_seed(
                     request.cookies.get("csrf_seed", ""))
             else:
@@ -204,8 +208,24 @@ _NO_SUB_EXACT = {
 }
 _NO_SUB_EXACT.update(PUBLIC_PAGES)
 _NO_SUB_EXACT.add("/analytics/event")
+_NO_SUB_EXACT.add("/email-kit")
 _NO_SUB_PREFIXES = ("/billing/", "/admin", "/webhooks/", "/internal/",
-                    "/static/", "/s/")
+                    "/static/", "/s/", "/email-list/")
+
+
+@app.middleware("http")
+async def email_form_seed(request: Request, call_next):
+    paths = {"/email-kit", "/guides"}
+    seed = ""
+    if (request.method == "GET" and request.url.path in paths) or (request.method == "POST" and request.url.path == "/email-list/join"):
+        session = request.cookies.get(SESSION_COOKIE, "")
+        seed = request.cookies.get("csrf_seed", "") or _secrets.token_hex(16)
+        request.state.csrf_token = csrf_token_for_session(session) if session else csrf_token_for_seed(seed)
+    response = await call_next(request)
+    if seed:
+        response.set_cookie("csrf_seed", seed, samesite="lax", secure=PUBLIC_BASE_URL.startswith("https://"), max_age=2592000)
+        response.headers["Cache-Control"] = "private, no-store"
+    return response
 
 
 @app.middleware("http")
@@ -249,6 +269,7 @@ _TRACKED_PATHS = {"/", "/guide", "/postcard", "/late-fee-policy",
                   "/terms", "/privacy", "/security", "/sms-privacy",
                   "/sms-consent", "/support", "/login", "/signup"}
 _TRACKED_PATHS.update(PUBLIC_PAGES)
+_TRACKED_PATHS.add("/email-kit")
 _TRACKED_PREFIXES = ("/compare/",)
 
 # Downloads are recorded only after a successful file response.
@@ -403,7 +424,7 @@ EMAIL_FROM = os.environ.get("EMAIL_FROM", "TuitionPing <hello@tuitionping.com>")
 EMAIL_ACTIVE = bool(RESEND_API_KEY)
 
 
-def send_email(to: str, subject: str, html: str) -> bool:
+def send_email(to: str, subject: str, html: str, *, headers=None, idempotency_key=None) -> bool:
     """Send an email via Resend. Dormant without RESEND_API_KEY (logs only)."""
     if not EMAIL_ACTIVE:
         print(f"[email] dormant (no RESEND_API_KEY): to={to} subject={subject}",
@@ -414,16 +435,17 @@ def send_email(to: str, subject: str, html: str) -> bool:
     import urllib.error
     print(f"[email] attempting send to={to} subject={subject}", flush=True)
     try:
+        payload = {"from": EMAIL_FROM, "to": [to], "subject": subject, "html": html}
+        if headers:
+            payload["headers"] = headers
+        request_headers = {"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json", "User-Agent": "TuitionPing/1.0"}
+        if idempotency_key:
+            request_headers["Idempotency-Key"] = idempotency_key
         req = urllib.request.Request(
             "https://api.resend.com/emails",
-            data=json.dumps({"from": EMAIL_FROM, "to": [to],
-                             "subject": subject, "html": html}).encode(),
+            data=json.dumps(payload).encode(),
             method="POST",
-            headers={"Authorization": f"Bearer {RESEND_API_KEY}",
-                     "Content-Type": "application/json",
-                     # Cloudflare in front of api.resend.com 403s the default
-                     # Python-urllib UA ("error code: 1010"); identify ourselves.
-                     "User-Agent": "TuitionPing/1.0"})
+            headers=request_headers)
         with urllib.request.urlopen(req, timeout=15) as resp:
             body = resp.read().decode("utf-8", "replace")[:300]
             print(f"[email] resend responded status={resp.status} body={body}",
@@ -462,22 +484,22 @@ def send_verification_email(provider_id, email, base_url):
 
 def send_welcome_email(provider, plan_name):
     """Thank-you + what-to-expect email sent once at signup."""
-    name = (provider["name"] or "there").strip().split()[0]
+    from html import escape
+    name = escape((provider["name"] or "there").strip().split()[0])
     dashboard = f"{PUBLIC_BASE_URL.rstrip('/')}/dashboard"
     html = f"""<p>Hi {name},</p>
-<p>Thanks for signing up for TuitionPing &mdash; you just bought back your evenings.</p>
-<p>Here&rsquo;s what happens from here:</p>
+<p>Your TuitionPing account has been created. Here are the next setup steps:</p>
 <ol>
-<li><b>Add your children</b> (or import a CSV) &mdash; about 10 minutes, once.</li>
-<li><b>Reminders go out automatically</b> &mdash; 3 days before tuition is due, on the due date, and follow-ups after. English or Spanish, your choice.</li>
-<li><b>Parents just reply PAID</b> by text when they&rsquo;ve paid. No app, no login, nothing new for them to learn.</li>
+<li><b>Verify your email</b> using the separate verification email.</li>
+<li><b>Finish checkout</b> if you have not already. In the real service, your 30-day trial starts only after Stripe confirms checkout. A card is required; $0 is charged today, then your selected plan renews after the trial unless you cancel.</li>
+<li><b>Add a location, classroom and families</b>, or import a CSV. Obtain permission for tuition texts first. Check amounts, due dates and English or Spanish preferences.</li>
+<li><b>Review your reminder wording and schedule.</b> Reminders follow the due date and respect quiet hours and opt-outs.</li>
+<li><b>Verify reported payments.</b> A parent replying PAID is a report. Check your payment records, then use Confirm payment received in the dashboard.</li>
 </ol>
-<p><b>The time savings:</b> no more copying, pasting, and chasing down late payments one family at a time after hours. <b>The money:</b> tuition lands on time instead of trickling in late &mdash; steady cash flow without the awkward &ldquo;just a friendly reminder&hellip;&rdquo; texts.</p>
-<p>You&rsquo;re on the {plan_name} plan with a 30-day free trial. When you&rsquo;re ready:</p>
 <p><a href="{dashboard}" style="display:inline-block;background:#00916e;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;">Open your dashboard</a></p>
-<p>Questions? Just reply to this email &mdash; an actual human reads every message.</p>
+<p><a href="{PUBLIC_BASE_URL}/billing">Review checkout and billing</a> if the dashboard asks you to finish checkout. Questions? Reply to this email.</p>
 <p>&mdash; The TuitionPing team</p>"""
-    send_email(provider["email"].strip(), "Welcome to TuitionPing \u2014 your evenings are yours again", html)
+    send_email(provider["email"].strip(), "Your TuitionPing account: next setup steps", html)
 
 
 def is_admin(provider) -> bool:
@@ -800,7 +822,8 @@ def signup(request: Request, name: str = Form(...), email: str = Form(...),
            password: str = Form(...), company: str = Form(""),
            referral_code: str = Form(""), heard_about: str = Form(""),
            plan: str = Form("starter"), cycle: str = Form("monthly"),
-           agree_terms: str = Form(""), attest_consent: str = Form("")):
+           agree_terms: str = Form(""), attest_consent: str = Form(""),
+           marketing_optin: str = Form("")):
     plan = plan if plan in billing.PLANS else "starter"
     cycle = cycle if cycle in billing.CYCLES else "monthly"
     p = billing.PLANS[plan]
@@ -846,6 +869,13 @@ def signup(request: Request, name: str = Form(...), email: str = Form(...),
         store.set_email_verified(provider_id, True)
     provider = store.get_provider(provider_id)
     send_welcome_email(provider, p["name"])
+    if marketing_optin == "on":
+        try:
+            oid = email_engagement.request_email(email, name, "signup", optin=True, kit=False)
+            if oid:
+                email_engagement.deliver_due(send_email, EMAIL_ACTIVE, limit=1, only_id=oid)
+        except Exception:
+            print("[email-list] signup confirmation could not be queued", flush=True)
     # Demo mode: everyone starts on a 30-day trial instantly.
     if billing.DEMO_MODE:
         billing.activate_demo_subscription(provider_id, plan)
@@ -2334,14 +2364,18 @@ def billing_portal(request: Request):
 @app.get("/internal/run-reminders")
 def internal_run_reminders_get(request: Request, token: str = ""):
     """The daily cron hits this (GET -> JSON)."""
-    if INTERNAL_CRON_TOKEN and token != INTERNAL_CRON_TOKEN:
+    if not INTERNAL_CRON_TOKEN or token != INTERNAL_CRON_TOKEN:
         return JSONResponse({"error": "unauthorized"}, status_code=401)
     sent = run_reminders()
     n = sum(1 for s in sent if "error" not in s and not s.get("deferred"))
     deferred = sum(1 for s in sent if s.get("deferred"))
     store.record_reminder_run(n)
+    try:
+        email_result = email_engagement.run(send_email, EMAIL_ACTIVE)
+    except Exception:
+        email_result = {"error": "Email guidance processing failed; check Admin Email."}
     return {"date": today().isoformat(), "sent": n, "deferred": deferred,
-            "details": sent}
+            "details": sent, "email": email_result}
 
 
 @app.post("/internal/run-reminders")
@@ -2964,3 +2998,11 @@ def internal_fake_sub(request: Request, token: str = "", action: str = ""):
             " updated_at=excluded.updated_at",
             (p["id"], "micro", "trialing", trial_ends, now))
     return {"ok": True, "added": True, "plan": "micro", "status": "trialing"}
+
+
+# Callbacks stay dynamic so tests and runtime configuration use the same sender.
+import email_routes
+email_engagement.BASE = PUBLIC_BASE_URL
+email_routes.register(app, templates, require_admin,
+                      lambda *args, **kwargs: send_email(*args, **kwargs),
+                      lambda: EMAIL_ACTIVE)

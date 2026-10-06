@@ -281,6 +281,12 @@ def _sync_from_subscription(provider_id: int, sub) -> None:
     set_subscription(provider_id, plan or "starter", status, trial_ends_at=trial_ends)
     set_stripe_ids(provider_id, customer_id=sub.get("customer"),
                    subscription_id=sub.get("id"))
+    try:
+        import email_engagement
+        email_engagement.note_subscription(provider_id, sub)
+    except Exception:
+        # Optional email preferences must never block billing synchronization.
+        pass
     if meta.get("founding") in ("1", "0"):
         _set_founding(provider_id, meta.get("founding") == "1")
     # Existing subscription callbacks/return-sync also confirm conversions,
