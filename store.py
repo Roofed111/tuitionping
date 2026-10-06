@@ -1182,6 +1182,21 @@ def ensure_paid_source_column():
                     lambda col: f"ALTER TABLE families ADD COLUMN {col} TEXT DEFAULT ''")
 
 
+def confirm_family_payment(family_id, period):
+    """Verify an existing parent report without changing its period or ledger.
+
+    The conditional update makes repeats and stale forms harmless. In
+    particular, charges added after the parent's report stay outstanding.
+    """
+    ensure_paid_source_column()
+    with db() as conn:
+        cur = conn.execute(
+            "UPDATE families SET paid_source = 'manual'"
+            " WHERE id = ? AND paid_period = ? AND paid_source = 'reply'",
+            (family_id, period))
+        return cur.rowcount > 0
+
+
 def mark_family_paid(family_id, period, source="manual"):
     """Mark the period paid, settle outstanding extra charges, and log the
     payment. Returns the amount logged (discounted tuition + charges).

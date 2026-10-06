@@ -2,6 +2,10 @@
 {% block title %}Dashboard — TuitionPing{% endblock %}
 {% block content %}
 
+{% if request.query_params.get("payment_confirmed") == "1" %}
+  <div class="banner banner-ok" role="status"><span><strong>Payment confirmed.</strong> The parent's reported payment is now verified.</span></div>
+{% endif %}
+
 {% if verified_param %}
   <div class="banner banner-ok">✅ <span><strong>Email verified.</strong> Your account is fully active.</span></div>
 {% elif resent %}
@@ -161,6 +165,7 @@
         <td><span class="pill {{ t["status"]["kind"] }}"{% if t["status"].get("title") %} title="{{ t["status"]["title"] }}"{% endif %}>{{ t["status"]["label"] }}</span>{% if t["opted_out"] %} <span class="pill muted">opted out</span>{% endif %}{% if t["is_absent_today"] %} <span class="pill muted" title="Parent reported this child absent today"><span aria-hidden="true">🤒</span> absent</span>{% endif %}{% if t["birthday_today"] %} <span class="pill paid" title="Child's birthday today — a birthday text goes out"><span aria-hidden="true">🎂</span> birthday</span>{% endif %}{% if t["docs_expired"] %} <span class="pill late" title="Immunization record has expired — collect the updated copy"><span aria-hidden="true">📋</span> records expired</span>{% elif t["docs_expiring_soon"] %} <span class="pill muted" title="Immunization record expires {{ t['docs_expiry_display'] }} — parent was reminded"><span aria-hidden="true">📋</span> records expire {{ t["docs_expiry_display"] }}</span>{% endif %}{% if t["snoozed_until"] %} <span class="pill muted"><span aria-hidden="true">⏸</span> paused until {{ t["snoozed_until"][5:].replace("-","/") }}</span>{% endif %}{% if t["phone_bad"] %} <span class="pill late" title="Twilio reported this number as undeliverable — check it with the family"><span aria-hidden="true">⚠️</span> number unreachable</span>{% endif %}</td>
         <td>
           <div class="actions">
+            {% if t["paid_source"] == "reply" and t["paid_period"] %}<form class="inline" method="post" action="/families/confirm-paid">{{ csrf_input(request) }}<input type="hidden" name="family_id" value="{{ t["id"] }}"><input type="hidden" name="period" value="{{ t["paid_period"] }}"><button class="btn btn-ghost btn-sm" title="Confirm only after checking that this payment arrived">Confirm payment received</button></form>{% endif %}
             {% if t["status"]["kind"] != "paid" %}<form class="inline" method="post" action="/families/mark-paid">{{ csrf_input(request) }}<input type="hidden" name="family_id" value="{{ t["id"] }}"><button class="btn btn-ghost btn-sm">Mark paid</button></form>{% endif %}
             {% if t["status"]["kind"] != "paid" and not t["opted_out"] %}<form class="inline" method="post" action="/families/nudge">{{ csrf_input(request) }}<input type="hidden" name="family_id" value="{{ t["id"] }}"><button class="btn btn-ghost btn-sm" title="Text this family their current reminder right now">Nudge</button></form>{% endif %}
             {% if loc["pickup_fee"] %}<form class="inline" method="post" action="/families/late-pickup">{{ csrf_input(request) }}<input type="hidden" name="family_id" value="{{ t["id"] }}"><button class="btn btn-ghost btn-sm" title="Log a late pickup — adds ${{ '%.2f'|format(loc['pickup_fee']) }} as an extra charge">⏰</button></form>{% endif %}

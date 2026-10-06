@@ -2028,6 +2028,26 @@ async def import_families(request: Request, classroom_id: int = Form(...),
                                        "imported": imported, "errors": errors})
 
 
+@app.post("/families/confirm-paid")
+def confirm_paid(request: Request, family_id: int = Form(...),
+                 period: str = Form(...)):
+    """Provider verifies the exact period reported by the parent."""
+    provider, redirect = require_login(request)
+    if redirect:
+        return redirect
+    family = store.get_family_for_provider(family_id, provider["id"])
+    if not family:
+        return HTMLResponse("Family not found.", status_code=404)
+    if not store.confirm_family_payment(family_id, period):
+        # A repeated confirmation is safe; a changed report needs a fresh view.
+        family = store.get_family_for_provider(family_id, provider["id"])
+        if not family or family["paid_period"] != period or family["paid_source"] != "manual":
+            return HTMLResponse(
+                'This payment record has changed. <a href="/dashboard">Return to the dashboard</a> and review it again.',
+                status_code=409)
+    return RedirectResponse("/dashboard?payment_confirmed=1", status_code=303)
+
+
 @app.post("/families/mark-paid")
 def mark_paid(request: Request, family_id: int = Form(...)):
     """Provider manually marks a family paid (e.g. cash/check received)."""
