@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Suggestions — Admin{% endblock %}
 {% block content %}
-<div class="tabs"><a href="/admin">Customers</a><a href="/admin/abuse">Abuse monitor</a><a href="/admin/suggestions" class="active">Suggestions</a><a href="/admin/attribution">Attribution</a><a href="/admin/visitors">Visitors</a><a href="/admin/conversions">Conversions</a></div>
+<div class="tabs"><a href="/admin">Customers</a><a href="/admin/abuse">Abuse monitor</a><a href="/admin/suggestions" class="active">Suggestions</a><a href="/admin/attribution">Attribution</a><a href="/admin/visitors">Visitors</a><a href="/admin/conversions">Conversions</a><a href="/admin/email">Email</a></div>
 <h2>Feature suggestions</h2>
 <p class="muted">{{ suggestions|length }} total · newest first.</p>
 {% for s in suggestions %}
