@@ -1,16 +1,16 @@
 <section class="card" aria-labelledby="email-kit-heading">
   <h2 id="email-kit-heading">Keep the free tuition kit in your inbox</h2>
   <p>Get the editable policies, English and Spanish reminder templates, and Excel payment tracker by email. No TuitionPing account required.</p>
-  <form method="post" action="/email-list/join">
+  <form class="form-stack" method="post" action="/email-list/join">
     {{ csrf_input(request) }}
     <input type="hidden" name="source" value="{{ request.url.path }}">
     <div class="form-grid">
-      <label>Your name <span class="muted">(optional)</span><input name="name" autocomplete="given-name" maxlength="100"></label>
+      <label><span>Your name (optional)</span><input name="name" autocomplete="given-name" maxlength="100"></label>
       <label>Email address<input name="email" type="email" autocomplete="email" maxlength="254" required></label>
     </div>
     <div aria-hidden="true" style="position:absolute;left:-10000px"><label>Website<input name="website" tabindex="-1" autocomplete="off"></label></div>
-    <label class="check" style="margin:14px 0"><input type="checkbox" name="marketing_optin">Send me occasional TuitionPing tuition tips, product improvements and offers. I can unsubscribe anytime.</label>
-    <button class="btn" type="submit">Email me the free kit</button>
+    <label class="check"><input type="checkbox" name="marketing_optin"><span>Send me occasional TuitionPing tuition tips, product improvements and offers. I can unsubscribe anytime.</span></label>
+    <button class="btn" style="align-self:flex-start" type="submit">Email me the free kit</button>
     <p><small>Tips and updates are optional and require email confirmation. <a href="/privacy">Privacy policy</a>.</small></p>
   </form>
 </section>
