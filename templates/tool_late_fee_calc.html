@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Daycare Late Fee Calculator — How Much Is Late Tuition Costing You?{% endblock %}
+{% block meta_description %}<meta name="description" content="Free daycare late fee calculator: enter tuition, days late, and your fee policy to see exactly what a family owes — and what chronic lateness costs you per year.">{% endblock %}
+{% block content %}
+<style>
+  .calc { max-width: 640px; margin: 0 auto; }
+  .calc .card { margin-bottom: 16px; }
+  .calc label { display: block; font-size: .9em; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+  .calc input[type="number"], .calc select { width: 100%; padding: 10px 12px; font-size: 1em;
+      border: 1px solid var(--line); border-radius: 10px; box-sizing: border-box; }
+  .calc input[type="range"] { width: 100%; }
+  .calc .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 560px) { .calc .row { grid-template-columns: 1fr; } }
+  .result { background: var(--brand-soft); border-radius: 14px; padding: 24px; text-align: center; }
+  .result .big { font-size: 2.6em; font-weight: 800; color: var(--brand-dark); letter-spacing: -.02em; }
+  .result .lbl { font-size: .9em; color: var(--ink-soft); margin-top: 4px; }
+  .result .breakdown { text-align: left; margin: 16px auto 0; max-width: 380px; font-size: .93em; }
+  .result .breakdown div { display: flex; justify-content: space-between; padding: 6px 0;
+                           border-bottom: 1px solid rgba(0,0,0,.08); }
+  .result .breakdown div:last-child { border-bottom: 0; font-weight: 700; }
+  .yearly { background: #fef9c3; border: 1px solid #eab308; border-radius: 14px; padding: 20px;
+            text-align: center; margin-top: 16px; }
+  .yearly b { color: #713f12; }
+  .tool-cta { text-align: center; margin-top: 24px; }
+</style>
+
+<div class="page-head"><div>
+  <h1>Daycare late fee calculator</h1>
+  <p class="sub">Enter the numbers — see exactly what a late family owes, and what chronic lateness costs you every year.</p>
+</div></div>
+
+<div class="calc">
+  <div class="card">
+    <div class="row">
+      <div><label>Monthly tuition ($)</label><input type="number" id="c-tuition" value="1200" min="1" step="50"></div>
+      <div><label>Days overdue</label><input type="range" id="c-days" min="1" max="60" value="7" style="margin-top:14px"><b id="c-days-v">7 days</b></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="row">
+      <div><label>Late fee type</label>
+        <select id="c-type">
+          <option value="flat">Flat fee (one-time)</option>
+          <option value="daily">Per day</option>
+          <option value="pct">% of tuition (one-time)</option>
+        </select>
+      </div>
+      <div><label id="c-amt-lbl">Fee amount ($)</label><input type="number" id="c-amt" value="25" min="0" step="1"></div>
+    </div>
+    <div style="margin-top:14px"><label>Grace period (days before fee kicks in)</label>
+      <input type="range" id="c-grace" min="0" max="14" value="0" style="margin-top:6px"> <b id="c-grace-v">0 days</b>
+    </div>
+  </div>
+  <div class="card">
+    <label>Families late in a typical month (for the yearly cost)</label>
+    <input type="range" id="c-fams" min="1" max="50" value="5" style="margin-top:6px"> <b id="c-fams-v">5 families</b>
+  </div>
+
+  <div class="result">
+    <div class="big" id="r-total">$1,225</div>
+    <div class="lbl">total owed by one family</div>
+    <div class="breakdown">
+      <div><span>Tuition</span><span id="r-tui">$1,200</span></div>
+      <div><span>Late fee</span><span id="r-fee">$25</span></div>
+      <div><span>Total due</span><span id="r-tot2">$1,225</span></div>
+    </div>
+  </div>
+
+  <div class="yearly">
+    <b id="r-yearly">$1,500</b> in late fees left on the table every year
+    <div style="font-size:.88em;color:#713f12;margin-top:6px" id="r-yearly-sub">if 5 families pay 7 days late each month and you don't enforce the fee</div>
+  </div>
+
+  <div class="tool-cta">
+    <p style="color:var(--muted);font-size:.95em">TuitionPing applies your late fee automatically — same day, every time, no awkward conversation.</p>
+    <a class="btn" href="/signup?plan=growth" style="font-size:1.05em;padding:13px 28px">Start free 30-day trial</a>
+  </div>
+</div>
+
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var tuition = $('c-tuition'), days = $('c-days'), type = $('c-type'),
+      amt = $('c-amt'), grace = $('c-grace'), fams = $('c-fams');
+  function fmt(n){ return '$' + Math.round(n).toLocaleString('en-US'); }
+  function calc(){
+    var t = Math.max(0, +tuition.value || 0),
+        d = +days.value,
+        g = +grace.value,
+        a = Math.max(0, +amt.value || 0),
+        f = +fams.value,
+        fee = 0;
+    $('c-days-v').textContent = d + (d === 1 ? ' day' : ' days');
+    $('c-grace-v').textContent = g + (g === 1 ? ' day' : ' days');
+    $('c-fams-v').textContent = f + (f === 1 ? ' family' : ' families');
+    $('c-amt-lbl').textContent = type.value === 'pct' ? 'Fee percent (%)' : 'Fee amount ($)';
+    if (d > g) {
+      var billable = d - g;
+      if (type.value === 'flat') fee = a;
+      else if (type.value === 'daily') fee = a * billable;
+      else fee = t * a / 100;
+    }
+    $('r-tui').textContent = fmt(t);
+    $('r-fee').textContent = fmt(fee);
+    $('r-tot2').textContent = fmt(t + fee);
+    $('r-total').textContent = fmt(t + fee);
+    var yearly = fee * f * 12;
+    $('r-yearly').textContent = fmt(yearly);
+    $('r-yearly-sub').textContent = 'if ' + f + (f === 1 ? ' family pays ' : ' families pay ') +
+      d + ' days late each month and you don\'t enforce the fee';
+  }
+  [tuition, days, type, amt, grace, fams].forEach(function(el){
+    el.addEventListener('input', calc); el.addEventListener('change', calc);
+  });
+  calc();
+})();
+</script>
+{% endblock %}

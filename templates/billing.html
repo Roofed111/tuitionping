@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Billing — TuitionPing{% endblock %}
+{% block content %}
+<h1>Billing</h1>
+{% if subscription.status == "past_due" %}
+<div class="banner" style="background:var(--bad-bg);border:1px solid #fca5a5;color:#991b1b">⚠️ <span><strong>Your last payment failed — your account is past due.</strong> Update your card below so your reminders keep going out. Stripe will retry automatically once the card is fixed.</span></div>
+{% endif %}
+<p>Current plan: <strong>{{ subscription.plan or "none" }}</strong> · status: {{ subscription.status }}
+{% if subscription.trial_ends_at %} · trial ends {{ subscription.trial_ends_at[:10] }}{% endif %}
+{% if subscription.founding %} <span class="pill paid">🌱 Founding member</span>{% endif %}</p>
+{% if checkout == "success" %}
+<div class="banner banner-ok">✅ <strong>You're subscribed!</strong> Your {{ trial_days }}-day free trial has started — no charge until it ends.{% if subscription.founding %} Your founding-member discount ({{ founding_pct }}% off for {{ founding_months }} months) is applied.{% endif %}</div>
+{% elif checkout == "cancelled" %}
+<div class="banner banner-info">Checkout was cancelled. No charge was made — pick a plan whenever you're ready.</div>
+{% elif checkout == "required" %}
+<div class="banner banner-info">🔒 <strong>One step left:</strong> complete checkout below to unlock your dashboard. Your {{ trial_days }}-day free trial starts as soon as your card is processed — $0 charged today.</div>
+{% endif %}
+{% if not subscription.founding and founding_spots_left > 0 %}
+<div class="banner banner-ok">🌱 <strong>Founding members get {{ founding_pct }}% off for {{ founding_months }} months.</strong> Only {{ founding_spots_left }} of 25 spots left — subscribe below to lock yours in.</div>
+{% elif founding_spots_left == 0 and not subscription.founding %}
+<div class="banner banner-info">The founding-member spots are all claimed — welcome anyway! Every plan still starts with a {{ trial_days }}-day free trial.</div>
+{% endif %}
+{% if demo %}
+<div class="demo-banner">🧪 <strong>Demo mode:</strong> clicking Subscribe instantly activates the plan with a {{ trial_days }}-day trial. No real charges.</div>
+{% endif %}
+<div class="stats">
+  {% for key, p in plans.items() %}
+  <div class="stat">
+    {% if not subscription.founding and founding_spots_left > 0 %}
+    <b>${{ "%.2f"|format(founding_price(key, "monthly")) }}/mo</b>
+    <div style="font-size:.85em;color:#555">founding price for {{ founding_months }} months, then ${{ p.price }}/mo · or ${{ "%.2f"|format(founding_price(key, "annual")) }}/yr founding annual</div>
+    {% else %}
+    <b>${{ p.price }}/mo</b>
+    <div style="font-size:.85em;color:#555">or ${{ p.price * 10 }}/yr (2 months free)</div>
+    {% endif %}
+    <div><strong>{{ p.name }}</strong></div>
+    <div style="font-size:.9em;color:#555">{{ p.blurb }}</div>
+    {% if subscription.plan == key and subscription.status in ("trialing", "active") %}
+    <div style="margin-top:8px"><span class="pill paid">Current plan</span></div>
+    {% else %}
+    <form method="post" action="/billing/subscribe" style="margin-top:8px">
+      {{ csrf_input(request) }}
+      <input type="hidden" name="plan" value="{{ key }}">
+      <select name="cycle" style="margin-bottom:6px">
+        <option value="monthly">Monthly — ${{ p.price }}/mo</option>
+        <option value="annual">Annual — ${{ p.price * 10 }}/yr</option>
+      </select><br>
+      <button class="btn">Subscribe — {{ trial_days }}-day free trial</button>
+    </form>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% if subscription.status in ("trialing", "active", "past_due") and stripe_live and not demo %}
+<form method="post" action="/billing/portal" style="margin:12px 0">
+  {{ csrf_input(request) }}
+  <button class="btn btn-ghost">Manage billing — update card, view invoices, or cancel</button>
+</form>
+{% endif %}
+<p style="color:#666;font-size:.9em">Every plan starts with a {{ trial_days }}-day free trial — a full tuition cycle, so you can watch it recover a late payment before you pay anything. Your card is collected at signup but isn't charged until the trial ends. Cancel anytime.</p>
+{% endblock %}

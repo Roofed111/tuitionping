@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Suggest a feature — TuitionPing{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Suggest a feature</h1><p class="sub">What would make TuitionPing better for your program?</p></div></div>
+<div class="card">
+  {% if saved %}
+  <p class="alert" style="border-color:var(--ok)">Thanks — your suggestion is in. We read every one and build the most-requested ideas first.</p>
+  <p><a class="btn" href="/dashboard">Back to dashboard</a></p>
+  {% else %}
+  <p>Tell us what's missing, what's clunky, or what would save you time. Real suggestions from real programs shape what we build next.</p>
+  {% if error %}<p class="alert">{{ error }}</p>{% endif %}
+  <form method="post" action="/suggest">
+    {{ csrf_input(request) }}
+    <label>Your name<br><input type="text" name="name" value="{{ name }}" maxlength="120" style="width:100%;max-width:400px"></label><br><br>
+    <label>Email<br><input type="email" name="email" value="{{ email }}" maxlength="160" style="width:100%;max-width:400px"></label><br><br>
+    <label>Your suggestion<br><textarea name="body" rows="6" maxlength="2000" required style="width:100%;max-width:600px" placeholder="e.g. I'd love a weekly summary of who paid, sent to my email…"></textarea></label><br><br>
+    <button class="btn" type="submit">Send suggestion</button>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

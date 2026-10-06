@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Attribution — Admin{% endblock %}
+{% block content %}
+<h1>Postcard campaign tracking</h1>
+<p class="muted"><a href="/admin">← Back to customers</a> · <a href="/admin/visitors">Visitors</a></p>
+
+<div class="card" style="margin-bottom:20px">
+  <h2 style="margin-top:0">QR landing page</h2>
+  <p style="font-size:1.4em;margin:0"><b>{{ visits }}</b> visits to <code>/postcard</code></p>
+  <p style="margin:8px 0 0"><b>{{ attributed }}</b> signups ({{ signup_rate }} of visits) → <b>{{ customers }}</b> customers on trial or active ({{ customer_rate }} of postcard signups)</p>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0">Signups &amp; sources</h2>
+  <div style="overflow-x:auto">
+  <table style="width:100%;border-collapse:collapse;font-size:.92em">
+    <thead>
+      <tr style="text-align:left;border-bottom:2px solid var(--line)">
+        <th scope="col" style="padding:8px">Signed up</th>
+        <th scope="col" style="padding:8px">Name</th>
+        <th scope="col" style="padding:8px">Center</th>
+        <th scope="col" style="padding:8px">Email</th>
+        <th scope="col" style="padding:8px">How they heard about us</th>
+        <th scope="col" style="padding:8px">QR attribution</th>
+        <th scope="col" style="padding:8px">Customer</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr style="border-bottom:1px solid var(--line)">
+        <td style="padding:8px;white-space:nowrap">{{ r.signed_up }}</td>
+        <td style="padding:8px">{{ r.name }}</td>
+        <td style="padding:8px">{{ r.company or "—" }}</td>
+        <td style="padding:8px">{{ r.email }}</td>
+        <td style="padding:8px">{{ r.heard_label }}</td>
+        <td style="padding:8px">{% if r.src_label != "—" %}<b style="color:var(--brand-dark)">📬 {{ r.src_label }}</b>{% else %}—{% endif %}</td>
+        <td style="padding:8px">{% if r.customer_label != "—" %}<b style="color:var(--brand-dark)">✓ {{ r.customer_label }}</b>{% else %}—{% endif %}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" style="padding:16px" class="muted">No signups yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endblock %}

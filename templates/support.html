@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Support — TuitionPing{% endblock %}
+{% block meta_description %}<meta name="description" content="Get help with TuitionPing — reminders, billing, parent text issues. Real human support from the founder.">{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Support</h1><p class="sub">Real help from the founder who built this — an actual human reads every message.</p></div></div>
+<div class="card">
+  <h2>Get in touch</h2>
+  <p>Questions about reminders, billing, or a parent who says they never got a text? Email us and we'll sort it out.</p>
+  <p><a class="btn" href="mailto:rob@tuitionping.com?subject=TuitionPing%20support">Email support</a></p>
+  <p>Have an idea that would make TuitionPing better? We read every suggestion.</p>
+  {% if provider %}
+  <p><a class="btn btn-ghost" href="/suggest">Suggest a feature</a></p>
+  {% else %}
+  <p><a class="btn btn-ghost" href="/login">Log in to suggest a feature</a></p>
+  {% endif %}
+</div>
+<div class="card">
+  <h2>Quick answers</h2>
+  <p><strong>Reminders not going out?</strong> Make sure the family's due date is set and the phone number is correct — one wrong digit is the most common cause.</p>
+  <p><strong>Parent says they didn't get a text?</strong> Ask them to reply <strong>START</strong> to your TuitionPing number, then you can resend.</p>
+  <p><strong>A parent wants to stop texts?</strong> They can reply <strong>STOP</strong> anytime — we honor it instantly. You can also toggle them off on your dashboard.</p>
+  {% if provider %}
+  <p><strong>Update your card or cancel?</strong> Head to <a href="/billing">Billing</a> and click "Manage billing."</p>
+  {% else %}
+  <p><strong>Update your card or cancel?</strong> <a href="/login">Log in</a>, then head to Billing and click "Manage billing."</p>
+  {% endif %}
+</div>
+{% endblock %}

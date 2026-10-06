@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Sign up — TuitionPing{% endblock %}
+{% block meta_description %}<meta name="description" content="Start your 30-day free trial of TuitionPing — automatic tuition reminder texts for your daycare. $0 today, card collected at secure checkout, cancel anytime.">{% endblock %}
+{% block content %}
+<div class="auth-card">
+  <h1>Start your 30-day free trial</h1>
+  <div class="card" style="border-left:4px solid var(--brand);margin-bottom:16px">
+    <div style="font-weight:700">{{ plan_name }} plan</div>
+    <div class="muted" style="font-size:.9em">${{ plan_price }}/mo{% if cycle == "annual" %} · ${{ plan_price * 10 }}/yr annual (2 months free){% endif %} · 30-day free trial · <b>$0 today</b></div>
+    <div class="muted" style="font-size:.85em;margin-top:4px">Wrong plan? <a href="/#pricing">Compare plans</a> — you can change it later from Billing.</div>
+  </div>
+  {% if error %}<p style="color:#b91c1c">{{ error }}</p>{% endif %}
+  <div class="card">
+    <form method="post" action="/signup">
+      {{ csrf_input(request) }}
+      <input type="hidden" name="plan" value="{{ plan }}">
+      <div class="form-stack">
+        <label>Your name<input name="name" required autocomplete="name" value="{{ name or '' }}"></label>
+        <label>Daycare / company name<input name="company" placeholder="Sunny Sprouts Daycare" autocomplete="organization" value="{{ company or '' }}"></label>
+        <label>Email<input name="email" type="email" required autocomplete="email" value="{{ email or '' }}"></label>
+        <label>Password <span style="font-weight:400">(min. 8 characters)</span><input name="password" type="password" required minlength="8" autocomplete="new-password"></label>
+        <label>Billing cycle
+          <select name="cycle">
+            <option value="monthly" {% if cycle != "annual" %}selected{% endif %}>Monthly — ${{ plan_price }}/mo</option>
+            <option value="annual" {% if cycle == "annual" %}selected{% endif %}>Annual — ${{ plan_price * 10 }}/yr (2 months free)</option>
+          </select>
+        </label>
+        <label>Referral code <span style="font-weight:400">(optional)</span><input name="referral_code" value="{{ ref or '' }}" placeholder="TP-XXXXXX" autocomplete="off"></label>
+        <label>How did you hear about us? <span style="font-weight:400">(optional)</span>
+          <select name="heard_about">
+            <option value="">Prefer not to say</option>
+            <option value="postcard" {% if attribution == "postcard" or heard_about == "postcard" %}selected{% endif %}>Postcard in the mail</option>
+            <option value="walkin" {% if heard_about == "walkin" %}selected{% endif %}>In-person visit</option>
+            <option value="search" {% if heard_about == "search" %}selected{% endif %}>Google search</option>
+            <option value="referral" {% if heard_about == "referral" %}selected{% endif %}>Referred by another center</option>
+            <option value="social" {% if heard_about == "social" %}selected{% endif %}>Social media</option>
+            <option value="other" {% if heard_about == "other" %}selected{% endif %}>Other</option>
+          </select>
+        </label>
+        <label class="check"><input type="checkbox" name="agree_terms" required>I agree to the <a href="/terms">Terms of Service</a> and <a href="/privacy">Privacy Policy</a>.</label>
+        <label class="check"><input type="checkbox" name="attest_consent" required>I confirm I have my families' permission to text them about tuition (US numbers only). Every message honors STOP automatically.</label>
+        <div><button class="btn" style="width:100%">Continue to secure checkout</button></div>
+        <p class="muted" style="font-size:.82em;margin:4px 0 0">Next: Stripe's secure checkout collects your card — $0 charged today, trial starts immediately.</p>
+      </div>
+    </form>
+  </div>
+  <p class="muted" style="font-size:.85em">Already have an account? <a href="/login">Log in</a></p>
+</div>
+{% endblock %}

@@ -1,0 +1,373 @@
+{% extends "base.html" %}
+{% block title %}TuitionPing — Automatic Tuition Reminders by Text for Daycares{% endblock %}
+{% block meta_description %}<meta name="description" content="TuitionPing automatically texts your daycare families tuition reminders — 3 days before, on the due date, and late nudges after. Parents reply PAID. 30-day free trial, no awkward pickup conversations.">{% endblock %}
+{% block content %}
+{% if postcard_offer %}
+<div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:12px;padding:14px 18px;margin:16px 0;font-size:1.02em">
+  <b><span aria-hidden="true">📬</span> Got our postcard?</b> Daycare owners who scanned this QR get <b>10% off for 3 months</b> — applied automatically at checkout, no code to type. Set up in about 10 minutes; your first reminders can go out today.
+</div>
+{% endif %}
+<style>
+  .hero { display: grid; grid-template-columns: 1.15fr .85fr; gap: 40px; align-items: center;
+          margin: 24px 0 56px; }
+  .hero .eyebrow { display: inline-block; background: var(--brand-soft); color: var(--brand-dark);
+          font-weight: 700; font-size: .8em; letter-spacing: .05em; text-transform: uppercase;
+          padding: 6px 14px; border-radius: 999px; margin-bottom: 16px; }
+  .hero h1 { font-size: 2.6em; line-height: 1.12; letter-spacing: -.03em; margin: 0 0 16px; }
+  .hero h1 .accent { color: var(--brand); }
+  .hero .lede { font-size: 1.18em; color: var(--ink-soft); margin: 0 0 24px; max-width: 34em; }
+  .hero-ctas { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .hero .fine { color: var(--muted); font-size: .88em; margin-top: 12px; }
+  @media (max-width: 860px) { .hero { grid-template-columns: 1fr; } .hero h1 { font-size: 2em; } }
+
+  /* phone mockup */
+  .phone { width: 300px; max-width: 100%; margin: 0 auto; background: #0f172a; border-radius: 44px;
+           padding: 12px; box-shadow: 0 24px 60px -20px rgba(0,145,110,.45); box-sizing: border-box; }
+  .phone-screen { background: #f1f5f9; border-radius: 34px; overflow: hidden; }
+  .phone-bar { background: #fff; padding: 14px 16px 10px; text-align: center;
+               border-bottom: 1px solid var(--line); }
+  .phone-bar b { font-size: .92em; } .phone-bar span { display: block; font-size: .75em; color: var(--muted); }
+  .chat { padding: 16px 12px; display: flex; flex-direction: column; gap: 8px; min-height: 300px; }
+  .bubble { max-width: 82%; padding: 9px 13px; border-radius: 16px; font-size: .83em; line-height: 1.45; }
+  .bubble.them { background: #fff; border: 1px solid var(--line); border-bottom-left-radius: 4px;
+                 align-self: flex-start; box-shadow: 0 1px 2px rgba(15,23,42,.06); }
+  .bubble.me { background: var(--brand); color: #fff; border-bottom-right-radius: 4px;
+               align-self: flex-end; }
+  .bubble .lbl { display: block; font-size: .72em; opacity: .75; margin-bottom: 2px; font-weight: 600; }
+  .phone-caption { text-align: center; color: var(--muted); font-size: .85em; margin-top: 12px; }
+
+  .section { margin: 0 0 56px; }
+  .section h2 { font-size: 1.7em; letter-spacing: -.02em; margin: 0 0 8px; text-align: center; }
+  .section .sub { text-align: center; color: var(--muted); max-width: 38em; margin: 0 auto 28px; }
+
+  .pains { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+  .pain { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+          padding: 20px; box-shadow: var(--shadow); }
+  .pain .ico { font-size: 1.6em; } .pain p { margin: 8px 0 0; color: var(--ink-soft); font-size: .95em; }
+
+  .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px;
+           counter-reset: step; }
+  .step { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+          padding: 22px; box-shadow: var(--shadow); position: relative; }
+  .step .num { width: 36px; height: 36px; border-radius: 50%; background: var(--brand);
+               color: #fff; font-weight: 800; display: flex; align-items: center;
+               justify-content: center; margin-bottom: 12px; }
+  .step h3 { margin: 0 0 6px; font-size: 1.05em; } .step p { margin: 0; color: var(--ink-soft); font-size: .94em; }
+
+  .timeline { max-width: 620px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; }
+  .t-row { display: grid; grid-template-columns: 110px 1fr; gap: 14px; align-items: start;
+           background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+           padding: 14px 18px; box-shadow: var(--shadow); }
+  .t-when { font-weight: 750; font-size: .85em; color: var(--brand-dark); padding-top: 2px; }
+  .t-what { font-size: .93em; color: var(--ink-soft); margin: 0; }
+  .t-what b { color: var(--ink); }
+
+  .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+  .feature { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+             padding: 20px; box-shadow: var(--shadow); }
+  .feature .ico { font-size: 1.5em; } .feature h3 { margin: 8px 0 6px; font-size: 1em; }
+  .feature p { margin: 0; color: var(--ink-soft); font-size: .92em; }
+
+  .founding { background: linear-gradient(135deg, #0b9b6c, #076b48); color: #fff;
+              border-radius: var(--radius); padding: 20px 24px; margin-bottom: 22px;
+              display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+  .founding b { font-size: 1.05em; } .founding p { margin: 4px 0 0; opacity: .92; font-size: .93em; }
+  .founding .tag { background: rgba(255,255,255,.2); border-radius: 999px; padding: 6px 14px;
+                   font-weight: 800; font-size: .85em; white-space: nowrap; }
+
+  .plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; }
+  .plan { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+          padding: 26px 24px; box-shadow: var(--shadow); display: flex; flex-direction: column; }
+  .plan.pop { border: 2px solid var(--brand); position: relative; }
+  .plan .pop-tag { position: absolute; top: -13px; left: 50%; transform: translateX(-50%);
+                   background: var(--brand); color: #fff; font-size: .75em; font-weight: 800;
+                   padding: 3px 14px; border-radius: 999px; letter-spacing: .04em; }
+  .plan h3 { margin: 0 0 4px; font-size: 1.1em; }
+  .plan .price { font-size: 2.1em; font-weight: 800; letter-spacing: -.03em; margin: 8px 0 2px; }
+  .plan .price small { font-size: .45em; font-weight: 500; color: var(--muted); }
+  .plan .annual { font-size: .85em; color: var(--muted); margin-bottom: 12px; }
+  .plan ul { list-style: none; padding: 0; margin: 0 0 20px; flex: 1; }
+  .plan li { padding: 6px 0; font-size: .93em; color: var(--ink-soft); border-bottom: 1px solid #f1f5f9; }
+  .plan li:last-child { border-bottom: 0; }
+  .plan li::before { content: "✓ "; color: var(--ok); font-weight: 800; }
+  .pricing-note { text-align: center; color: var(--muted); font-size: .9em; margin-top: 18px; }
+
+  .compare { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .compare .swipe-hint { display: none; font-size: .8em; color: var(--muted); margin: 0 0 6px; }
+  @media (max-width: 640px) { .compare .swipe-hint { display: block; } }
+  .compare table { min-width: 560px; background: var(--card); border-radius: var(--radius);
+                   overflow: hidden; box-shadow: var(--shadow); }
+  .compare td:first-child { font-weight: 600; }
+  .compare .yes { color: var(--ok); font-weight: 700; } .compare .no { color: var(--muted); }
+
+  .faq { max-width: 700px; margin: 0 auto; }
+  .faq details { background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+                 padding: 14px 18px; margin-bottom: 10px; box-shadow: var(--shadow); }
+  .faq summary { font-weight: 700; cursor: pointer; font-size: .98em; }
+  .faq details p { margin: 8px 0 2px; color: var(--ink-soft); font-size: .94em; }
+
+  .final-cta { text-align: center; background: var(--card); border: 1px solid var(--line);
+               border-radius: 20px; padding: 48px 24px; box-shadow: var(--shadow); }
+  .final-cta h2 { margin: 0 0 10px; font-size: 1.8em; letter-spacing: -.02em; }
+  .final-cta p { color: var(--muted); margin: 0 0 22px; }
+</style>
+
+<div class="hero">
+  <div>
+    <span class="eyebrow">For daycare &amp; childcare providers</span>
+    <h1>Never chase tuition <span class="accent">again.</span></h1>
+    <p class="lede">TuitionPing automatically texts your families tuition reminders —
+    3 days before it's due, on the due date, and with polite late nudges after.
+    Parents reply <strong>PAID</strong>. You watch the tuition come in. No awkward
+    pickup conversations, no spreadsheets, no "I forgot the checkbook."</p>
+    <div class="hero-ctas">
+      <a class="btn" href="/signup?plan=growth" style="font-size:1.08em;padding:14px 28px">Start 30-day free trial</a>
+      <a class="btn btn-ghost" href="#how" style="font-size:1.08em;padding:14px 28px">See how it works</a>
+    </div>
+    <p class="fine">Card on file at signup · no charge for 30 days · set up in about 10 minutes · cancel anytime</p>
+  </div>
+  <div>
+    <div class="phone">
+      <div class="phone-screen">
+        <div class="phone-bar"><b>Sunshine Daycare</b><span>TuitionPing reminders</span></div>
+        <div class="chat">
+          <div class="bubble them"><span class="lbl">3 days before</span>TuitionPing: Hi Sarah, friendly reminder that tuition of $1,200 for Sunshine Daycare is due on Oct 1. Thanks!</div>
+          <div class="bubble them"><span class="lbl">Due date</span>TuitionPing: Hi Sarah, just a reminder that tuition of $1,200 for Sunshine Daycare is due today (Oct 1). Thanks!</div>
+          <div class="bubble me">PAID</div>
+          <div class="bubble them">Thanks Sarah! Receipt: $1,200.00 for October 2026 received. 🎉</div>
+        </div>
+      </div>
+    </div>
+    <p class="phone-caption">Real example messages — parents just get normal texts.</p>
+  </div>
+</div>
+
+<div class="section">
+  <h2>You didn't open a daycare to chase checks</h2>
+  <p class="sub">The money conversation is the worst part of the job. TuitionPing takes it off your plate entirely.</p>
+  <div class="pains">
+    <div class="pain"><span class="ico" aria-hidden="true">😬</span><p><strong>The pickup-line ambush.</strong> Cornering a parent at 5:45pm about an overdue balance while their toddler melts down.</p></div>
+    <div class="pain"><span class="ico" aria-hidden="true">📒</span><p><strong>The 10pm spreadsheet.</strong> Cross-referencing who paid, who didn't, and who you already reminded twice.</p></div>
+    <div class="pain"><span class="ico" aria-hidden="true">🤷</span><p><strong>"I forgot the checkbook."</strong> The excuse you've heard 400 times — because there was no reminder before it was due.</p></div>
+  </div>
+</div>
+
+<div class="section" id="how">
+  <h2>How it works</h2>
+  <p class="sub">From signup to your first automatic reminder in about 10 minutes.</p>
+  <div class="steps">
+    <div class="step"><div class="num">1</div><h3>Add your families</h3><p>Parent name, phone number, tuition amount, due date, classroom — typed in or imported from a CSV in one click.</p></div>
+    <div class="step"><div class="num">2</div><h3>We text automatically</h3><p>Reminders go out 3 days before, on the due date, and at +3 and +7 days late — only while the balance is unpaid.</p></div>
+    <div class="step"><div class="num">3</div><h3>Parents reply PAID</h3><p>Your dashboard updates itself the moment they reply. Anyone can text STOP to opt out, START to rejoin.</p></div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Four perfectly-timed touches, zero effort</h2>
+  <p class="sub">Each family gets exactly the reminders they need — never more, never while they're already paid.</p>
+  <div class="timeline">
+    <div class="t-row"><div class="t-when">−3 days</div><p class="t-what"><b>Heads-up:</b> "Tuition of $1,200 is due on Oct 1." The reminder that prevents most late payments.</p></div>
+    <div class="t-row"><div class="t-when">Due date</div><p class="t-what"><b>Due today:</b> "Just a reminder — tuition is due today." Short, friendly, impossible to miss.</p></div>
+    <div class="t-row"><div class="t-when">+3 days</div><p class="t-what"><b>Gentle nudge</b> <i>(unpaid only)</i><b>:</b> "We haven't received tuition yet — reply PAID once sent."</p></div>
+    <div class="t-row"><div class="t-when">+7 days</div><p class="t-what"><b>Firm follow-up</b> <i>(unpaid only)</i><b>:</b> "Tuition is now 7 days overdue — please remit right away to avoid a late fee."</p></div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Everything handled, down to the details</h2>
+  <p class="sub">Built for one job — collecting tuition — instead of being one tab in a giant management suite.</p>
+  <div class="features">
+    <div class="feature"><span class="ico" aria-hidden="true">💬</span><h3>Two-way texting</h3><p>Parents reply PAID, STOP, START, or HELP from any phone. No app to install, nothing to learn.</p></div>
+    <div class="feature"><span class="ico" aria-hidden="true">🌙</span><h3>Quiet hours, their timezone</h3><p>Texts only go out during hours you choose, in your program's timezone. A reminder due at 2am waits for morning.</p></div>
+    <div class="feature"><span class="ico" aria-hidden="true">📞</span><h3>Recognizable sender</h3><p>Every message comes from the same TuitionPing number, with your program's name in the text so families always know it's you.</p></div>
+    <div class="feature"><span class="ico" aria-hidden="true">✏️</span><h3>Your wording</h3><p>Every reminder template is editable. Sound like yourself, not a robot.</p></div>
+    <div class="feature"><span class="ico" aria-hidden="true">🌐</span><h3>English y español</h3><p>Set each family's preferred language and they get every reminder in it. Both template sets are fully editable.</p></div>
+    <div class="feature"><span class="ico" aria-hidden="true">📥</span><h3>CSV import</h3><p>Bring your whole roster in one upload — name, phone, tuition, due date. Row-by-row errors, no silent failures.</p></div>
+    <div class="feature"><span class="ico" aria-hidden="true">📋</span><h3>Full message log</h3><p>Every text in and out, timestamped per family. When a parent says "I never got it," you'll know.</p></div>
+  </div>
+</div>
+
+<div class="section" id="pricing">
+  <h2>Simple pricing</h2>
+  <p class="sub">Every plan starts with a 30-day free trial. One on-time tuition payment covers a year.</p>
+  <div class="founding">
+    <span class="tag">FOUNDING MEMBERS</span>
+    <div><b>50% off for 6 months — {{ spots_left }} of 25 spots left</b><p>The first 25 providers lock in half price for half a year. After that, full price — still less than one late tuition payment a month.</p></div>
+  </div>
+  <div class="plans">
+    {% for key, p in plans.items() %}
+    <div class="plan{% if key == "growth" %} pop{% endif %}">
+      {% if key == "growth" %}<span class="pop-tag">MOST POPULAR</span>{% endif %}
+      <h3>{{ p.name }}</h3>
+      <div class="price">${{ p.price }}<small>/mo</small></div>
+      <div class="annual">${{ p.price * 10 }}/yr annual · 2 months free</div>
+      <ul>
+        {% for f in p.blurb.split(" · ") %}<li>{{ f }}</li>{% endfor %}
+        <li>4-stage automatic reminders</li>
+        <li>Two-way PAID / STOP texting</li>
+        <li>30-day free trial</li>
+      </ul>
+      <a class="btn{% if key != "growth" %} btn-ghost{% endif %}" href="/signup?plan={{ key }}" style="text-align:center">Start {{ p.name }} trial</a>
+    </div>
+    {% endfor %}
+  </div>
+  <p class="pricing-note">Card on file at signup, never charged during your 30-day trial. Cancel anytime from your Billing page — effective at the end of your billing period.</p>
+</div>
+
+<div class="section">
+  <h2>Why not just…</h2>
+  <p class="sub">TuitionPing does one job. Here's how that compares.</p>
+  <div class="compare">
+  <p class="swipe-hint" aria-hidden="true">← swipe to see all columns →</p>
+  <table>
+    <caption class="visually-hidden">How TuitionPing compares to spreadsheets and enterprise suites</caption>
+    <thead><tr><th scope="col"></th><th scope="col">TuitionPing</th><th scope="col">Spreadsheets &amp; memory</th><th scope="col">Enterprise suites</th></tr></thead>
+    <tbody>
+      <tr><td>Automatic text reminders</td><td class="yes">✓</td><td class="no">✗</td><td class="yes">✓*</td></tr>
+      <tr><td>Parents reply PAID by text</td><td class="yes">✓</td><td class="no">✗</td><td>Varies</td></tr>
+      <tr><td>Setup time</td><td>~10 minutes</td><td>Ongoing</td><td>Days–weeks</td></tr>
+      <tr><td>Pricing</td><td>From $19/mo</td><td>Free, plus your evenings</td><td>Quote-based</td></tr>
+      <tr><td>Built for small providers</td><td class="yes">✓</td><td class="no">—</td><td class="no">✗</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="pricing-note">*Full management suites include billing modules, but they're built — and priced — for centers with billing departments.</p>
+</div>
+
+<div class="section" id="roi">
+  <h2>What is late tuition costing you?</h2>
+  <p class="sub">Move the sliders to match your program — then look at the <b>yearly</b> numbers.</p>
+  <div class="card roi-card">
+    <div class="roi-grid">
+      <label>Families enrolled<br><input type="range" id="roi-fam" min="5" max="200" value="40" style="width:100%">
+        <b id="roi-fam-v">40</b></label>
+      <label>Avg. monthly tuition<br><input type="range" id="roi-tui" min="200" max="2500" step="50" value="900" style="width:100%">
+        <b id="roi-tui-v">$900</b></label>
+      <label>Families who pay late in a typical month<br><input type="range" id="roi-late" min="1" max="40" value="10" style="width:100%">
+        <b id="roi-late-v">10</b> <span class="roi-of">of <span id="roi-late-of">40</span></span></label>
+    </div>
+    <div class="roi-out">
+      <div class="roi-stat"><span class="roi-num" id="roi-money">$0</span><span class="roi-cap">of tuition landing <b>on time instead of late</b> — every year*</span><span class="roi-sub" id="roi-money-m"></span></div>
+      <div class="roi-stat"><span class="roi-num" id="roi-time">0h</span><span class="roi-cap">of chasing <b>back in your evenings</b> — every year*</span><span class="roi-sub" id="roi-time-d"></span></div>
+      <div class="roi-stat"><span class="roi-num" id="roi-texts">0</span><span class="roi-cap">reminder texts <b>sent for you</b> — every year</span><span class="roi-sub">while you're with the kids, not your phone</span></div>
+    </div>
+    <p class="roi-punch" id="roi-punch"></p>
+    <p class="roi-fine">*Illustrative estimate. Assumes automatic reminders cut late payments in half and each late payment costs you ~30 minutes of follow-ups across the month — your actual results depend on your families. TuitionPing Micro is $19/mo after a free 30-day trial.</p>
+    <p style="margin-top:14px"><a class="btn" href="/signup?plan=micro">Start free — 30-day trial</a></p>
+  </div>
+</div>
+<style>
+  .roi-card { max-width: 720px; margin: 0 auto; }
+  .roi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin: 6px 0 18px; }
+  .roi-grid label { font-size: .88em; color: var(--muted); font-weight: 600; }
+  .roi-grid b { color: var(--ink); }
+  .roi-of { font-weight: 400; color: var(--muted); font-size: .9em; }
+  .roi-out { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 18px;
+             background: var(--brand-soft); border-radius: 14px; padding: 22px; }
+  .roi-stat { min-width: 0; }
+  .roi-num { display: block; font-size: 2.5em; font-weight: 800; color: var(--brand-dark);
+             line-height: 1.1; letter-spacing: -0.02em; }
+  .roi-cap { display: block; font-size: .88em; color: var(--ink-soft); margin-top: 6px; }
+  .roi-sub { display: block; font-size: .78em; color: var(--muted); margin-top: 4px; font-style: italic; }
+  .roi-punch { background: var(--brand-dark); color: #fff; border-radius: 12px; padding: 14px 18px;
+               font-size: 1.02em; font-weight: 600; margin: 16px 0 0; text-align: center; }
+  .roi-punch b { color: #fff; }
+  .roi-fine { font-size: .8em; color: var(--muted); margin: 12px 0 0; }
+</style>
+<script>
+(function(){
+  var fam = document.getElementById('roi-fam'), tui = document.getElementById('roi-tui'), late = document.getElementById('roi-late');
+  var MONTHLY_COST = 19; // Micro $19/mo
+  function fmt(n){ return '$' + Math.round(n).toLocaleString('en-US'); }
+  function vals(){
+    var f = +fam.value, t = +tui.value;
+    late.max = f;                       // late families can't exceed families
+    var l = Math.min(+late.value, f);
+    if (+late.value !== l) late.value = l;
+    return { f: f, t: t, l: l,
+             money: l * t * 0.5 * 12,    // half of late tuition lands on time, annualized
+             hours: l * 0.5 * (30/60) * 12,  // ~30 min of follow-ups per late payment, annualized
+             texts: l * 4 * 12 };        // 4 reminder stages, monthly
+  }
+  function render(v){
+    document.getElementById('roi-fam-v').textContent = v.f;
+    document.getElementById('roi-tui-v').textContent = '$' + v.t;
+    document.getElementById('roi-late-v').textContent = v.l;
+    document.getElementById('roi-late-of').textContent = v.f;
+    document.getElementById('roi-money').textContent = fmt(v.money);
+    document.getElementById('roi-money-m').textContent = "that's " + fmt(v.money / 12) + " every single month";
+    document.getElementById('roi-time').textContent = Math.round(v.hours) + 'h';
+    document.getElementById('roi-time-d').textContent = v.hours >= 8
+      ? '≈ ' + Math.round(v.hours / 8) + ' full workdays back'
+      : '≈ ' + Math.round(v.hours * 60) + ' minutes back';
+    document.getElementById('roi-texts').textContent = Math.round(v.texts).toLocaleString('en-US');
+    var p = document.getElementById('roi-punch');
+    if (v.money > 0) {
+      p.innerHTML = 'TuitionPing Micro is <b>$' + MONTHLY_COST + '/mo</b> — to keep <b>' +
+        fmt(v.money / 12) + '/mo</b> landing on time.';
+    } else { p.textContent = ''; }
+  }
+  function countUp(){
+    // one-time animated reveal when the calculator scrolls into view
+    var target = vals(), dur = 1100, start = null;
+    var mEl = document.getElementById('roi-money'), tEl = document.getElementById('roi-time'),
+        xEl = document.getElementById('roi-texts');
+    function step(ts){
+      if (!start) start = ts;
+      var pr = Math.min((ts - start) / dur, 1), e = 1 - Math.pow(1 - pr, 3);
+      mEl.textContent = fmt(target.money * e);
+      tEl.textContent = Math.round(target.hours * e) + 'h';
+      xEl.textContent = Math.round(target.texts * e).toLocaleString('en-US');
+      if (pr < 1) { requestAnimationFrame(step); } else { render(target); }
+    }
+    render(target); // set labels + punchline immediately
+    requestAnimationFrame(step);
+  }
+  var seen = false;
+  function onInput(){ render(vals()); }
+  [fam, tui, late].forEach(function(el){ el.addEventListener('input', onInput); });
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function(es){
+      if (es[0].isIntersecting && !seen) { seen = true; io.disconnect(); countUp(); }
+    }, { threshold: 0.3 });
+    io.observe(document.getElementById('roi'));
+    setTimeout(function(){ if (!seen) { seen = true; render(vals()); } }, 4000); // fallback
+  } else { render(vals()); }
+})();
+</script>
+
+<div class="section">
+  <h2>Common questions</h2>
+  <div class="faq">
+    <details open><summary>Do parents need to install anything?</summary><p>No. They receive ordinary text messages from your TuitionPing number and reply like any other text. No app, no account, no login.</p></details>
+    <details><summary>How long does setup take?</summary><p>About 10 minutes: create your account, add families (or import a CSV), and you're done. Reminders start going out on the next scheduled stage.</p></details>
+    <details><summary>Can a parent opt out?</summary><p>Yes — they reply STOP anytime and we stop texting them immediately. They can rejoin with START. Opt-outs are honored automatically and instantly.</p></details>
+    <details><summary>Do I need parents' consent to text them?</summary><p>Yes. You should collect consent at enrollment or include it in your tuition agreement. You're responsible for only adding numbers you have permission to text — the signup and import flows both ask you to confirm this.</p></details>
+    <details><summary>Can I change what the messages say?</summary><p>Yes. All four reminder templates are editable from your dashboard, so they sound like you — including your program's name automatically.</p></details>
+    <details><summary>What if a parent's number changes or is wrong?</summary><p>Update it on your dashboard in seconds. A wrong number means a missed reminder, not a penalty — and phone numbers are validated on entry so typos get caught.</p></details>
+    <details><summary>What happens after the 30-day trial?</summary><p>Your card on file is charged for the plan you chose. Cancel anytime from the Billing page — it takes effect at the end of your billing period, and your data stays intact until then.</p></details>
+    <details><summary>Is there a contract?</summary><p>No. Month-to-month or annual, your choice. Cancel in one click whenever you want.</p></details>
+    <details><summary>Does TuitionPing collect tuition or verify payments?</summary><p>Neither. TuitionPing sends the reminders and records it when a parent replies PAID — but it doesn't process payments or confirm the money arrived. You verify payments in whatever system you already use (cash, check, bank transfer, Brightwheel, etc.), and can mark families paid by hand on your dashboard. A parent's PAID reply shows as "Reported paid" until you confirm it.</p></details>
+  </div>
+</div>
+
+<div class="final-cta">
+  <h2>Your next tuition cycle could collect itself.</h2>
+  <p>Join the founding members — 50% off for 6 months, 30-day free trial.</p>
+  <a class="btn" href="/signup?plan=growth" style="font-size:1.1em;padding:14px 32px">Start free — it takes 10 minutes</a>
+  <p style="margin-top:14px"><small>Card on file at signup · no charge for 30 days · cancel anytime</small></p>
+</div>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@graph":[
+{"@type":"Organization","name":"TuitionPing","url":"https://www.tuitionping.com/","logo":"https://www.tuitionping.com/static/logo.webp","address":{"@type":"PostalAddress","addressLocality":"Concord","addressRegion":"CA","addressCountry":"US"}},{"@type":"SoftwareApplication","name":"TuitionPing","applicationCategory":"BusinessApplication","operatingSystem":"Web","url":"https://www.tuitionping.com/","description":"Automatic tuition reminder texts for daycares. Parents get reminders before tuition is due and can reply PAID. 30-day free trial.","offers":[{"@type":"Offer","name":"Micro","price":"19","priceCurrency":"USD"},{"@type":"Offer","name":"Starter","price":"29","priceCurrency":"USD"},{"@type":"Offer","name":"Growth","price":"59","priceCurrency":"USD"},{"@type":"Offer","name":"Multi-site","price":"99","priceCurrency":"USD"}]},
+{"@type":"FAQPage","mainEntity":[
+{"@type":"Question","name":"Do parents need to install anything?","acceptedAnswer":{"@type":"Answer","text":"No. They receive ordinary text messages from your TuitionPing number and reply like any other text. No app, no account, no login."}},
+{"@type":"Question","name":"How long does setup take?","acceptedAnswer":{"@type":"Answer","text":"About 10 minutes: create your account, add families (or import a CSV), and you're done. Reminders start going out on the next scheduled stage."}},
+{"@type":"Question","name":"Can a parent opt out?","acceptedAnswer":{"@type":"Answer","text":"Yes — they reply STOP anytime and we stop texting them immediately. They can rejoin with START. Opt-outs are honored automatically and instantly."}},
+{"@type":"Question","name":"Can I change what the messages say?","acceptedAnswer":{"@type":"Answer","text":"Yes. All four reminder templates are editable from your dashboard, so they sound like you — including your program's name automatically."}},
+{"@type":"Question","name":"What happens after the 30-day trial?","acceptedAnswer":{"@type":"Answer","text":"Your card on file is charged for the plan you chose. Cancel anytime from the Billing page — it takes effect at the end of your billing period."}},
+{"@type":"Question","name":"Do I need parents' consent to text them?","acceptedAnswer":{"@type":"Answer","text":"Yes. Collect permission at enrollment or in your tuition agreement before adding a number."}},{"@type":"Question","name":"What if a parent's number changes or is wrong?","acceptedAnswer":{"@type":"Answer","text":"Update it on your dashboard in seconds. Phone numbers are validated on entry."}},{"@type":"Question","name":"Does TuitionPing collect tuition or verify payments?","acceptedAnswer":{"@type":"Answer","text":"Neither. TuitionPing sends reminders and records PAID replies, but does not process payments or confirm the money arrived. A parent's PAID reply shows as Reported paid until you confirm it."}},{"@type":"Question","name":"Is there a contract?","acceptedAnswer":{"@type":"Answer","text":"No. Month-to-month or annual, your choice. Cancel in one click whenever you want."}}
+]}
+]}
+</script>
+{% endblock %}
