@@ -182,8 +182,9 @@ reporting remains separate. Partners shows aggregate browser visits, demo use,
 downloads and distinct accounts/trials/first real reminders/paid subscriptions
 for 28- or 90-day signup/touch cohorts. Existing live billing and SMS milestones
 provide those business outcomes. A link association is not proof of causation.
-Opt-out, bot, logged-in browsing and retention rules remain in force. Browser
-attribution history expires after 90 days; partner definitions remain saved.
+Opt-out and logged-in browsing exclusions remain in force. Known Bot and
+Likely Bot attribution is excluded from customer statistics. Raw browser
+attribution history and partner definitions remain saved for auditing.
 No recipient contacts or family data are shared with partners, and creating a
 kit or partner link sends no outreach message.
 
@@ -283,3 +284,76 @@ First-party `video_started` and `video_completed` events appear in the existing
 growth report. Completion requires approximately 85% of content time played;
 a seek directly to the end does not count. Analytics are browser estimates,
 respect existing privacy opt-outs and do not represent paid conversions.
+
+## Human and automated visitor analytics
+
+`traffic.py` classifies the existing `growth_visitors` identifiers and
+`site_visits` hit log; it does not create a second analytics collector.
+Additive SQLite/Postgres migration runs before deployment health checks.
+New visitor fields record classification, JSON reasons, 0–100 bot risk,
+User-Agent, referrer hostname, keyed network hash, last seen/page, hit/page
+counts, browser execution, automation flag, identity kind, historical evidence,
+classification version and pending review. `site_visits` gains `visitor_id`,
+`status_code` and `request_type`. `traffic_classifications` records decision
+changes for auditing. Indexes support recent hits, distinct paths, classes,
+clusters, historical migration and pending review. No original rows are reset
+or deleted; conversion/account/partner links no longer expire after 90 days.
+
+The maintainable local User-Agent list identifies crawlers, previews, monitors,
+scanners, HTTP libraries and detectable browser automation as **Known Bot**.
+An explicit `navigator.webdriver` signal also identifies browser automation.
+**Likely Bot** requires risk at least 55 and two independent signal groups:
+velocity, repetition, probing, identical-network/browser/page sessions beginning
+in the same second, missing User-Agent, and absent browser execution after a
+20-second grace period. Velocity uses at most the most recent 64 requests in
+an observed minute. A cluster requires at least 12 browser identifiers with
+matching network, User-Agent, landing and start second; shared-network traffic
+with confirmed execution is not removed by the cluster alone. JS confirmation
+reduces risk but cannot override an obvious crawler or an excessive burst.
+
+A normal browser with confirmed execution and no suspicious signals is
+**Human**. Uncertain new traffic is **Likely Human**. One page, brief visits,
+no referrer, direct/QR sources, refreshes, Safari/iPhone, privacy preferences,
+and missing JS alone never establish a bot. Known Bot is retained; a Likely
+Bot decision does not disappear merely because time passed, but a later calm,
+browser-confirmed visit may recover. Decision changes remain in the audit log.
+
+`growth.js` sends one signed `browser_verified` beacon after two render frames.
+It updates an already-recorded visitor/path without adding a page view, hit,
+visitor or conversion event. Existing cookie signing, event validation and
+DNT/GPC opt-outs remain intact. Anonymous opt-out/crawler hits use a keyed
+30-minute network/browser estimate instead of setting a new analytics cookie.
+Raw IPs are not stored; new referrers retain the hostname only and failed URLs
+retain a safe category, without query values or private scanner paths.
+
+A bounded background task runs every 30 seconds to migrate 250 historical
+network/User-Agent groups and review 250 pending sessions. Admin reports also
+advance those batches. Historical known crawlers are Known Bot; historical
+normal browser User-Agents are Likely Human. Insufficient evidence stays
+**Unknown / Unclassified**. Old network hits cannot be reliably matched to
+old conversion cookies, so those cookie cohorts remain available in Unknown
+audit instead of inventing a link. Shared networks, cleared cookies, UA spoofing,
+and automation that mimics a normal browser remain estimation limits.
+
+**Admin → Visitors** defaults to Human / Likely Human, with today/total cards
+for human, automated and all traffic. It offers All/Human/Automated/Unknown
+filters, expandable reasons, a request-spike indicator, and server-side sorting
+of all eight visitor columns across 100-row pages. Rates in Conversions and
+Postcard attribution use the same eligible visitor IDs in numerator and
+denominator. Partner customer reporting also excludes Known/Likely Bot
+attribution. Raw conversion events stay available in Conversions audit filters;
+server business milestones remain deduplicated. Paid customer events require
+live, positive subscription payment confirmation, never a parent's PAID reply.
+All Admin display and today boundaries use `America/Los_Angeles`, including
+23/25-hour DST days and PST/PDT labels. Classification neither blocks traffic
+nor changes search crawling, product flows, CAPTCHA or network rules.
+
+Validation: `python -m unittest discover -s tests -p 'test_*.py' -q`; install
+jsdom, xlsx and xlsx-calc outside the repository, then
+`NODE_PATH=/tmp/tuitionping-traffic-ui/node_modules node --test tests/*.test.cjs`.
+`tests/test_traffic.py` covers browser/QR/privacy/one-page cases, known clients,
+rapid and simultaneous sessions, delayed review, history, concurrent hits,
+filters/sorting/pagination, raw conversion retention, verified billing,
+partner/QR filtering, exact visitor rates, Pacific/DST and fail-open behavior.
+`tests/growth-ui.test.cjs` verifies render timing, one beacon, signed token,
+privacy exclusions, explicit automation, existing clicks and silent failure.

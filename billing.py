@@ -349,7 +349,7 @@ def handle_stripe_event(event) -> dict:
             lid = int(sub_meta.get("provider_id") or provider_id or 0)
             if lid:
                 _sync_from_subscription(lid, sub)
-                if session.get("livemode") is True:
+                if session.get("livemode") is True and sub.get("livemode") is True:
                     import growth
                     growth.milestone(lid, "checkout_completed")
                     if sub.get("status") == "trialing":
@@ -376,7 +376,8 @@ def handle_stripe_event(event) -> dict:
 
     if etype in ("invoice.paid", "invoice.payment_succeeded"):
         inv = _as_dict((event.get("data") or {}).get("object") or {})
-        if inv.get("livemode") is True and (inv.get("amount_paid") or 0) > 0:
+        if (inv.get("livemode") is True and (inv.get("amount_paid") or 0) > 0
+                and inv.get("status", "paid") == "paid" and inv.get("paid", True) is True):
             # Support both old and current Stripe invoice shapes.
             parent = _as_dict(inv.get("parent") or {})
             details = _as_dict(parent.get("subscription_details") or {})

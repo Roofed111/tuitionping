@@ -7,6 +7,19 @@
       headers:{'Content-Type':'application/json', 'X-TP-Analytics':meta.content},
       body:JSON.stringify({event:event, detail:detail || '', path:location.pathname})}).catch(function () {});
   };
+  let verified = false;
+  function confirmRender() {
+    requestAnimationFrame(function () { requestAnimationFrame(function () {
+      if (verified) return;
+      verified = true;
+      window.tpTrack('browser_verified', navigator.webdriver === true ? 'webdriver' : '');
+    }); });
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', confirmRender, {once:true});
+  } else {
+    confirmRender();
+  }
   document.addEventListener('click', function (e) {
     const link = e.target.closest('a[href]');
     if (link && new URL(link.href, location.href).pathname === '/signup') window.tpTrack('trial_click');

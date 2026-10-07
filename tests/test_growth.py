@@ -147,7 +147,7 @@ class GrowthTest(unittest.TestCase):
             r=self.client.get('/admin/conversions');self.assertEqual(r.status_code,200)
             self.assertIn('From first visit to customer',r.text)
             self.assertEqual(r.headers['cache-control'],'private, no-store')
-    def test_retention_removes_old_events_and_account_links(self):
+    def test_old_events_and_account_links_are_retained_outside_report_window(self):
         pid=self.account()
         old=(datetime.now(timezone.utc)-timedelta(days=91)).isoformat(timespec='seconds')
         with store.db() as conn:
@@ -155,8 +155,9 @@ class GrowthTest(unittest.TestCase):
             conn.execute('UPDATE growth_events SET ts = ?', (old,))
         growth.register('b'*32,'direct','none','','/demo')
         with store.db() as conn:
-            self.assertEqual(conn.execute('SELECT COUNT(*) AS c FROM growth_accounts').fetchone()['c'],0)
-            self.assertEqual(conn.execute('SELECT COUNT(*) AS c FROM growth_events').fetchone()['c'],0)
+            self.assertEqual(conn.execute('SELECT COUNT(*) AS c FROM growth_accounts').fetchone()['c'],1)
+            self.assertGreater(conn.execute('SELECT COUNT(*) AS c FROM growth_events').fetchone()['c'],0)
+        self.assertTrue(all(stage['count'] == 0 for stage in growth.report()['stages']))
 
     def test_reset_zeros_every_stage_and_group_without_deleting_history(self):
         pid=self.account()

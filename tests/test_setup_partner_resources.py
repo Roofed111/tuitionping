@@ -202,4 +202,5 @@ class PartnerResourcesTest(unittest.TestCase):
         old=(datetime.now(timezone.utc)-timedelta(days=91)).isoformat(timespec='seconds')
         with store.db() as conn:conn.execute('UPDATE growth_visitors SET first_seen=? WHERE visitor_id=?',(old,vid))
         growth.register(secrets.token_hex(16),'direct','none','','/guides')
-        with store.db() as conn:self.assertEqual(conn.execute('SELECT COUNT(*) AS c FROM growth_partner_visitors WHERE visitor_id=?',(vid,)).fetchone()['c'],0)
+        with store.db() as conn:self.assertEqual(conn.execute('SELECT COUNT(*) AS c FROM growth_partner_visitors WHERE visitor_id=?',(vid,)).fetchone()['c'],1)
+        self.assertTrue(all(p['visitors']==0 for p in partners.report()))
