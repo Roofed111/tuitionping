@@ -34,7 +34,14 @@
   </div>
 
   <p class="stmt-total" style="margin:16px 0 4px">Collected: ${{ "{:,.2f}".format(total) }}</p>
-  <p style="color:var(--muted);font-size:.9em;margin-top:0">Based on payments recorded in TuitionPing during {{ year }}.</p>
+  <p style="color:var(--muted);font-size:.9em;margin-top:0">Based on provider-verified payments recorded in TuitionPing during {{ year }}. Unconfirmed PAID replies and older records without verification are excluded.</p>
+  {% if unverified %}
+  <div class="no-print">
+    <h3>Records needing verification</h3>
+    <p>Review these records before issuing statements. Confirm only amounts you have received.</p>
+    <ul>{% for payment in unverified %}<li><a href="/families/edit/{{ payment['family_id'] }}">{{ payment['family_name'] }}</a> · {{ payment['period'] }} · ${{ "{:,.2f}".format(payment['amount']) }}</li>{% endfor %}</ul>
+  </div>
+  {% endif %}
 
   <h3>By month</h3>
   <table class="stmt-table">

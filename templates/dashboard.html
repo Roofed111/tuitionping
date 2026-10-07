@@ -304,9 +304,9 @@
     <h2>🧾 Year-end tax statements</h2>
   </div>
   {% if statements_sent %}<p style="color:#166534"><strong>Sent ✓</strong> — {{ statements_n }} families got their {{ statements_year }} statement link.</p>{% endif %}
-  <p style="color:var(--muted);margin-top:0"><a href="/reports/annual">📊 Annual tax summary</a> — everything you collected this year, by month and location, printable for your own taxes.</p>
+  <p style="color:var(--muted);margin-top:0"><a href="/reports/annual">📊 Annual tax summary</a> — provider-verified payments by month and location. Review unverified and older records there before issuing statements.</p>
   {% if can_blast %}
-  <p style="color:var(--muted);margin-top:0">Text every family a link to their own {{ statement_year }} payment statement — one click, done for tax season. Only families with recorded payments get one. Limit: one blast per day.</p>
+  <p style="color:var(--muted);margin-top:0">Text every family a link to their own {{ statement_year }} payment statement — one click, done for tax season. Only families with provider-verified payments get one. Limit: one blast per day.</p>
   <form method="post" action="/statements/blast" onsubmit="return confirm('Text all families their {{ statement_year }} tax statement link?')">
     {{ csrf_input(request) }}
     <input type="hidden" name="year" value="{{ statement_year }}">
