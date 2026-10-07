@@ -17,6 +17,7 @@ class GrowthTest(unittest.TestCase):
         with store.db() as conn:
             for table in ('growth_events','growth_accounts','growth_visitors'):
                 conn.execute('DELETE FROM '+table)
+            conn.execute("UPDATE growth_report_state SET event_floor = 0, generation = '', reset_at = '', reset_by = NULL WHERE id = 1")
         self.client=TestClient(app.app,base_url='https://www.tuitionping.com',headers={'user-agent':'Mozilla/5.0 Test browser'})
     def tearDown(self):
         self.client.close()
@@ -156,5 +157,102 @@ class GrowthTest(unittest.TestCase):
         with store.db() as conn:
             self.assertEqual(conn.execute('SELECT COUNT(*) AS c FROM growth_accounts').fetchone()['c'],0)
             self.assertEqual(conn.execute('SELECT COUNT(*) AS c FROM growth_events').fetchone()['c'],0)
+
+    def test_reset_zeros_every_stage_and_group_without_deleting_history(self):
+        pid=self.account()
+        vid=growth.visitor_from_cookie(self.client.cookies.get(growth.COOKIE))
+        for event,_ in growth.STAGES:
+            growth.record(vid,event,path='/demo',provider_id=pid if event in {'signup','checkout_started','checkout_completed','trial_started','first_reminder','paid_customer'} else None)
+        self.assertTrue(all(stage['count'] > 0 for stage in growth.report()['stages']))
+        with store.db() as conn:
+            before={table:conn.execute('SELECT COUNT(*) AS n FROM '+table).fetchone()['n'] for table in ('growth_events','growth_visitors','growth_accounts','providers','subscriptions','growth_partner_accounts')}
+        growth.reset_report(pid)
+        for days in (28,90):
+            report=growth.report(days)
+            self.assertTrue(all(stage['count']==0 for stage in report['stages']))
+            self.assertEqual(report['sources'],[])
+            self.assertEqual(report['pages'],[])
+            self.assertTrue(report['reset_at'])
+        with store.db() as conn:
+            after={table:conn.execute('SELECT COUNT(*) AS n FROM '+table).fetchone()['n'] for table in before}
+            self.assertEqual(conn.execute('SELECT reset_by FROM growth_report_state WHERE id=1').fetchone()['reset_by'],pid)
+        self.assertEqual(before,after)
+        growth.milestone(pid,'paid_customer')
+        growth.milestone(pid,'signup')
+        self.assertEqual(self.counts()['paid_customer'],0)
+        self.assertEqual(self.counts()['signup'],0)
+        self.assertFalse(growth.needs_milestone(pid,'paid_customer'))
+
+    def test_returning_browser_and_new_accounts_count_after_same_second_reset(self):
+        token=self.visit('/demo?utm_source=postcards&utm_medium=mail&utm_campaign=fall')
+        self.client.post('/analytics/event',json={'event':'demo_started','path':'/demo'},headers={'x-tp-analytics':token})
+        # Deliberately use one timestamp: an event-ID boundary must not lose
+        # genuine activity recorded in the same second as reset.
+        with patch.object(store,'now_iso',return_value=store.now_iso()):
+            growth.reset_report(1)
+            self.assertEqual(self.counts()['page_view'],0)
+            self.visit('/demo?utm_source=other')
+            self.client.post('/analytics/event',json={'event':'demo_started','path':'/demo'},headers={'x-tp-analytics':token})
+            self.client.post('/analytics/event',json={'event':'demo_started','path':'/demo'},headers={'x-tp-analytics':token})
+            self.assertEqual(self.counts()['page_view'],1)
+            self.assertEqual(self.counts()['demo_started'],1)
+            self.assertEqual(growth.report()['sources'][0]['key'],('postcards','mail','fall'))
+            pid=self.account()
+            growth.milestone(pid,'paid_customer')
+            self.assertEqual(self.counts()['signup'],1)
+            self.assertEqual(self.counts()['paid_customer'],1)
+            growth.reset_report(1)
+            self.assertTrue(all(value==0 for value in self.counts().values()))
+            self.visit()
+            self.assertEqual(self.counts()['page_view'],1)
+            self.assertEqual(self.counts()['signup'],0)
+
+    def test_reset_is_admin_only_csrf_protected_and_post_only(self):
+        pid=self.account()
+        session=store.create_session(pid)
+        self.client.cookies.set(app.SESSION_COOKIE,session)
+        data={'csrf_token':app.csrf_token_for_session(session),'days':90}
+        self.assertEqual(self.client.post('/admin/conversions/reset',data=data,follow_redirects=False).status_code,404)
+        self.assertEqual(self.counts()['page_view'],1)
+        email=store.get_provider(pid)['email']
+        with patch.object(app,'ADMIN_EMAILS',{email}):
+            self.assertEqual(self.client.get('/admin/conversions/reset',follow_redirects=False).status_code,405)
+            self.assertEqual(self.client.post('/admin/conversions/reset',data={'days':90},follow_redirects=False).status_code,403)
+            self.assertEqual(self.counts()['page_view'],1)
+            response=self.client.get('/admin/conversions?days=90')
+            self.assertIn('Reset all conversions',response.text)
+            self.assertIn('name="csrf_token"',response.text)
+            # Reading the neighboring visitors report must not reset anything.
+            self.assertEqual(self.client.get('/admin/visitors').status_code,200)
+            self.assertEqual(self.counts()['page_view'],1)
+            response=self.client.post('/admin/conversions/reset',data=data,follow_redirects=False)
+            self.assertEqual(response.status_code,303)
+            self.assertEqual(response.headers['location'],'/admin/conversions?days=90&reset=1')
+            self.assertEqual(self.counts()['page_view'],0)
+            page=self.client.get(response.headers['location'])
+            self.assertIn('Last reset:',page.text)
+            self.assertIn('Conversion totals reset.',page.text)
+            self.assertEqual(page.headers['cache-control'],'private, no-store')
+        self.client.cookies.clear()
+        with patch.object(growth,'reset_report') as reset:
+            response=self.client.post('/admin/conversions/reset',data={'csrf_token':'invalid'},follow_redirects=False)
+            self.assertNotEqual(response.status_code,200)
+            reset.assert_not_called()
+
+    def test_reset_report_uses_recent_activity_and_persists_across_reload(self):
+        self.visit()
+        vid=growth.visitor_from_cookie(self.client.cookies.get(growth.COOKIE))
+        old=(datetime.now(timezone.utc)-timedelta(days=40)).isoformat(timespec='seconds')
+        with store.db() as conn:
+            conn.execute('UPDATE growth_visitors SET first_seen = ? WHERE visitor_id = ?', (old,vid))
+        growth.reset_report(1)
+        self.visit()
+        self.assertEqual(self.counts()['page_view'],1)
+        growth._ready=None  # a new app process must retain the reporting boundary
+        self.assertEqual(self.counts()['page_view'],1)
+        with store.db() as conn:
+            conn.execute('UPDATE growth_events SET ts = ? WHERE id > (SELECT event_floor FROM growth_report_state WHERE id=1)', (old,))
+        self.assertEqual(self.counts()['page_view'],0)
+        self.assertEqual(growth.report(90)['stages'][0]['count'],1)
 
 if __name__=='__main__':unittest.main()

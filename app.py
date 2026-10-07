@@ -2837,6 +2837,17 @@ def admin_conversions(request: Request, days: int = 28):
     return response
 
 
+@app.post("/admin/conversions/reset")
+def admin_reset_conversions(request: Request, days: int = Form(28)):
+    provider, redirect = require_admin(request)
+    if redirect:
+        return redirect
+    growth.reset_report(provider["id"])
+    response = RedirectResponse(f"/admin/conversions?days={90 if days == 90 else 28}&reset=1", status_code=303)
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
+
+
 @app.get("/admin/visitors", response_class=HTMLResponse)
 def admin_visitors(request: Request):
     """First-party site analytics: individual visitors (hashed IPs) and their

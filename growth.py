@@ -40,6 +40,8 @@ def ensure_tables():
             conn.execute('CREATE TABLE IF NOT EXISTS growth_partners (code TEXT PRIMARY KEY, name TEXT NOT NULL, kind TEXT NOT NULL, created_at TEXT NOT NULL)')
             conn.execute('CREATE TABLE IF NOT EXISTS growth_partner_visitors (visitor_id TEXT PRIMARY KEY, partner_code TEXT NOT NULL, touched_at TEXT NOT NULL)')
             conn.execute('CREATE TABLE IF NOT EXISTS growth_partner_accounts (provider_id INTEGER PRIMARY KEY, visitor_id TEXT NOT NULL, partner_code TEXT NOT NULL, bound_at TEXT NOT NULL)')
+            conn.execute("CREATE TABLE IF NOT EXISTS growth_report_state (id INTEGER PRIMARY KEY, event_floor INTEGER NOT NULL, generation TEXT NOT NULL, reset_at TEXT NOT NULL, reset_by INTEGER)")
+            conn.execute("INSERT INTO growth_report_state (id,event_floor,generation,reset_at) VALUES (1,0,'','') ON CONFLICT(id) DO NOTHING")
         _ready = key
 
 def _mac(value):
@@ -106,6 +108,10 @@ def record(visitor_id, event, detail='', path='', provider_id=None):
     ensure_tables()
     with store.db() as conn:
         key = f'account:{provider_id}:{event}' if provider_id else ':'.join([visitor_id, event, detail, path])
+        if not provider_id:
+            state = conn.execute('SELECT generation FROM growth_report_state WHERE id = 1').fetchone()
+            if state['generation']:
+                key = state['generation'] + ':' + key
         conn.execute('INSERT INTO growth_events (visitor_id,provider_id,event,detail,path,ts,dedupe_key) VALUES (?,?,?,?,?,?,?) ON CONFLICT(dedupe_key) DO NOTHING', (visitor_id, provider_id, event, detail, path, store.now_iso(), key))
 
 def bind_account(visitor_id, provider_id):
@@ -141,12 +147,32 @@ def needs_milestone(provider_id, event):
     except Exception:
         return False
 
+def reset_report(provider_id):
+    """Start a new report without deleting history or business deduplication.
+
+    Browser events may count again in the new period. Account milestone keys
+    stay unchanged so webhook retries cannot turn old customers into new ones.
+    """
+    ensure_tables()
+    with store.db() as conn:
+        floor = conn.execute('SELECT COALESCE(MAX(id),0) AS n FROM growth_events').fetchone()['n']
+        conn.execute('UPDATE growth_report_state SET event_floor = ?, generation = ?, reset_at = ?, reset_by = ? WHERE id = 1',
+                     (floor, secrets.token_hex(16), store.now_iso(), provider_id))
+
+
 def report(days=28):
     ensure_tables()
     cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat(timespec='seconds')
     with store.db() as conn:
-        visitors = [dict(r) for r in conn.execute('SELECT * FROM growth_visitors WHERE first_seen >= ?', (cutoff,)).fetchall()]
-        events = [dict(r) for r in conn.execute('SELECT e.* FROM growth_events e JOIN growth_visitors v ON e.visitor_id = v.visitor_id WHERE v.first_seen >= ?', (cutoff,)).fetchall()]
+        state = conn.execute('SELECT * FROM growth_report_state WHERE id = 1').fetchone()
+        if state['generation']:
+            # Use activity in the new reporting period, including returning
+            # browsers whose first-touch attribution was recorded before reset.
+            visitors = [dict(r) for r in conn.execute('SELECT DISTINCT v.* FROM growth_visitors v JOIN growth_events e ON e.visitor_id = v.visitor_id WHERE e.id > ? AND e.ts >= ?', (state['event_floor'], cutoff)).fetchall()]
+            events = [dict(r) for r in conn.execute('SELECT e.* FROM growth_events e JOIN growth_visitors v ON e.visitor_id = v.visitor_id WHERE e.id > ? AND e.ts >= ?', (state['event_floor'], cutoff)).fetchall()]
+        else:
+            visitors = [dict(r) for r in conn.execute('SELECT * FROM growth_visitors WHERE first_seen >= ?', (cutoff,)).fetchall()]
+            events = [dict(r) for r in conn.execute('SELECT e.* FROM growth_events e JOIN growth_visitors v ON e.visitor_id = v.visitor_id WHERE v.first_seen >= ?', (cutoff,)).fetchall()]
     event_sets = {}
     for e in events:
         event_sets.setdefault(e['event'], set()).add(e['visitor_id'])
@@ -162,4 +188,4 @@ def report(days=28):
         return [{'key': k, 'visitors': len(ids), 'demo': len(ids & event_sets.get('demo_started', set())),
                  'help': len(ids & event_sets.get('setup_help_requested', set())), 'signups': accounts(ids, 'signup'), 'trials': accounts(ids, 'trial_started'),
                  'paid': accounts(ids, 'paid_customer')} for k, ids in sorted(buckets.items(), key=lambda p: -len(p[1]))]
-    return {'stages': stages, 'sources': groups(['source', 'medium', 'campaign']), 'pages': groups(['landing_path']), 'days': days}
+    return {'stages': stages, 'sources': groups(['source', 'medium', 'campaign']), 'pages': groups(['landing_path']), 'days': days, 'reset_at': state['reset_at']}
