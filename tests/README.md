@@ -1,5 +1,16 @@
 # Late-fee calculator checks
 
+## Verified payment statements
+
+`test_payment_confirmation.py` checks that parent PAID reports are excluded from
+private/public statements, annual collected totals, reminder recovery totals and
+statement text recipients until a provider verifies receipt. It covers repeat and
+stale confirmations, original amount/date preservation, later fees, historical
+review, ownership/CSRF checks and migration from the old ledger schema. Legacy
+records are preserved; only the family's explicitly confirmed current period is
+backfilled as verified. Older records without evidence require individual review
+from the annual report or family edit page. SMS is mocked and databases are temporary.
+
 ## Referral credit checks
 
 `test_referrals.py` uses a temporary database and simulated Stripe responses.

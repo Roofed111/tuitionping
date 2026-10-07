@@ -811,14 +811,14 @@ def get_tax_id(provider_id):
 
 
 def get_family_payments_for_year(family_id, year: int):
-    """Every logged payment for one family in a calendar year, oldest first.
+    """Provider-verified payments in a calendar year, oldest first.
     Filters in Python so it works identically on SQLite and Postgres."""
     ensure_paid_log()
     prefix = f"{year:04d}"
     with db() as conn:
         rows = conn.execute(
             "SELECT period, amount, paid_at FROM paid_log"
-            " WHERE family_id = ? ORDER BY paid_at",
+            " WHERE family_id = ? AND paid_source = 'manual' ORDER BY paid_at",
             (family_id,)).fetchall()
     return [dict(r) for r in rows if (r["paid_at"] or "")[:4] == prefix]
 
@@ -1197,18 +1197,54 @@ def ensure_paid_source_column():
 
 
 def confirm_family_payment(family_id, period):
-    """Verify an existing parent report without changing its period or ledger.
+    """Verify a parent report and its original ledger entry atomically.
 
     The conditional update makes repeats and stale forms harmless. In
     particular, charges added after the parent's report stay outstanding.
     """
     ensure_paid_source_column()
+    ensure_paid_log()
     with db() as conn:
         cur = conn.execute(
             "UPDATE families SET paid_source = 'manual'"
             " WHERE id = ? AND paid_period = ? AND paid_source = 'reply'",
             (family_id, period))
-        return cur.rowcount > 0
+        if cur.rowcount > 0:
+            conn.execute("UPDATE paid_log SET paid_source = 'manual'"
+                         " WHERE family_id = ? AND period = ?",
+                         (family_id, period))
+            return True
+        return False
+
+
+def get_unverified_family_payments(family_id):
+    """Preserved reports and legacy records needing a provider's review."""
+    ensure_paid_log()
+    with db() as conn:
+        return [dict(r) for r in conn.execute(
+            "SELECT id, period, amount, paid_at, paid_source FROM paid_log"
+            " WHERE family_id = ? AND paid_source != 'manual' ORDER BY paid_at",
+            (family_id,)).fetchall()]
+
+
+def confirm_logged_family_payment(family_id, payment_id):
+    """Verify a specific historical record, preserving its amount and date.
+
+    A repeat is harmless; never move the family's current paid period or
+    settle fees incurred after the original report.
+    """
+    ensure_paid_log()
+    with db() as conn:
+        payment = conn.execute("SELECT period FROM paid_log WHERE id = ?"
+                               " AND family_id = ?", (payment_id, family_id)).fetchone()
+        if not payment:
+            return False
+        conn.execute("UPDATE families SET paid_source = 'manual'"
+                     " WHERE id = ? AND paid_period = ? AND paid_source = 'reply'",
+                     (family_id, payment['period']))
+        conn.execute("UPDATE paid_log SET paid_source = 'manual'"
+                     " WHERE id = ? AND family_id = ?", (payment_id, family_id))
+        return True
 
 
 def mark_family_paid(family_id, period, source="manual"):
@@ -1250,9 +1286,9 @@ def mark_family_paid(family_id, period, source="manual"):
                      " WHERE family_id = ? AND settled_period IS NULL",
                      (period, family_id))
         conn.execute(
-            "INSERT INTO paid_log (family_id, period, amount, paid_at)"
-            " VALUES (?,?,?,?) ON CONFLICT(family_id, period) DO NOTHING",
-            (family_id, period, amount, now_iso()))
+            "INSERT INTO paid_log (family_id, period, amount, paid_at, paid_source)"
+            " VALUES (?,?,?,?,?) ON CONFLICT(family_id, period) DO NOTHING",
+            (family_id, period, amount, now_iso(), source))
         # Consume a one-time next-bill override whose bill was just paid, so
         # the dashboard/edit form immediately show the monthly cadence.
         ov_raw = cur["next_due_date"] if cur and cur["next_due_date"] else None
@@ -1549,7 +1585,7 @@ def get_family_by_statement_token(token):
 
 
 def get_provider_payments_for_year(provider_id, year: int):
-    """Every logged payment for a provider in a calendar year, with the
+    """Provider-verified payments in a calendar year, with the
     location each family belongs to. Filters in Python (SQLite + PG safe)."""
     ensure_paid_log()
     prefix = f"{year:04d}"
@@ -1560,9 +1596,22 @@ def get_provider_payments_for_year(provider_id, year: int):
             " JOIN families f ON f.id = pl.family_id"
             " JOIN classrooms c ON c.id = f.classroom_id"
             " JOIN locations l ON l.id = c.location_id"
-            " WHERE l.provider_id = ? ORDER BY pl.paid_at",
+            " WHERE l.provider_id = ? AND pl.paid_source = 'manual' ORDER BY pl.paid_at",
             (provider_id,)).fetchall()
     return [dict(r) for r in rows if (r["paid_at"] or "")[:4] == prefix]
+
+
+def get_provider_unverified_payments_for_year(provider_id, year: int):
+    ensure_paid_log()
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT pl.period, pl.amount, pl.paid_at, f.id AS family_id, f.name AS family_name"
+            " FROM paid_log pl JOIN families f ON f.id = pl.family_id"
+            " JOIN classrooms c ON c.id = f.classroom_id"
+            " JOIN locations l ON l.id = c.location_id"
+            " WHERE l.provider_id = ? AND pl.paid_source != 'manual' ORDER BY pl.paid_at",
+            (provider_id,)).fetchall()
+    return [dict(r) for r in rows if (r['paid_at'] or '')[:4] == f'{year:04d}']
 
 
 def ensure_statement_blast_log():
@@ -2140,6 +2189,13 @@ def _pg_backfill_id_sequences():
 
 
 def ensure_paid_log():
+    # Before this fix the ledger did not retain verification. Only the current
+    # family's explicit provider confirmation can establish a legacy entry's
+    # status. Older/unknown entries stay intact for review, never assumed paid.
+    key = ('paid_log', ('paid_source',))
+    if key in _schema_ensured:
+        return
+    ensure_paid_source_column()
     with db() as conn:
         conn.execute(pg_ddl(
             """CREATE TABLE IF NOT EXISTS paid_log (
@@ -2148,8 +2204,17 @@ def ensure_paid_log():
                    period TEXT NOT NULL,
                    amount REAL NOT NULL,
                    paid_at TEXT NOT NULL,
+                   paid_source TEXT NOT NULL DEFAULT 'unknown',
                    UNIQUE(family_id, period)
                )"""))
+        if not _has_column(conn, 'paid_log', 'paid_source'):
+            conn.execute("ALTER TABLE paid_log ADD COLUMN paid_source TEXT"
+                         " NOT NULL DEFAULT 'unknown'")
+        conn.execute("UPDATE paid_log SET paid_source = 'manual'"
+                     " WHERE paid_source = 'unknown' AND EXISTS"
+                     " (SELECT 1 FROM families f WHERE f.id = paid_log.family_id"
+                     " AND f.paid_period = paid_log.period AND f.paid_source = 'manual')")
+    _schema_ensured.add(key)
 
 
 def year_nudged_stats(provider_id, year: int) -> dict:
@@ -2168,7 +2233,8 @@ def year_nudged_stats(provider_id, year: int) -> dict:
                JOIN families f ON f.id = pl.family_id
                JOIN classrooms u ON u.id = f.classroom_id
                JOIN locations l ON l.id = u.location_id
-               WHERE l.provider_id = ? AND pl.period LIKE ?""",
+               WHERE l.provider_id = ? AND pl.period LIKE ?
+                 AND pl.paid_source = 'manual'""",
             (provider_id, prefix + "%")).fetchall()
     nudged_n = sum(1 for r in rows if r["nudged"])
     nudged_amt = sum(r["amount"] for r in rows if r["nudged"])

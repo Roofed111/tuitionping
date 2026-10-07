@@ -431,6 +431,7 @@ SESSION_COOKIE = "tuitionping_session"
 INTERNAL_CRON_TOKEN = os.getenv("INTERNAL_CRON_TOKEN", "")
 
 init_db()  # create tables on startup if they don't exist yet
+store.ensure_paid_log()  # migrate payment verification before serving statements
 
 
 # ------------------------------------------------------------------ helpers --
@@ -1640,6 +1641,7 @@ def annual_report(request: Request, year: int = None):
         "request": request, "provider": provider, "year": year,
         "months": list(zip(month_names, months)), "by_location": by_location,
         "total": total, "company": company,
+        "unverified": store.get_provider_unverified_payments_for_year(provider["id"], year),
         "tax_id": store.get_tax_id(provider["id"]),
         "today": date.today().isoformat()})
 
@@ -1735,6 +1737,7 @@ def edit_family_form(request: Request, family_id: int):
     return templates.TemplateResponse(request, "family_edit.html",
                                       {"request": request, "provider": provider,
                                        "family": fam,
+                                       "unverified_payments": store.get_unverified_family_payments(family_id),
                                        "charges": store.list_extra_charges(family_id)})
 
 
@@ -2104,6 +2107,20 @@ def confirm_paid(request: Request, family_id: int = Form(...),
                 'This payment record has changed. <a href="/dashboard">Return to the dashboard</a> and review it again.',
                 status_code=409)
     return RedirectResponse("/dashboard?payment_confirmed=1", status_code=303)
+
+
+@app.post("/families/confirm-logged-payment")
+def confirm_logged_payment(request: Request, family_id: int = Form(...),
+                           payment_id: int = Form(...)):
+    """Provider reviews an original payment report or a legacy ledger record."""
+    provider, redirect = require_login(request)
+    if redirect:
+        return redirect
+    if not store.get_family_for_provider(family_id, provider["id"]):
+        return HTMLResponse("Family not found.", status_code=404)
+    if not store.confirm_logged_family_payment(family_id, payment_id):
+        return HTMLResponse("Payment record not found.", status_code=404)
+    return RedirectResponse(f"/families/edit/{family_id}?payment_confirmed=1", status_code=303)
 
 
 @app.post("/families/mark-paid")
