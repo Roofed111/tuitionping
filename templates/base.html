@@ -229,6 +229,7 @@
   </div>
 </div>
 <div class="wrap" id="main">
+{% if request.url.path == '/admin' or request.url.path.startswith('/admin/') %}<p class="muted">Dates and times use Pacific Time (PST/PDT).</p>{% endif %}
 {% block content %}{% endblock %}
 </div>
 <footer>TuitionPing · automated tuition reminders by text message<br>A product of Hirsch Commerce LLC · Concord, California{% if demo %} · demo mode: texts are simulated{% endif %}<br>

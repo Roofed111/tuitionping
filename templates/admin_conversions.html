@@ -11,7 +11,7 @@
     <button class="btn btn-ghost" type="submit">Reset all conversions</button>
   </form>
   <p class="muted" style="margin-bottom:0">Starts a fresh reporting period for all counters and tables below. Customer accounts, billing and partner records stay intact.</p>
-  {% if report.reset_at %}<p class="muted">Last reset: <time datetime="{{ report.reset_at }}">{{ report.reset_at[:19].replace('T', ' ') }} UTC</time></p>{% endif %}
+  {% if report.reset_at %}<p class="muted">Last reset: <time datetime="{{ report.reset_at }}">{{ report.reset_at|admin_time }}</time></p>{% endif %}
 </section>
 <p>{% if report.reset_at %}Visitors active in the past <strong>{{ report.days }} days</strong>, with activity and milestones recorded after the last reset.{% else %}Visitors first seen in the past <strong>{{ report.days }} days</strong>, with milestones recorded since that visit.{% endif %} <a href="?days=28">28 days</a> · <a href="?days=90">90 days</a></p>
 <p>Visits, demo use and downloads count distinct browsers, not people. Account milestones count distinct accounts. Demo use and downloads are optional paths. An account is not a trial, and a trial is not a paid customer.</p>

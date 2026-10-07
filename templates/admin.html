@@ -24,7 +24,7 @@
     <td><span class="family-name">{{ s["company"] or "—" }}</span></td>
     <td>{{ s["name"] }}<br><span class="family-phone">{{ s["email"] }}</span>{% if s["is_new"] %} <span class="pill pill-new">New</span>{% endif %}</td>
     <td>{% if s["locations"] %}{{ s["locations"]|join(", ") }}{% else %}<span class="muted">—</span>{% endif %}</td>
-    <td data-sort="{{ s['created_at'] }}">{{ s["created_at"][:10] }}</td>
+    <td data-sort="{{ s['created_at'] }}">{{ s["created_at"]|admin_date }}</td>
     <td data-sort="{{ s['families'] }}">{{ s["families"] }}</td>
     <td>{{ s["plan_display"] }}<br><span class="family-phone">{{ s["sub_status"] }}{% if s["trial_ends"] and s["sub_status"] == "trialing" %} · ends {{ s["trial_ends"] }}{% endif %}</span>{% if s["suspended"] %} <span class="flag flag-bad">Suspended</span>{% endif %}{% if s["subscription"] and s["subscription"]["founding"] %} <span class="pill paid" title="Holds one of the 25 founding spots">🌱 founder</span>{% endif %}</td>
     <td data-sort="{{ s['sent_30d'] }}">{{ s["sent_30d"] }}</td>
