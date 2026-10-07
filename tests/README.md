@@ -78,6 +78,13 @@ are supported; existing subscription callbacks and billing return-sync
 also confirm a positive paid invoice. No Stripe webhook settings change
 is required. First scheduled tuition reminder records Twilio acceptance, not delivery.
 
+The admin conversion reset starts a new reporting period without deleting
+customer data, partner attribution, or retained analytics history. All displayed
+counters and source/landing tables reset together. Browser events can count again;
+account milestone deduplication remains intact so existing customer webhook retries
+cannot inflate the new period. Tests cover admin/CSRF/POST-only protection, repeat
+resets, returning browsers, same-second activity, time windows and persistence.
+
 The three audience pages have distinct workflows, examples and questions.
 They are linked from the homepage/resources and included in the sitemap.
 
