@@ -164,6 +164,17 @@ the selected tool, preserving attribution in a new browser. Existing included
 PDF/Word/XLSX documents are generic resources; use the personalized handout
 and share-ready copy to distribute tracked links.
 
+The invoice generator and partner landing include a collapsible two-minute
+invoice/partial-payment receipt tutorial, with first-party MP4 playback,
+English WebVTT captions, a poster and `preload="none"`. The video is silent
+and uses real tool captures with fictional data. Its YouTube viewing link is
+`https://youtu.be/B17VIKwHMJI`; the page does not load third-party embeds.
+The handout and share-ready copy include a personalized `resource=invoice-tutorial`
+link, establishing partner attribution before the viewer opens the tool/video.
+The tutorial stays out of printed invoices and receipts. Existing acquisition
+reporting tracks visits, document generation and customer milestones; this
+tutorial does not report plays as homepage walkthrough events.
+
 The latest registered partner landing in the same browser within 30 days
 before signup is copied into `growth_partner_accounts` once. Later partner
 visits do not change that account's credit. Existing first-touch Conversions

@@ -77,6 +77,8 @@ def package(code=''):
     # All distributed resource links return to the partner landing first, so a
     # new browser establishes attribution before following the chosen tool.
     links = [(label, url + ('&' if code else '?') + 'resource=' + path.rsplit('/', 1)[-1]) for label, path in resources]
+    tutorial_link = url + ('&' if code else '?') + 'resource=invoice-tutorial'
+    links.append(('Two-minute invoice and receipt video tutorial', tutorial_link))
     readme = f'''TUITIONPING - PARTNER RESOURCE PACKAGE
 
 Share this link with providers: {url}
@@ -88,11 +90,15 @@ Do not put private names, emails or family data into link parameters.
 WHAT PROVIDERS GET
 - A bill-to-receipt workflow and monthly collection checklist
 - A browser-only invoice / verified-payment receipt generator (print to PDF)
+- A two-minute video showing a fictional invoice and partial-payment receipt
 - Editable Word and PDF reminder messages in English and Spanish
 - An Excel payment tracker and an editable late-fee policy
 - A fictional interactive TuitionPing demo; it sends no texts
 
 HOW TO SHARE
+Video tutorial and free tool: {tutorial_link}
+YouTube viewing link: https://youtu.be/B17VIKwHMJI
+Share the assigned tutorial link first to preserve partner attribution.
 Associations: include the newsletter paragraph or handout in your resources.
 Provider groups: share the short post or use the 15-minute session outline.
 Bookkeepers: share with clients who need clearer bills and payment records.
@@ -121,20 +127,25 @@ tracker, and a tool to create tuition invoices or verified-payment receipts.
 No account is needed for the tools. You can also explore a fictional daycare
 demo to see how scheduled reminders and payment confirmation work.
 Get the free resources: {url}
+Watch the two-minute invoice and receipt tutorial: {tutorial_link}
 
 SHORT GROUP POST
 Chasing tuition? Start with a clear bill, a friendly reminder, and a record
 of verified payments. Here is a free collection toolkit for daycare owners:
 {url}
+Need a walkthrough? Watch the free invoice and receipt tutorial: {tutorial_link}
 
 BOOKKEEPER CLIENT NOTE
 These tools can help organize tuition bills and payment documentation. Use
 the receipt generator only after confirming the amount received, and keep
 the saved document with the client's payment records. Free toolkit: {url}
+Show clients the two-minute invoice and partial-payment receipt tutorial:
+{tutorial_link}
 
 15-MINUTE PROVIDER SESSION
 0-3 min: Write down tuition amount, service period, due date and how to pay.
 3-6 min: Create an invoice using fictional data; check charges and credits.
+Use the two-minute video as a walkthrough: {tutorial_link}
 6-9 min: Choose a reminder message and check the due date and language.
 9-12 min: Reconcile a sample partial payment; issue a verified receipt.
 12-15 min: Walk through the fictional demo; show PAID versus confirmed.
@@ -173,7 +184,8 @@ def register(app, templates, require_admin):
     def partners(request: Request, partner: str = '', resource: str = ''):
         selected = get_partner(partner)
         paths = {'tuition-collection':'/guides/tuition-collection', 'daycare-invoice-receipt':'/tools/daycare-invoice-receipt',
-                 'tuition-payment-tracker':'/tools/tuition-payment-tracker', 'tuition-reminder-templates':'/guides/tuition-reminder-templates', 'demo':'/demo'}
+                 'tuition-payment-tracker':'/tools/tuition-payment-tracker', 'tuition-reminder-templates':'/guides/tuition-reminder-templates', 'demo':'/demo',
+                 'invoice-tutorial':'/tools/daycare-invoice-receipt#invoice-tutorial'}
         return templates.TemplateResponse(request, 'partners.html', {'request':request,'provider':None,'partner':selected,
             'share_url':link(selected['code'] if selected else ''), 'kit_url':link(selected['code'] if selected else '', '/partners/download'),
             'suggested_path':paths.get(resource),'suggested_label':resource.replace('-',' ') if resource in paths else ''})
