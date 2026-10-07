@@ -13,12 +13,13 @@ import threading
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlsplit
 import store
+import traffic
 
 COOKIE = 'tp_growth'
 _KEY = os.getenv('SECRET_KEY', '').encode() or secrets.token_bytes(32)
 _ready = None
 _lock = threading.Lock()
-CLIENT_EVENTS = {'demo_started': {''}, 'demo_step': {'before', 'due', 'late', 'reported', 'verified', 'spanish'}, 'trial_click': {''}, 'document_created': {'invoice','receipt'}, 'video_started': {''}, 'video_completed': {''}}
+CLIENT_EVENTS = {'browser_verified': {'', 'webdriver'}, 'demo_started': {''}, 'demo_step': {'before', 'due', 'late', 'reported', 'verified', 'spanish'}, 'trial_click': {''}, 'document_created': {'invoice','receipt'}, 'video_started': {''}, 'video_completed': {''}}
 STAGES = [('page_view', 'Visitors'), ('video_started', 'Walkthrough played'), ('video_completed', 'Walkthrough completed'), ('demo_started', 'Demo used'), ('download', 'Resource downloaded'),
           ('document_created', 'Document generated'), ('setup_help_requested', 'Setup help requested'), ('trial_click', 'Trial clicked'), ('signup', 'Account created'), ('checkout_started', 'Checkout opened'),
           ('checkout_completed', 'Checkout completed'), ('trial_started', 'Trial started'),
@@ -42,6 +43,7 @@ def ensure_tables():
             conn.execute('CREATE TABLE IF NOT EXISTS growth_partner_accounts (provider_id INTEGER PRIMARY KEY, visitor_id TEXT NOT NULL, partner_code TEXT NOT NULL, bound_at TEXT NOT NULL)')
             conn.execute("CREATE TABLE IF NOT EXISTS growth_report_state (id INTEGER PRIMARY KEY, event_floor INTEGER NOT NULL, generation TEXT NOT NULL, reset_at TEXT NOT NULL, reset_by INTEGER)")
             conn.execute("INSERT INTO growth_report_state (id,event_floor,generation,reset_at) VALUES (1,0,'','') ON CONFLICT(id) DO NOTHING")
+            traffic.ensure_schema(conn)
         _ready = key
 
 def _mac(value):
@@ -60,10 +62,9 @@ def token(visitor_id):
     return _mac('event:' + visitor_id)
 
 def excluded(request):
-    ua = request.headers.get('user-agent', '').lower()
     return (request.headers.get('dnt') == '1' or request.headers.get('sec-gpc') == '1'
             or 'tuitionping_session' in request.cookies
-            or bool(re.search(r'bot|crawler|spider|headless|preview|python|httpx|curl', ua)))
+            or bool(traffic.known_bot(request.headers.get('user-agent', ''))))
 
 def attribution(request):
     # Only public campaign labels are accepted. Never retain arbitrary queries.
@@ -92,14 +93,8 @@ def attribution(request):
 def register(visitor_id, source, medium, campaign, path):
     ensure_tables()
     now = store.now_iso()
-    cutoff = (datetime.now(timezone.utc) - timedelta(days=90)).isoformat(timespec='seconds')
     with store.db() as conn:
-        # Bounded retention, also removes account-to-browser links after 90 days.
-        conn.execute('DELETE FROM growth_events WHERE ts < ?', (cutoff,))
-        conn.execute('DELETE FROM growth_accounts WHERE visitor_id IN (SELECT visitor_id FROM growth_visitors WHERE first_seen < ?)', (cutoff,))
-        conn.execute('DELETE FROM growth_visitors WHERE first_seen < ?', (cutoff,))
-        conn.execute('DELETE FROM growth_partner_accounts WHERE bound_at < ? OR visitor_id NOT IN (SELECT visitor_id FROM growth_visitors)', (cutoff,))
-        conn.execute('DELETE FROM growth_partner_visitors WHERE touched_at < ? OR visitor_id NOT IN (SELECT visitor_id FROM growth_visitors)', (cutoff,))
+        # Reporting windows limit the report, not the underlying audit records.
         conn.execute('INSERT INTO growth_visitors (visitor_id,first_seen,source,medium,campaign,landing_path) VALUES (?,?,?,?,?,?) ON CONFLICT(visitor_id) DO NOTHING', (visitor_id, now, source, medium, campaign, path))
 
 def record(visitor_id, event, detail='', path='', provider_id=None):
@@ -160,8 +155,10 @@ def reset_report(provider_id):
                      (floor, secrets.token_hex(16), store.now_iso(), provider_id))
 
 
-def report(days=28):
+def report(days=28, kind='human'):
     ensure_tables()
+    traffic.refresh_candidates()
+    kind = kind if kind in ('human', 'automated', 'all', 'unknown') else 'human'
     cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat(timespec='seconds')
     with store.db() as conn:
         state = conn.execute('SELECT * FROM growth_report_state WHERE id = 1').fetchone()
@@ -173,19 +170,38 @@ def report(days=28):
         else:
             visitors = [dict(r) for r in conn.execute('SELECT * FROM growth_visitors WHERE first_seen >= ?', (cutoff,)).fetchall()]
             events = [dict(r) for r in conn.execute('SELECT e.* FROM growth_events e JOIN growth_visitors v ON e.visitor_id = v.visitor_id WHERE v.first_seen >= ?', (cutoff,)).fetchall()]
+    # Anonymous hit-only records belong in Visitors, not the acquisition funnel.
+    event_ids = {e['visitor_id'] for e in events}
+    raw_visitors = [v for v in visitors if v['visitor_id'] in event_ids]
+    visitors = [v for v in raw_visitors if traffic.matches(kind, v['classification'])]
+    eligible = {v['visitor_id'] for v in visitors}
+    events = [e for e in events if e['visitor_id'] in eligible]
     event_sets = {}
     for e in events:
         event_sets.setdefault(e['event'], set()).add(e['visitor_id'])
     account_stages = {'signup','checkout_started','checkout_completed','trial_started','first_reminder','paid_customer'}
-    stages = [{'event': event, 'label': label, 'count': (len({e['provider_id'] for e in events if e['event'] == event}) if event in account_stages else len(event_sets.get(event, set())))} for event, label in STAGES]
+    stages = [{'event': event, 'label': ('Human visitors' if event == 'page_view' and kind == 'human' else label),
+               'count': (len({e['provider_id'] for e in events if e['event'] == event and e['provider_id'] is not None})
+                         if event in account_stages else len(event_sets.get(event, set())))} for event, label in STAGES]
     def groups(keys):
         buckets = {}
         for v in visitors:
             k = tuple(v[x] for x in keys)
             buckets.setdefault(k, set()).add(v['visitor_id'])
         def accounts(ids, event):
-            return len({e['provider_id'] for e in events if e['event'] == event and e['visitor_id'] in ids})
+            return len({e['provider_id'] for e in events if e['event'] == event and e['visitor_id'] in ids and e['provider_id'] is not None})
         return [{'key': k, 'visitors': len(ids), 'demo': len(ids & event_sets.get('demo_started', set())),
                  'help': len(ids & event_sets.get('setup_help_requested', set())), 'signups': accounts(ids, 'signup'), 'trials': accounts(ids, 'trial_started'),
                  'paid': accounts(ids, 'paid_customer')} for k, ids in sorted(buckets.items(), key=lambda p: -len(p[1]))]
-    return {'stages': stages, 'sources': groups(['source', 'medium', 'campaign']), 'pages': groups(['landing_path']), 'days': days, 'reset_at': state['reset_at']}
+    # Visitor rates use the same eligible browser cohort for both sides. Two
+    # accounts on one browser cannot turn a visitor conversion rate above 100%.
+    denominator = event_sets.get('page_view', set())
+    signed_up = {e['visitor_id'] for e in events if e['event'] == 'signup' and e['provider_id'] is not None} & denominator
+    paid = {e['visitor_id'] for e in events if e['event'] == 'paid_customer' and e['provider_id'] is not None} & denominator
+    return {'stages': stages, 'sources': groups(['source', 'medium', 'campaign']), 'pages': groups(['landing_path']),
+            'days': days, 'reset_at': state['reset_at'], 'kind': kind,
+            'rate_denominator': len(denominator), 'converting_visitors': len(signed_up), 'paid_visitors': len(paid),
+            'conversion_rate': round(100 * len(signed_up) / len(denominator), 2) if denominator else None,
+            'paid_conversion_rate': round(100 * len(paid) / len(denominator), 2) if denominator else None,
+            'automated_visitors': sum(v['classification'] in traffic.BOT_TYPES for v in raw_visitors),
+            'unknown_visitors': sum(v['classification'] == 'UNKNOWN' for v in raw_visitors)}

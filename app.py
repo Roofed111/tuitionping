@@ -22,6 +22,9 @@ Routes:
 import os
 import json
 import re
+import asyncio
+import logging
+from contextlib import asynccontextmanager, suppress
 from datetime import date, datetime, timedelta, timezone
 
 from collections import deque as _deque
@@ -44,10 +47,32 @@ import email_engagement
 import setup_wizard
 import setup_help
 import partner_resources
+import traffic
 from admin_time import pacific_date, pacific_time, pacific_today
 from sms import DEMO_MODE as SMS_DEMO_MODE
 
-app = FastAPI(title="TuitionPing")
+@asynccontextmanager
+async def analytics_lifespan(application):
+    async def maintain_analytics():
+        while True:
+            await asyncio.sleep(30)
+            try:
+                # Bounded local work, off the public request path. No messages,
+                # external detection calls, or changes to request handling.
+                await asyncio.to_thread(traffic.backfill)
+                await asyncio.to_thread(traffic.refresh_candidates)
+            except Exception:
+                logging.getLogger(__name__).warning("Traffic analytics maintenance will retry")
+    task = asyncio.create_task(maintain_analytics())
+    try:
+        yield
+    finally:
+        task.cancel()
+        with suppress(asyncio.CancelledError):
+            await task
+
+
+app = FastAPI(title="TuitionPing", lifespan=analytics_lifespan)
 
 # Dates describe substantive page edits, not filesystem timestamps at deployment.
 PUBLIC_PAGES = {
@@ -304,6 +329,7 @@ async def track_conversions(request: Request, call_next):
         if request.method == "GET" and public:
             visitor = visitor or _secrets.token_hex(16)
     request.state.growth_visitor = visitor
+    request.state.traffic_visitor = visitor or traffic.identity(request)
     request.state.growth_token = growth.token(visitor) if visitor and public else ""
     response = await call_next(request)
     if visitor and public and request.method == "GET" and response.status_code == 200:
@@ -346,7 +372,11 @@ async def conversion_event(request: Request):
                 or (event.startswith("video_") and path != "/")
                 or (event == "document_created" and path != "/tools/daycare-invoice-receipt")):
             raise ValueError()
-        growth.record(visitor, event, detail, path)
+        if event == "browser_verified":
+            if not traffic.verify_browser(visitor, path, webdriver=detail == "webdriver"):
+                return Response(status_code=400)
+        else:
+            growth.record(visitor, event, detail, path)
     except (ValueError, TypeError):
         return Response(status_code=400)
     except Exception:
@@ -356,21 +386,27 @@ async def conversion_event(request: Request):
 
 @app.middleware("http")
 async def track_site_visits(request: Request, call_next):
-    """Log one row per hit on public pages so the admin Visitors view can
-    tell individual visitors apart. Never breaks the request; skips
-    logged-in providers (their own browsing isn't prospect traffic)."""
+    """Retain human/automated hits together, sharing conversion visitor IDs."""
     resp = await call_next(request)
     try:
-        if request.method == "GET" and resp.status_code == 200:
+        if request.method in {"GET", "HEAD"}:
             path = request.url.path
-            if (path in _TRACKED_PATHS or path.startswith(_TRACKED_PREFIXES)) \
-               and "tuitionping_session" not in request.cookies:
+            public = path in _TRACKED_PATHS or path in _GROWTH_DOWNLOADS or path.startswith(_TRACKED_PREFIXES)
+            audit = path in {"/healthz", "/robots.txt", "/sitemap.xml"} or resp.status_code in {404,405}
+            if (public or audit) and "tuitionping_session" not in request.cookies \
+                    and not path.startswith(("/admin", "/internal/", "/webhooks/", "/s/")) \
+                    and (not path.startswith("/static/") or path in _GROWTH_DOWNLOADS):
                 fwd = request.headers.get("x-forwarded-for", "")
                 ip = fwd.split(",")[0].strip() if fwd else \
                     (request.client.host if request.client else "")
-                store.log_site_visit(ip, path,
-                                     request.headers.get("referer", ""),
-                                     request.headers.get("user-agent", ""))
+                source, medium, campaign = growth.attribution(request)
+                visitor = getattr(request.state, "traffic_visitor", "") or traffic.identity(request)
+                kind = "browser" if getattr(request.state, "growth_visitor", "") or growth.visitor_from_cookie(request.cookies.get(growth.COOKIE, "")) else "anonymous"
+                store.log_site_visit(ip, path, request.headers.get("referer", ""),
+                                     request.headers.get("user-agent", ""), visitor_id=visitor,
+                                     source=source, medium=medium, campaign=campaign,
+                                     status_code=resp.status_code, identity_kind=kind,
+                                     request_type="page" if public else "audit")
     except Exception:
         pass
     return resp
@@ -435,6 +471,7 @@ INTERNAL_CRON_TOKEN = os.getenv("INTERNAL_CRON_TOKEN", "")
 
 init_db()  # create tables on startup if they don't exist yet
 store.ensure_paid_log()  # migrate payment verification before serving statements
+growth.ensure_tables()  # additive analytics migration before deployment health checks
 
 
 # ------------------------------------------------------------------ helpers --
@@ -2808,10 +2845,7 @@ def admin_attribution(request: Request):
     if redirect:
         return redirect
     rows = store.admin_attribution_list()
-    visits = store.count_postcard_visits()
-    attributed = [r for r in rows if (r["signup_source"] or "") == "postcard"]
-    customers = [r for r in attributed
-                 if (r["sub_status"] or "") in ("trialing", "active")]
+    summary = traffic.postcard_summary(rows)
     for r in rows:
         r["heard_label"] = HEARD_ABOUT_LABELS.get(r["heard_about"] or "", r["heard_about"] or "—")
         r["src_label"] = "Postcard QR" if (r["signup_source"] or "") == "postcard" else "—"
@@ -2821,19 +2855,19 @@ def admin_attribution(request: Request):
     pct = lambda a, b: f"{(100.0 * a / b):.1f}%" if b else "—"
     return templates.TemplateResponse(
         request, "admin_attribution.html",
-        {"request": request, "rows": rows, "visits": visits,
-         "attributed": len(attributed), "customers": len(customers),
-         "signup_rate": pct(len(attributed), visits),
-         "customer_rate": pct(len(customers), len(attributed))})
+        {"request": request, "rows": rows, **summary, "raw_hits": store.count_postcard_visits(),
+         "signup_rate": pct(summary["converting_visitors"], summary["visits"]),
+         "customer_rate": pct(summary["customers"], summary["attributed"])},
+        headers={"Cache-Control": "private, no-store", "X-Robots-Tag": "noindex"})
 
 
 @app.get("/admin/conversions", response_class=HTMLResponse)
-def admin_conversions(request: Request, days: int = 28):
+def admin_conversions(request: Request, days: int = 28, kind: str = "human"):
     provider, redirect = require_admin(request)
     if redirect:
         return redirect
     response = templates.TemplateResponse(request, "admin_conversions.html", {
-        "request": request, "provider": provider, "report": growth.report(90 if days == 90 else 28)})
+        "request": request, "provider": provider, "report": growth.report(90 if days == 90 else 28, kind)})
     response.headers["Cache-Control"] = "private, no-store"
     response.headers["X-Robots-Tag"] = "noindex"
     return response
@@ -2851,31 +2885,14 @@ def admin_reset_conversions(request: Request, days: int = Form(28)):
 
 
 @app.get("/admin/visitors", response_class=HTMLResponse)
-def admin_visitors(request: Request):
-    """First-party site analytics: individual visitors (hashed IPs) and their
-    page timelines. No personal identity is stored."""
+def admin_visitors(request: Request, kind: str = "human", offset: int = 0,
+                   sort: str = "last_seen", direction: str = "desc"):
     _, redirect = require_admin(request)
     if redirect:
         return redirect
-    visits, rollup = store.site_visit_stats()
-    for v in visits:
-        v["when"] = pacific_time(v["ts"])
-        v["short_id"] = (v["ip_hash"] or "")[:8]
-        ua = v["ua"] or ""
-        v["device"] = "📱" if ("Mobile" in ua or "Android" in ua or "iPhone" in ua) else "🖥"
-        ref = v["referrer"] or ""
-        v["ref_label"] = ref.replace("https://", "").replace("http://", "").split("/")[0][:28] or "direct"
-    for r in rollup:
-        r["short_id"] = (r["ip_hash"] or "")[:8]
-        r["first"] = pacific_time(r["first_ts"])
-        r["last"] = pacific_time(r["last_ts"])
-    today = pacific_today().isoformat()
-    today_visitors = {r["ip_hash"] for r in rollup if pacific_date(r["last_ts"]) == today}
-    return templates.TemplateResponse(
-        request, "admin_visitors.html",
-        {"request": request, "visits": visits, "rollup": rollup,
-         "total_visits": len(visits), "total_visitors": len(rollup),
-         "today_visitors": len(today_visitors)})
+    return templates.TemplateResponse(request, "admin_visitors.html", {
+        "request": request, "report": traffic.report(kind, offset, sort, direction), "traffic_labels": traffic.LABELS},
+        headers={"Cache-Control": "private, no-store", "X-Robots-Tag": "noindex"})
 
 
 @app.get("/admin/abuse", response_class=HTMLResponse)

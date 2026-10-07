@@ -111,3 +111,16 @@ To rebuild the downloads, install development-only `reportlab`, `python-docx` an
 `openpyxl`, then run `python scripts/build_resource_downloads.py`. Shared policy and
 message content lives in `content/provider-resources.json`. Keep the workbook
 Google Sheets import check manual: the Worked example should show $190 and 7 days.
+
+## Traffic classification and sortable Admin reports
+
+`test_traffic.py` exercises normal Chrome/Safari/iPhone, direct/QR/privacy and
+legitimate one-page visits, known bot clients, multiple-signal bursts, scanner
+path sanitization, delayed/background review, unchanged request handling,
+classification history, concurrent counts, human conversion denominators,
+raw bot conversions, positive/live billing checks, partner/QR reporting,
+all eight sortable columns across pagination, Admin filters/security, and
+Pacific midnight / 23- and 25-hour DST days. `growth-ui.test.cjs` uses jsdom
+to check two render frames, a single signed browser beacon, no page-view
+inflation, privacy opt-outs, webdriver and retained trial click tracking.
+All data is temporary and external sends/payments are mocked.

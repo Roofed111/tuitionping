@@ -10,6 +10,7 @@ from fastapi import Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 import store
 import growth
+import traffic
 
 ROOT = Path(__file__).resolve().parent
 KINDS = {'association': 'Childcare association', 'provider_group': 'Provider group', 'bookkeeper': 'Childcare bookkeeper'}
@@ -28,10 +29,7 @@ def get_partner(code):
 def touch(visitor, code):
     if not visitor or not get_partner(code):
         return
-    cutoff = (datetime.now(timezone.utc) - timedelta(days=90)).isoformat(timespec='seconds')
     with store.db() as conn:
-        conn.execute('DELETE FROM growth_partner_accounts WHERE bound_at < ? OR visitor_id NOT IN (SELECT visitor_id FROM growth_visitors)', (cutoff,))
-        conn.execute('DELETE FROM growth_partner_visitors WHERE touched_at < ? OR visitor_id NOT IN (SELECT visitor_id FROM growth_visitors)', (cutoff,))
         conn.execute('INSERT INTO growth_partner_visitors (visitor_id,partner_code,touched_at) VALUES (?,?,?) ON CONFLICT(visitor_id) DO UPDATE SET partner_code=excluded.partner_code,touched_at=excluded.touched_at',
                      (visitor, code, store.now_iso()))
 
@@ -52,12 +50,13 @@ def link(code='', path='/partners'):
 
 def report(days=28):
     ensure_tables()
+    traffic.refresh_candidates()
     cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat(timespec='seconds')
     with store.db() as conn:
         partners = [dict(r) for r in conn.execute('SELECT * FROM growth_partners ORDER BY created_at DESC').fetchall()]
-        touches = [dict(r) for r in conn.execute('SELECT t.* FROM growth_partner_visitors t JOIN growth_visitors v ON t.visitor_id=v.visitor_id WHERE t.touched_at>=?', (cutoff,)).fetchall()]
-        accounts = [dict(r) for r in conn.execute('SELECT a.* FROM growth_partner_accounts a JOIN growth_visitors v ON a.visitor_id=v.visitor_id WHERE a.bound_at>=?', (cutoff,)).fetchall()]
-        events = [dict(r) for r in conn.execute('SELECT * FROM growth_events').fetchall()]
+        touches = [dict(r) for r in conn.execute("SELECT t.* FROM growth_partner_visitors t JOIN growth_visitors v ON t.visitor_id=v.visitor_id WHERE t.touched_at>=? AND v.classification IN ('HUMAN','LIKELY HUMAN')", (cutoff,)).fetchall()]
+        accounts = [dict(r) for r in conn.execute("SELECT a.* FROM growth_partner_accounts a JOIN growth_visitors v ON a.visitor_id=v.visitor_id WHERE a.bound_at>=? AND v.classification IN ('HUMAN','LIKELY HUMAN')", (cutoff,)).fetchall()]
+        events = [dict(r) for r in conn.execute("SELECT e.* FROM growth_events e JOIN growth_visitors v ON e.visitor_id=v.visitor_id WHERE v.classification IN ('HUMAN','LIKELY HUMAN') AND (EXISTS (SELECT 1 FROM growth_partner_visitors t WHERE t.visitor_id=e.visitor_id AND t.touched_at>=?) OR EXISTS (SELECT 1 FROM growth_partner_accounts a WHERE a.provider_id=e.provider_id AND a.bound_at>=?))", (cutoff,cutoff)).fetchall()]
     for partner in partners:
         vids = {r['visitor_id'] for r in touches if r['partner_code'] == partner['code']}
         pids = {r['provider_id'] for r in accounts if r['partner_code'] == partner['code']}
@@ -117,7 +116,8 @@ for that new account. Admin > Partners reports visitors, demo use, downloads,
 accounts, trials, first accepted reminders and paid subscriptions. This is
 browser attribution, not proof a partner caused a sale. DNT/GPC, blocked
 cookies, shared devices and a different signup browser can affect counts.
-History expires after 90 days. First-touch Conversions reporting remains
+Reports use a 28- or 90-day window; audit history is retained. Human and likely
+human traffic counts in customer reports. First-touch Conversions remains
 separate. Never promise a result or invent provider success statistics.
 '''
     copy = f'''NEWSLETTER PARAGRAPH

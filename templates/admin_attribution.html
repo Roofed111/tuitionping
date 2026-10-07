@@ -6,8 +6,9 @@
 
 <div class="card" style="margin-bottom:20px">
   <h2 style="margin-top:0">QR landing page</h2>
-  <p style="font-size:1.4em;margin:0"><b>{{ visits }}</b> visits to <code>/postcard</code></p>
-  <p style="margin:8px 0 0"><b>{{ attributed }}</b> signups ({{ signup_rate }} of visits) → <b>{{ customers }}</b> customers on trial or active ({{ customer_rate }} of postcard signups)</p>
+  <p style="font-size:1.4em;margin:0"><b>{{ visits }}</b> human visitors to <code>/postcard</code></p>
+  <p style="margin:8px 0 0"><b>{{ attributed }}</b> linked human signups ({{ signup_rate }} visitor conversion rate) → <b>{{ customers }}</b> customers on trial or active ({{ customer_rate }} of linked postcard signups)</p>
+  <p class="muted">All QR visitors: {{ all_visitors }} · Automated: {{ automated }} · Unknown: {{ unknown }} · Raw QR hits: {{ raw_hits }}. Historical or unlinked signups remain in the table; rates use only linked Human / Likely Human browsers. Multiple accounts on one browser count once in the visitor conversion rate.</p>
 </div>
 
 <div class="card">
@@ -23,6 +24,7 @@
         <th scope="col" style="padding:8px">How they heard about us</th>
         <th scope="col" style="padding:8px">QR attribution</th>
         <th scope="col" style="padding:8px">Customer</th>
+        <th scope="col" style="padding:8px">Traffic type</th>
       </tr>
     </thead>
     <tbody>
@@ -35,9 +37,10 @@
         <td style="padding:8px">{{ r.heard_label }}</td>
         <td style="padding:8px">{% if r.src_label != "—" %}<b style="color:var(--brand-dark)">📬 {{ r.src_label }}</b>{% else %}—{% endif %}</td>
         <td style="padding:8px">{% if r.customer_label != "—" %}<b style="color:var(--brand-dark)">✓ {{ r.customer_label }}</b>{% else %}—{% endif %}</td>
+        <td style="padding:8px">{{ r.traffic_type }}</td>
       </tr>
       {% else %}
-      <tr><td colspan="7" style="padding:16px" class="muted">No signups yet.</td></tr>
+      <tr><td colspan="8" style="padding:16px" class="muted">No signups yet.</td></tr>
       {% endfor %}
     </tbody>
   </table>

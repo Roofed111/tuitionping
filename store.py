@@ -237,15 +237,10 @@ def ensure_site_visits():
                    ua TEXT NOT NULL DEFAULT '')"""))
 
 
-def log_site_visit(ip: str, path: str, referrer: str, ua: str):
-    """Record one hit on a public page. IP is hashed; no personal identity."""
-    ensure_site_visits()
-    ip_hash = hashlib.sha256((ip or "").encode()).hexdigest()[:16]
-    with db() as conn:
-        conn.execute("INSERT INTO site_visits (ts, ip_hash, path, referrer, ua)"
-                     " VALUES (?,?,?,?,?)",
-                     (now_iso(), ip_hash, (path or "")[:200],
-                      (referrer or "")[:300], (ua or "")[:200]))
+def log_site_visit(ip: str, path: str, referrer: str, ua: str, **metadata):
+    """Enrich the existing hit log using the shared acquisition identifier."""
+    import traffic
+    return traffic.observe(ip, path, referrer, ua, **metadata)
 
 
 def site_visit_stats(limit=300):

@@ -15,6 +15,7 @@ import admin_time
 import email_engagement
 import growth
 import setup_help
+import traffic
 
 WINTER = "2026-01-15T02:30:00+00:00"
 SUMMER = "2026-07-15T02:30:00Z"
@@ -108,14 +109,16 @@ class AdminTimePagesTest(unittest.TestCase):
 
     def test_visitor_today_changes_at_pacific_midnight(self):
         stamps = ["2026-01-15T07:59:59Z", "2026-01-15T08:00:00Z", "2026-01-15T08:01:00Z"]
-        visits, rollup = [], []
+        growth.ensure_tables()
+        with store.db() as conn:
+            conn.execute('DELETE FROM site_visits')
+            conn.execute('DELETE FROM growth_visitors')
         for i, stamp in enumerate(stamps):
-            identity = "samehash" + str(i)
-            visits.append({"ts": stamp, "ip_hash": identity, "ua": "", "referrer": "", "path": "/demo"})
-            rollup.append({"first_ts": stamp, "last_ts": stamp, "ip_hash": identity, "visits": 1, "pages": 1, "last_path": "/demo"})
-        with patch.object(store, "site_visit_stats", return_value=(visits, rollup)), patch.object(app, "pacific_today", return_value=date(2026, 1, 15)):
+            with patch.object(traffic, 'now', return_value=traffic.parsed(stamp)):
+                traffic.observe('sample-'+str(i), '/demo', '', 'Mozilla/5.0 Safari/605.1')
+        with patch.object(traffic, 'now', return_value=datetime(2026,1,15,9,tzinfo=timezone.utc)):
             response = self.page("/admin/visitors")
-        self.assertEqual(response.context["today_visitors"], 2)
+        self.assertEqual(response.context["report"]["human_today"], 2)
         self.assertIn("2026-01-14 11:59:59 PM PST", response.text)
         self.assertIn("2026-01-15 12:00:00 AM PST", response.text)
 
