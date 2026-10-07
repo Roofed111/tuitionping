@@ -44,6 +44,7 @@ import email_engagement
 import setup_wizard
 import setup_help
 import partner_resources
+from admin_time import pacific_date, pacific_time, pacific_today
 from sms import DEMO_MODE as SMS_DEMO_MODE
 
 app = FastAPI(title="TuitionPing")
@@ -378,6 +379,8 @@ async def track_site_visits(request: Request, call_next):
 app.mount("/static", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "static")), name="static")
 templates = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), "templates"))
 templates.env.globals["csrf_input"] = csrf_input
+templates.env.filters["admin_date"] = pacific_date
+templates.env.filters["admin_time"] = pacific_time
 with open(os.path.join(os.path.dirname(__file__), "content", "provider-resources.json"), encoding="utf-8") as resource_file:
     templates.env.globals["provider_resources"] = json.load(resource_file)
 with open(os.path.join(os.path.dirname(__file__), "content", "audiences.json"), encoding="utf-8") as audience_file:
@@ -2781,8 +2784,7 @@ def admin_customers(request: Request):
         s["plan_display"] = billing.PLANS.get(plan, {}).get("name", (plan or "—").title()) \
             if plan else "—"
         s["sub_status"] = sub.get("status") or "—"
-        trial = (sub.get("trial_ends_at") or "")[:10]
-        s["trial_ends"] = trial
+        s["trial_ends"] = pacific_date(sub.get("trial_ends_at")) if sub.get("trial_ends_at") else ""
     return templates.TemplateResponse(
         request, "admin.html",
         {"request": request, "stats": stats, "new_count": new_count,
@@ -2813,7 +2815,7 @@ def admin_attribution(request: Request):
     for r in rows:
         r["heard_label"] = HEARD_ABOUT_LABELS.get(r["heard_about"] or "", r["heard_about"] or "—")
         r["src_label"] = "Postcard QR" if (r["signup_source"] or "") == "postcard" else "—"
-        r["signed_up"] = (r["created_at"] or "")[:10]
+        r["signed_up"] = pacific_date(r["created_at"])
         st = r["sub_status"] or ""
         r["customer_label"] = {"trialing": "Trial", "active": "Active"}.get(st, "—")
     pct = lambda a, b: f"{(100.0 * a / b):.1f}%" if b else "—"
@@ -2857,7 +2859,7 @@ def admin_visitors(request: Request):
         return redirect
     visits, rollup = store.site_visit_stats()
     for v in visits:
-        v["when"] = (v["ts"] or "")[:16].replace("T", " ")
+        v["when"] = pacific_time(v["ts"])
         v["short_id"] = (v["ip_hash"] or "")[:8]
         ua = v["ua"] or ""
         v["device"] = "📱" if ("Mobile" in ua or "Android" in ua or "iPhone" in ua) else "🖥"
@@ -2865,10 +2867,10 @@ def admin_visitors(request: Request):
         v["ref_label"] = ref.replace("https://", "").replace("http://", "").split("/")[0][:28] or "direct"
     for r in rollup:
         r["short_id"] = (r["ip_hash"] or "")[:8]
-        r["first"] = (r["first_ts"] or "")[:16].replace("T", " ")
-        r["last"] = (r["last_ts"] or "")[:16].replace("T", " ")
-    today = datetime.now().date().isoformat()
-    today_visitors = {r["short_id"] for r in rollup if (r["last"] or "")[:10] == today}
+        r["first"] = pacific_time(r["first_ts"])
+        r["last"] = pacific_time(r["last_ts"])
+    today = pacific_today().isoformat()
+    today_visitors = {r["ip_hash"] for r in rollup if pacific_date(r["last_ts"]) == today}
     return templates.TemplateResponse(
         request, "admin_visitors.html",
         {"request": request, "visits": visits, "rollup": rollup,

@@ -7,7 +7,7 @@
 {% for s in suggestions %}
 <div class="card">
   <p style="margin:0 0 6px"><strong>{{ s["body"] }}</strong></p>
-  <p class="muted" style="margin:0">{{ s["name"] or "—" }} · {{ s["email"] or "—" }} · {{ s["company"] or "account #" ~ s["provider_id"] }} · {{ (s["created_at"] or "")[:16] }}</p>
+  <p class="muted" style="margin:0">{{ s["name"] or "—" }} · {{ s["email"] or "—" }} · {{ s["company"] or "account #" ~ s["provider_id"] }} · {{ s["created_at"]|admin_time }}</p>
   <form method="post" action="/admin/suggestions/delete" style="margin-top:8px">
     {{ csrf_input(request) }}
     <input type="hidden" name="suggestion_id" value="{{ s['id'] }}">

@@ -17,6 +17,7 @@ from datetime import datetime, timedelta, timezone
 from html import escape
 from urllib.parse import urlencode
 import store
+from admin_time import pacific_iso
 
 BASE = os.getenv('PUBLIC_BASE_URL', 'https://www.tuitionping.com').rstrip('/')
 CONSENT = 'Send me occasional TuitionPing tuition tips, product improvements and offers. I can unsubscribe anytime.'
@@ -241,7 +242,8 @@ def export_csv():
     for c in contacts():
         if c['marketing_status'] == 'subscribed' and not c['suppressed_at']:
             # Do not let user-entered names/sources execute spreadsheet formulas.
-            values = [str(c.get(k) or '') for k in keys]
+            values = [pacific_iso(c.get(k)) if k in ('requested_at', 'confirmed_at')
+                      else str(c.get(k) or '') for k in keys]
             writer.writerow(["'" + v if v[:1] in '=+-@\t\r' else v for v in values])
     return output.getvalue()
 

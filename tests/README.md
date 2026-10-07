@@ -1,5 +1,13 @@
 # Late-fee calculator checks
 
+## Admin Pacific Time
+
+`test_admin_time.py` checks PST/PDT, both DST transitions, UTC date rollover,
+older naive UTC timestamps, admin tables and trial dates, the Pacific-midnight
+visitor count, and precise Pacific offsets in the confirmed-subscriber export.
+Stored UTC values and date-only calendar values stay intact. Test accounts and
+databases are temporary; no external messages or billing are used.
+
 ## Verified payment statements
 
 `test_payment_confirmation.py` checks that parent PAID reports are excluded from

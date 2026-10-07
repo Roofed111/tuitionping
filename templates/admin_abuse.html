@@ -12,7 +12,7 @@
   {% for s in stats %}
   <tr>
     <td>{{ s["name"] }}<br><span class="family-phone">{{ s["email"] }}</span></td>
-    <td>{{ s["created_at"][:10] }}</td>
+    <td>{{ s["created_at"]|admin_date }}</td>
     <td>{{ s["families"] }}</td>
     <td>{{ s["sent_24h"] }}</td>
     <td>{{ s["sent_30d"] }}</td>
