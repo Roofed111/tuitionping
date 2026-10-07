@@ -20,7 +20,7 @@ _ready = None
 _lock = threading.Lock()
 CLIENT_EVENTS = {'demo_started': {''}, 'demo_step': {'before', 'due', 'late', 'reported', 'verified', 'spanish'}, 'trial_click': {''}, 'document_created': {'invoice','receipt'}}
 STAGES = [('page_view', 'Visitors'), ('demo_started', 'Demo used'), ('download', 'Resource downloaded'),
-          ('document_created', 'Document generated'), ('trial_click', 'Trial clicked'), ('signup', 'Account created'), ('checkout_started', 'Checkout opened'),
+          ('document_created', 'Document generated'), ('setup_help_requested', 'Setup help requested'), ('trial_click', 'Trial clicked'), ('signup', 'Account created'), ('checkout_started', 'Checkout opened'),
           ('checkout_completed', 'Checkout completed'), ('trial_started', 'Trial started'),
           ('first_reminder', 'First tuition reminder accepted'), ('paid_customer', 'Paid customer')]
 
@@ -160,6 +160,6 @@ def report(days=28):
         def accounts(ids, event):
             return len({e['provider_id'] for e in events if e['event'] == event and e['visitor_id'] in ids})
         return [{'key': k, 'visitors': len(ids), 'demo': len(ids & event_sets.get('demo_started', set())),
-                 'signups': accounts(ids, 'signup'), 'trials': accounts(ids, 'trial_started'),
+                 'help': len(ids & event_sets.get('setup_help_requested', set())), 'signups': accounts(ids, 'signup'), 'trials': accounts(ids, 'trial_started'),
                  'paid': accounts(ids, 'paid_customer')} for k, ids in sorted(buckets.items(), key=lambda p: -len(p[1]))]
     return {'stages': stages, 'sources': groups(['source', 'medium', 'campaign']), 'pages': groups(['landing_path']), 'days': days}
