@@ -1,4 +1,4 @@
-"""Public setup requests and a private founder inbox; no customer messaging."""
+"""Public setup requests and a private support inbox; no customer messaging."""
 import hashlib
 import os
 import re
@@ -15,7 +15,7 @@ import growth
 
 BASE = os.getenv('PUBLIC_BASE_URL', 'https://www.tuitionping.com').rstrip('/')
 RECIPIENT = 'rob@tuitionping.com'
-CONSENT = 'Rob may email me about this setup request.'
+CONSENT = 'TuitionPing support may email me about this setup request.'
 FAMILIES = {'1-10':'1–10 families', '11-25':'11–25 families', '26-75':'26–75 families', '76+':'76+ families', 'unsure':'Not sure yet'}
 STAGES = {'exploring':'Exploring TuitionPing', 'account':'Already have an account'}
 TOPICS = {'start':'Choosing a plan and getting started', 'csv':'Preparing or importing a CSV', 'messages':'Program details and reminder settings', 'test':'Previewing and sending a test text', 'payments':'Understanding PAID replies and payment confirmation'}
@@ -71,7 +71,7 @@ def create(data):
     if values['families'] not in FAMILIES or values['stage'] not in STAGES or values['topic'] not in TOPICS:
         raise ValueError('Choose a family count, account stage and setup topic.')
     if values['contact_permission'] != 'on':
-        raise ValueError('Confirm that Rob may email you about this request.')
+        raise ValueError('Confirm that TuitionPing support may email you about this request.')
     if not re.fullmatch(r'[a-f0-9]{32}', values['request_key']):
         raise ValueError('Reload this page and submit the form again.')
     with store.db() as conn:
@@ -102,7 +102,7 @@ def update(rid, status, note):
     return cur.rowcount > 0
 
 def notify(sender, active, limit=10, only_id=None):
-    """Durable founder-only notifications with atomic claims and stable keys.
+    """Durable support notifications with atomic claims and stable keys.
 
     A stale claim is retried with the same Resend key within its 24-hour window;
     older uncertain sends require provider review and are never blindly resent.
@@ -154,7 +154,7 @@ def register(app, templates, require_admin, sender, email_active):
             return page(request,'setup_help.html',{'sent':True})
         ip = request.headers.get('x-forwarded-for',request.client.host if request.client else '').split(',')[0].strip()
         if not rate_allowed(ip):
-            return page(request,'setup_help.html',{'error':'Too many requests. Try again later, or email rob@tuitionping.com.','values':data,'request_key':secrets.token_hex(16)},429)
+            return page(request,'setup_help.html',{'error':'Too many requests. Try again later, or contact TuitionPing support.','values':data,'request_key':secrets.token_hex(16)},429)
         try:
             rid, created = create(data)
         except ValueError as exc:

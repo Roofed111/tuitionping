@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Set up your daycare — TuitionPing{% endblock %}
 {% block content %}
-<p class="muted">Need a hand? <a href="/setup-help">Ask Rob for setup help</a>.</p>
+<p class="muted">Need a hand? <a href="/setup-help">Ask TuitionPing support for setup help</a>.</p>
 <link rel="stylesheet" href="/static/setup.css?v=1">
 <header class="page-head"><div><p class="resource-kicker">Your first reminders, one step at a time</p><h1>Set up TuitionPing</h1><p>Save as you go. You can return to this guide anytime.</p></div><a href="/dashboard">Back to dashboard</a></header>
 <nav class="setup-steps" aria-label="Setup steps">{% for s in setup.steps %}<a href="/setup?step={{ s.key }}"{% if step == s.key %} aria-current="step"{% endif %}><span>{{ loop.index }}</span>{{ s.label }}{% if s.done %}<small>Complete</small>{% endif %}</a>{% endfor %}</nav>
