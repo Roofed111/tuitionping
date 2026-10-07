@@ -180,7 +180,7 @@ Validation: Python unittest discovery; `NODE_PATH=/tmp/tuitionping-ui/node_modul
 node --test tests/invoice-ui.test.cjs` for exact cents, partial receipts,
 verification, stale output, escaping, local-only data and print dispatch.
 
-## Setup-help requests and founder follow-up
+## Setup-help requests and support follow-up
 
 `/setup-help` is available without login or checkout. The homepage, signup,
 Support and setup wizard link to it. The form asks for name, email, optional
@@ -224,6 +224,6 @@ and the existing document/partner section is rendered in the visible content.
 
 Validation: `python -m unittest discover -s tests -p 'test_*.py'` covers public
 CSRF, request persistence, duplicate submits, validation/rate controls,
-founder-only notifications, failed-send recovery, retry-window limits, cron
+support notifications, failed-send recovery, retry-window limits, cron
 auth, private admin access/status editing, escaping and tracking opt-outs.
 All delivery is mocked with temporary providers and SQLite records.
