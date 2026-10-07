@@ -27,6 +27,7 @@
           </select>
         </label>
         <label>Referral code <span style="font-weight:400">(optional)</span><input name="referral_code" value="{{ ref or '' }}" placeholder="TP-XXXXXX" autocomplete="off"></label>
+        {% if ref %}<p class="muted">Referral credit is issued to both accounts after you complete your first paid month. Your free trial does not count. Credit applies to future TuitionPing subscription invoices.</p>{% endif %}
         <label>How did you hear about us? <span style="font-weight:400">(optional)</span>
           <select name="heard_about">
             <option value="">Prefer not to say</option>

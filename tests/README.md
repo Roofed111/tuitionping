@@ -1,5 +1,16 @@
 # Late-fee calculator checks
 
+## Referral credit checks
+
+`test_referrals.py` uses a temporary database and simulated Stripe responses.
+It checks referral-link attribution, checkout/trial exclusion, first paid month
+boundaries, annual and month-end dates, old/current Stripe invoice shapes,
+missed and duplicate webhooks, refunds/disputes, early versus end-of-period
+cancellation, independent credit retries, lost responses after 24 hours,
+concurrent delivery, fixed retry amounts, legacy reward preservation,
+dashboard pending/issued counts and the authenticated hourly cron integration.
+No live Stripe transactions, customer accounts, SMS or emails are created.
+
 The application remains a Python app. Node and jsdom are development-only;
 no package.json is added, so Railway keeps its existing build selection.
 

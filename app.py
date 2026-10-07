@@ -1229,6 +1229,7 @@ def dashboard(request: Request, ran: str = ""):
         "owner_phone": store.get_owner_phone(provider["id"]),
         "referral_link": f"{base_url}/signup?ref={ref_stats['code']}",
         "referral_earned": ref_stats["earned_months"],
+        "referral_pending": ref_stats["pending"],
         "broadcast_recipients": broadcast_recipients,
         "broadcasts_left": max(broadcasts_left, 0),
         "broadcast_sent": request.query_params.get("broadcast") == "sent",
@@ -2404,8 +2405,14 @@ def internal_run_reminders_get(request: Request, token: str = ""):
         setup_result = setup_help.notify(send_email, EMAIL_ACTIVE)
     except Exception:
         setup_result = {"error": "Setup notifications could not be processed; check Admin Setup requests."}
+    try:
+        import referrals
+        referral_result = referrals.run()
+    except Exception:
+        referral_result = {"error": "Referral credits could not be processed; check service logs."}
     return {"date": today().isoformat(), "sent": n, "deferred": deferred,
-            "details": sent, "email": email_result, "setup_help": setup_result}
+            "details": sent, "email": email_result, "setup_help": setup_result,
+            "referrals": referral_result}
 
 
 @app.post("/internal/run-reminders")

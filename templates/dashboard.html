@@ -276,10 +276,12 @@
   <div class="prop-head">
     <h2>🎁 Give a month, get a month</h2>
   </div>
-  <p style="color:var(--muted);margin-top:0">Share your link — when a daycare signs up and starts their subscription, you <strong>both</strong> get a free month.</p>
+  <p style="color:var(--muted);margin-top:0">Share your link — after the referred provider completes their <strong>first paid month</strong>, you both receive one month of TuitionPing account credit. The free trial does not count.</p>
   <p style="margin:8px 0"><code style="font-size:1.1em">{{ referral_link }}</code>
     <button class="btn btn-ghost" style="padding:6px 12px;font-size:.85em;margin-left:8px" onclick="navigator.clipboard.writeText('{{ referral_link }}');this.textContent='Copied ✓'">Copy link</button></p>
-  {% if referral_earned %}<p style="color:#166534;margin-bottom:0"><strong>{{ referral_earned }} free month{{ "s" if referral_earned != 1 else "" }} earned</strong> 🎉</p>{% endif %}
+  <p class="muted" style="font-size:.9em">Credit equals one month at each account’s plan price when issued, including annual accounts. It applies automatically to future subscription invoices; unused credit carries forward. One reward per referred account.</p>
+  {% if referral_pending %}<p><strong>{{ referral_pending }} referral{{ "s" if referral_pending != 1 else "" }} pending</strong> — waiting for a completed paid month or credit processing.</p>{% endif %}
+  {% if referral_earned %}<p style="color:#166534;margin-bottom:0"><strong>{{ referral_earned }} month{{ "s" if referral_earned != 1 else "" }} of account credit issued</strong> 🎉</p>{% endif %}
 </div>
 
 <div class="card">

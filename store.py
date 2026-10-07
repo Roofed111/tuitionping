@@ -370,16 +370,30 @@ def get_referred_by(provider_id):
 
 
 def referral_stats(provider_id) -> dict:
-    """How many free months this provider earned by referring others."""
+    """Count issued referrer credits; retain historical checkout rewards."""
     ensure_referral_columns()
     ensure_referral_rewards()
     with db() as conn:
         code = conn.execute("SELECT referral_code FROM providers WHERE id = ?",
                             (provider_id,)).fetchone()
-        earned = conn.execute("SELECT COUNT(*) AS c FROM referral_rewards"
-                              " WHERE referrer_id = ?", (provider_id,)).fetchone()
+    import referrals
+    referrals.ensure_tables()
+    with db() as conn:
+        earned = conn.execute("""SELECT COUNT(*) AS c FROM (
+            SELECT referee_id FROM referral_rewards WHERE referrer_id = ?
+            UNION SELECT referee_id FROM referral_credits
+            WHERE beneficiary_id = ? AND beneficiary_id <> referee_id
+            AND transaction_id <> '') issued""", (provider_id, provider_id)).fetchone()
+        pending = conn.execute("""SELECT COUNT(*) AS c FROM providers p
+            WHERE p.referred_by = ? AND NOT EXISTS (
+                SELECT 1 FROM referral_rewards r WHERE r.referee_id = p.id)
+            AND NOT EXISTS (SELECT 1 FROM referral_credits c WHERE c.referee_id = p.id
+                AND c.beneficiary_id = ? AND c.transaction_id <> '')
+            AND NOT EXISTS (SELECT 1 FROM referral_progress q
+                WHERE q.referee_id = p.id AND q.state = 'ineligible')""", (provider_id, provider_id)).fetchone()
     return {"code": code["referral_code"] if code else "",
-            "earned_months": earned["c"] if earned else 0}
+            "earned_months": earned["c"] if earned else 0,
+            "pending": pending["c"] if pending else 0}
 
 
 def create_provider(name, email, password, company="", heard_about="", signup_source=""):
