@@ -18,8 +18,8 @@ COOKIE = 'tp_growth'
 _KEY = os.getenv('SECRET_KEY', '').encode() or secrets.token_bytes(32)
 _ready = None
 _lock = threading.Lock()
-CLIENT_EVENTS = {'demo_started': {''}, 'demo_step': {'before', 'due', 'late', 'reported', 'verified', 'spanish'}, 'trial_click': {''}, 'document_created': {'invoice','receipt'}}
-STAGES = [('page_view', 'Visitors'), ('demo_started', 'Demo used'), ('download', 'Resource downloaded'),
+CLIENT_EVENTS = {'demo_started': {''}, 'demo_step': {'before', 'due', 'late', 'reported', 'verified', 'spanish'}, 'trial_click': {''}, 'document_created': {'invoice','receipt'}, 'video_started': {''}, 'video_completed': {''}}
+STAGES = [('page_view', 'Visitors'), ('video_started', 'Walkthrough played'), ('video_completed', 'Walkthrough completed'), ('demo_started', 'Demo used'), ('download', 'Resource downloaded'),
           ('document_created', 'Document generated'), ('setup_help_requested', 'Setup help requested'), ('trial_click', 'Trial clicked'), ('signup', 'Account created'), ('checkout_started', 'Checkout opened'),
           ('checkout_completed', 'Checkout completed'), ('trial_started', 'Trial started'),
           ('first_reminder', 'First tuition reminder accepted'), ('paid_customer', 'Paid customer')]

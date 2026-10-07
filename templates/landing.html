@@ -123,7 +123,7 @@
     pickup conversations, no spreadsheets, no "I forgot the checkbook."</p>
     <div class="hero-ctas">
       <a class="btn" href="/signup?plan=growth" style="font-size:1.08em;padding:14px 28px">Start 30-day free trial</a>
-      <a class="btn btn-ghost" href="/demo" style="font-size:1.08em;padding:14px 28px">Try the interactive demo</a>
+      <a class="btn btn-ghost" href="#walkthrough" style="font-size:1.08em;padding:14px 28px">Watch the 48-second video</a>
       <a class="btn btn-ghost" href="/setup-help">Help me get set up</a>
     </div>
     <p class="fine">Card on file at signup · no charge for 30 days · set up in about 10 minutes · cancel anytime</p>
@@ -144,6 +144,33 @@
     <p class="phone-caption">Illustrative conversation. PAID is parent-reported; the provider verifies receipt.</p>
   </div>
 </div>
+
+<link rel="stylesheet" href="/static/walkthrough.css?v=1">
+<section class="section walkthrough" id="walkthrough" aria-labelledby="walkthrough-title">
+  <div class="walkthrough-heading">
+    <div><h2 id="walkthrough-title">See TuitionPing in 48 seconds.</h2><p>A reminder. A parent’s PAID reply. A payment you verify and confirm.</p></div>
+    <span class="walkthrough-duration">48 seconds · Works without sound</span>
+  </div>
+  <div class="walkthrough-player">
+    <video id="walkthrough-video" controls playsinline preload="none" width="1280" height="720"
+           poster="/static/media/tuitionping-walkthrough-poster.webp" aria-label="TuitionPing product walkthrough"
+           aria-describedby="walkthrough-caption">
+      <source src="/static/media/tuitionping-walkthrough.mp4" type="video/mp4">
+      <track kind="captions" src="/static/media/tuitionping-walkthrough.vtt" srclang="en" label="English">
+      <p><a href="/static/media/tuitionping-walkthrough.mp4">Download the product walkthrough video</a> or read the transcript below.</p>
+    </video>
+    <button type="button" class="walkthrough-play" id="walkthrough-play" aria-controls="walkthrough-video" hidden><span aria-hidden="true">▶</span> Play walkthrough</button>
+  </div>
+  <p class="walkthrough-caption" id="walkthrough-caption">Illustrated demo with fictional data. PAID means reported paid. You check your payment records before confirming receipt; TuitionPing does not process payments.</p>
+  <p id="walkthrough-status" role="status" aria-live="polite"></p>
+  <div class="walkthrough-actions"><a class="btn" href="/demo">Try the interactive demo</a><a class="btn btn-ghost" href="/setup-help">Help me get set up</a><a href="/static/media/tuitionping-walkthrough.mp4" download="TuitionPing_Product_Walkthrough.mp4">Download video</a></div>
+  <details class="walkthrough-transcript"><summary>Read the walkthrough</summary>
+    <p><strong>1. The reminder arrives.</strong> TuitionPing texts a fictional parent, Sarah, that $1,200 is due on November 1 for Sunshine Daycare. Families receive ordinary texts; they do not need a parent app.</p>
+    <p><strong>2. The parent replies PAID.</strong> Sarah’s reply changes the dashboard status to <strong>Reported paid</strong>. It is a report for the provider to review.</p>
+    <p><strong>3. The provider verifies and confirms.</strong> The provider checks their existing payment records for Sarah’s $1,200 payment, then clicks <strong>Confirm payment received</strong> on the family’s row. The status changes to <strong>Paid</strong>. TuitionPing sends reminders and records status; the provider verifies receipt.</p>
+  </details>
+</section>
+<script src="/static/walkthrough.js?v=1" defer></script>
 
 <div class="section">
   <h2>You didn't open a daycare to chase checks</h2>
