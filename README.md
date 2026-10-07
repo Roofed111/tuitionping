@@ -252,3 +252,23 @@ parameters, database locking, a Stripe idempotency key and transaction-metadata
 reconciliation for retries beyond Stripe’s 24-hour key retention. Each benefit
 is counted only once it is issued. Existing `referral_rewards` rows are legacy
 rewards and never trigger a second grant; no historical credits are clawed back.
+
+
+## Landing-page product walkthrough
+
+The homepage embeds a 48-second illustrated H.264 MP4 in `static/media/`,
+showing a scheduled reminder, the parent’s PAID report, an external payment
+record check and the actual **Confirm payment received** dashboard action.
+All data is fictional; no account, text or payment is created by playback.
+On-screen explanations work without audio; English WebVTT captions and an
+HTML transcript are available. Native controls, inline mobile playback, a
+poster and `preload="none"` keep the initial page load light. The hero’s video
+link leads to the player, followed by the existing interactive demo and setup
+help. A downloadable MP4 can be reused in partner packages and outreach.
+
+Rebuild locally with Pillow and ffmpeg using `python3 scripts/build_walkthrough.py`.
+These are development tools; no production dependencies were added.
+First-party `video_started` and `video_completed` events appear in the existing
+growth report. Completion requires approximately 85% of content time played;
+a seek directly to the end does not count. Analytics are browser estimates,
+respect existing privacy opt-outs and do not represent paid conversions.

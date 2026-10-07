@@ -342,6 +342,7 @@ async def conversion_event(request: Request):
                 or event not in growth.CLIENT_EVENTS or detail not in growth.CLIENT_EVENTS[event]
                 or path not in _TRACKED_PATHS
                 or (event.startswith("demo_") and path != "/demo")
+                or (event.startswith("video_") and path != "/")
                 or (event == "document_created" and path != "/tools/daycare-invoice-receipt")):
             raise ValueError()
         growth.record(visitor, event, detail, path)
