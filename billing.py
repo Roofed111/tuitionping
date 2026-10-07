@@ -331,53 +331,6 @@ def verify_webhook(payload: bytes, sig_header: str):
     return s.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
 
 
-def _maybe_grant_referral_reward(referee_id: int, sub: dict):
-    """'Give a month, get a month': when a referred customer completes checkout,
-    credit one month's plan price to both Stripe customer balances (applies to
-    their next invoice, stacking with any coupons). Idempotent per referee."""
-    from store import (get_referred_by, referral_reward_granted,
-                       record_referral_reward, get_subscription)
-    if referral_reward_granted(referee_id):
-        return
-    referrer_id = get_referred_by(referee_id)
-    if not referrer_id:
-        return
-    s = _stripe_lib()
-    sub = _as_dict(sub)
-
-    def _sub_field(provider_id, field):
-        row = get_subscription(provider_id)
-        try:
-            return row[field] if row else None
-        except (KeyError, IndexError, TypeError):
-            return None
-
-    def credit_free_month(provider_id, customer_id):
-        plan = _sub_field(provider_id, "plan") or "starter"
-        cents = int(PLANS.get(plan, PLANS["starter"])["price"] * 100)
-        s.Customer.create_balance_transaction(
-            customer_id, amount=-cents, currency="usd",
-            description="Referral reward — one free month of TuitionPing")
-
-    referee_done = False
-    try:
-        if sub.get("customer"):
-            credit_free_month(referee_id, sub["customer"])
-            referee_done = True
-    except Exception as exc:
-        print(f"[referral] referee credit failed: {exc!r}", flush=True)
-    if referee_done:
-        try:
-            if (_sub_field(referrer_id, "stripe_customer_id")
-                    and _sub_field(referrer_id, "status") not in ("canceled", "none", None)):
-                credit_free_month(referrer_id, _sub_field(referrer_id, "stripe_customer_id"))
-        except Exception as exc:
-            print(f"[referral] referrer credit failed: {exc!r}", flush=True)
-        record_referral_reward(referrer_id, referee_id)
-        print(f"[referral] free month granted: referrer={referrer_id}"
-              f" referee={referee_id}", flush=True)
-
-
 def handle_stripe_event(event) -> dict:
     """Apply a verified Stripe event to our subscription state."""
     event = _as_dict(event)
@@ -396,7 +349,6 @@ def handle_stripe_event(event) -> dict:
             lid = int(sub_meta.get("provider_id") or provider_id or 0)
             if lid:
                 _sync_from_subscription(lid, sub)
-                _maybe_grant_referral_reward(lid, sub)
                 if session.get("livemode") is True:
                     import growth
                     growth.milestone(lid, "checkout_completed")
@@ -434,6 +386,8 @@ def handle_stripe_event(event) -> dict:
                 if provider:
                     import growth
                     growth.milestone(provider["id"], "paid_customer")
+                    import referrals
+                    referrals.record_paid_invoice(provider["id"], inv)
         return {"received": True, "type": etype}
 
     if etype == "invoice.payment_failed":

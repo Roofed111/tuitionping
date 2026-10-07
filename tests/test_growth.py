@@ -103,7 +103,7 @@ class GrowthTest(unittest.TestCase):
         stripe=MagicMock()
         stripe.Subscription.retrieve.return_value={'id':'sub_1','customer':'cus_1','livemode':False,'status':'trialing','metadata':{'provider_id':str(pid),'plan':'micro'}}
         event={'type':'checkout.session.completed','data':{'object':{'livemode':False,'subscription':'sub_1'}}}
-        with patch.object(billing,'_stripe_lib',return_value=stripe),patch.object(billing,'_maybe_grant_referral_reward'):
+        with patch.object(billing,'_stripe_lib',return_value=stripe):
             billing.handle_stripe_event(event)
             self.assertEqual(self.counts()['checkout_completed'],0)
             self.assertEqual(self.counts()['trial_started'],0)
@@ -113,6 +113,7 @@ class GrowthTest(unittest.TestCase):
         self.assertEqual(self.counts()['checkout_completed'],1)
         self.assertEqual(self.counts()['trial_started'],1)
         self.assertEqual(self.counts()['paid_customer'],0)
+        stripe.Customer.create_balance_transaction.assert_not_called()
     def test_subscription_sync_confirms_trial_and_invoice_without_new_webhook_configuration(self):
         pid=self.account()
         sub={'id':'sub_1','customer':'cus_1','metadata':{'plan':'micro'},'livemode':True,'status':'trialing'}

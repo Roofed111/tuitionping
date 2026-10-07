@@ -227,3 +227,28 @@ CSRF, request persistence, duplicate submits, validation/rate controls,
 support notifications, failed-send recovery, retry-window limits, cron
 auth, private admin access/status editing, escaping and tracking opt-outs.
 All delivery is mocked with temporary providers and SQLite records.
+
+
+## Customer referral account credits
+
+The existing “give a month, get a month” program is recorded by the signup
+referral code. Checkout never grants a reward. `referrals.py` accepts a live,
+positive paid invoice for a full recurring TuitionPing month/year (not a trial,
+zero-dollar invoice, manual payment, proration or subscription adjustment).
+Monthly qualification uses the invoice line’s service-period end; annual
+qualification uses one calendar month from its paid service-period start.
+
+The existing hourly `/internal/run-reminders` cron runs referral reconciliation.
+It scans missing paid invoices daily, then rechecks due invoices and service
+termination against Stripe before issuing credit. Refunds, credit notes,
+disputes and early service termination disqualify the reward. Stripe failures
+remain pending; the cron response reports referral grant/error counts. No new
+webhook event subscription or cron service is required.
+
+Both accounts receive their own plan’s monthly list price in USD account credit,
+including annual accounts. The credit applies to future invoices and carries
+forward. Delivery has one durable row per referral/beneficiary, frozen request
+parameters, database locking, a Stripe idempotency key and transaction-metadata
+reconciliation for retries beyond Stripe’s 24-hour key retention. Each benefit
+is counted only once it is issued. Existing `referral_rewards` rows are legacy
+rewards and never trigger a second grant; no historical credits are clawed back.
