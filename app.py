@@ -41,6 +41,8 @@ from reminders import run_reminders, today, open_period, family_status, period_o
 import billing
 import growth
 import email_engagement
+import setup_wizard
+import partner_resources
 from sms import DEMO_MODE as SMS_DEMO_MODE
 
 app = FastAPI(title="TuitionPing")
@@ -52,6 +54,9 @@ PUBLIC_PAGES = {
     "/late-fee-policy": ("late-fee-policy.html", "2026-10-06"),
     "/compare/brightwheel": ("compare-brightwheel.html", "2026-10-06"),
     "/guides": ("guides.html", "2026-10-06"),
+    "/guides/tuition-collection": ("collection_hub.html", "2026-10-06"),
+    "/tools/daycare-invoice-receipt": ("tool_invoice.html", "2026-10-06"),
+    "/partners": ("partners.html", "2026-10-06"),
     "/guides/tuition-reminder-templates": ("guide_templates.html", "2026-10-06"),
     "/guides/handling-late-paying-parents": ("guide_late_parents.html", "2026-10-06"),
     "/tools/late-fee-calculator": ("tool_late_fee_calc.html", "2026-10-06"),
@@ -209,6 +214,7 @@ _NO_SUB_EXACT = {
 _NO_SUB_EXACT.update(PUBLIC_PAGES)
 _NO_SUB_EXACT.add("/analytics/event")
 _NO_SUB_EXACT.add("/email-kit")
+_NO_SUB_EXACT.add("/partners/download")
 _NO_SUB_PREFIXES = ("/billing/", "/admin", "/webhooks/", "/internal/",
                     "/static/", "/s/", "/email-list/")
 
@@ -270,6 +276,7 @@ _TRACKED_PATHS = {"/", "/guide", "/postcard", "/late-fee-policy",
                   "/sms-consent", "/support", "/login", "/signup"}
 _TRACKED_PATHS.update(PUBLIC_PAGES)
 _TRACKED_PATHS.add("/email-kit")
+_TRACKED_PATHS.add("/partners/download")
 _TRACKED_PREFIXES = ("/compare/",)
 
 # Downloads are recorded only after a successful file response.
@@ -295,6 +302,8 @@ async def track_conversions(request: Request, call_next):
         try:
             source, medium, campaign = growth.attribution(request)
             growth.register(visitor, source, medium, campaign, path)
+            if path in {"/partners", "/partners/download"}:
+                partner_resources.touch(visitor, request.query_params.get("partner", ""))
             if path in _GROWTH_DOWNLOADS:
                 growth.record(visitor, "download", path.rsplit("/", 1)[-1], path)
             else:
@@ -325,7 +334,8 @@ async def conversion_event(request: Request):
         if (not isinstance(event, str) or not isinstance(detail, str) or not isinstance(path, str)
                 or event not in growth.CLIENT_EVENTS or detail not in growth.CLIENT_EVENTS[event]
                 or path not in _TRACKED_PATHS
-                or (event.startswith("demo_") and path != "/demo")):
+                or (event.startswith("demo_") and path != "/demo")
+                or (event == "document_created" and path != "/tools/daycare-invoice-receipt")):
             raise ValueError()
         growth.record(visitor, event, detail, path)
     except (ValueError, TypeError):
@@ -699,6 +709,16 @@ def guides_hub(request: Request):
     provider = current_provider(request)
     return templates.TemplateResponse(request, "guides.html",
                                       {"request": request, "provider": provider})
+
+
+@app.get("/guides/tuition-collection", response_class=HTMLResponse)
+def collection_hub(request: Request):
+    return templates.TemplateResponse(request, "collection_hub.html", {"request":request, "provider":None})
+
+
+@app.get("/tools/daycare-invoice-receipt", response_class=HTMLResponse)
+def invoice_tool(request: Request):
+    return templates.TemplateResponse(request, "tool_invoice.html", {"request":request, "provider":None})
 
 
 @app.get("/guides/tuition-reminder-templates", response_class=HTMLResponse)
@@ -1148,26 +1168,12 @@ def dashboard(request: Request, ran: str = ""):
     sending_display = {**sending,
                        "quiet_start_display": display_time(sending["quiet_start"]),
                        "quiet_end_display": display_time(sending["quiet_end"])}
-    has_location = len(locations) > 0
-    has_classroom = any(c for loc in locations for c in loc["classrooms"])
-    has_families = total_families > 0
-    has_pay_link = any((loc.get("payment_url") or "").strip() for loc in locations)
-    has_test_text = store.has_ever_sent_test_text(provider["id"])
-    checklist = [
-        {"done": has_location, "label": "Add your location", "href": "#add-location"},
-        {"done": has_classroom, "label": "Add a classroom", "href": "#add-classroom"},
-        {"done": has_families, "label": "Add your children", "href": "#add-family"},
-        {"done": has_pay_link, "label": "Add your pay-now link", "href": "#add-location"},
-        {"done": has_test_text, "label": "Send yourself a test text", "href": "#test-text"},
-        {"done": has_sent, "label": "Run your first reminder check", "href": "#run-reminders"},
-    ]
-    checklist_done_count = sum(1 for c in checklist if c["done"])
-    checklist_complete = checklist_done_count == len(checklist)
+    setup_state = setup_wizard.snapshot(provider)
     unverified = needs_verification(provider)
     year_stats = store.year_nudged_stats(provider["id"], day.year)
     test_texts_left = (store.TEST_TEXT_DAILY_LIMIT
                        - store.count_test_texts_today(provider["id"],
-                                                      day.isoformat()))
+                                                      datetime.now(timezone.utc).date().isoformat()))
     store.backfill_referral_codes()  # one-time: existing accounts get a code
     ref_stats = store.referral_stats(provider["id"])
     base_url = PUBLIC_BASE_URL
@@ -1227,8 +1233,7 @@ def dashboard(request: Request, ran: str = ""):
         "statements_n": request.query_params.get("n", "0"),
         "statements_year": request.query_params.get("year", ""),
         "demo": SMS_DEMO_MODE, "ran": ran, "sending": sending_display,
-        "checklist": checklist, "checklist_done_count": checklist_done_count,
-        "checklist_complete": checklist_complete, "unverified": unverified,
+        "setup": setup_state, "unverified": unverified,
         "verified_param": request.query_params.get("verified") == "1",
         "resent": request.query_params.get("resent") == "1",
     })
@@ -1453,7 +1458,7 @@ def add_family(request: Request, classroom_id: int = Form(...),
                phone: str = Form(...), tuition_amount: float = Form(...),
                due_day: int = Form(...), consent: str = Form(""),
                next_due: str = Form(""), phone2: str = Form(""),
-               language: str = Form("en")):
+               language: str = Form("en"), return_to: str = Form("")):
     provider, redirect = require_login(request)
     if redirect:
         return redirect
@@ -1493,7 +1498,7 @@ def add_family(request: Request, classroom_id: int = Form(...),
     family = store.get_family_for_provider(fid, provider["id"])
     if family:
         send_welcome_text(provider, family)
-    return RedirectResponse("/dashboard", status_code=303)
+    return RedirectResponse("/setup?step=families" if return_to == "setup" else "/dashboard", status_code=303)
 
 
 @app.post("/families/delete")
@@ -1824,25 +1829,9 @@ def remove_charge(request: Request, family_id: int = Form(...),
     return RedirectResponse(f"/families/edit/{family_id}", status_code=303)
 
 
-@app.post("/test-text")
-def send_test_text(request: Request, phone: str = Form(...)):
-    """Send yourself a sample reminder — 'see exactly what parents get'.
-    Rate-limited to 3/day so nobody can burn SMS budget."""
-    provider, redirect = require_login(request)
-    if redirect:
-        return redirect
-    to = normalize_us_phone(phone)
-    if not to:
-        return HTMLResponse("That doesn't look like a valid 10-digit US number."
-                            " <a href='/dashboard'>Go back</a>", status_code=400)
-    today_iso = date.today().isoformat()
-    used = store.count_test_texts_today(provider["id"], today_iso)
-    if used >= store.TEST_TEXT_DAILY_LIMIT:
-        return HTMLResponse(
-            "You've used your 3 test texts for today — try again tomorrow."
-            " <a href='/dashboard'>Go back</a>", status_code=400)
-    tpl = store.get_templates(provider["id"])
-    locs = store.list_locations(provider["id"])
+def test_text_preview(provider_id):
+    tpl = store.get_templates(provider_id)
+    locs = store.list_locations(provider_id)
     loc_name = locs[0]["name"] if locs else "Sunny Sprouts Daycare"
     pay_url = (locs[0]["payment_url"] or "") if locs else ""
     pay_link = f"Pay online: {pay_url}" if pay_url else ""
@@ -1853,10 +1842,40 @@ def send_test_text(request: Request, phone: str = Form(...)):
         sample = " ".join(sample.split())
     except (KeyError, IndexError, ValueError):
         sample = tpl["tpl_due"]
+    return "[Test] " + sample
+
+
+@app.post("/test-text")
+def send_test_text(request: Request, phone: str = Form(...), return_to: str = Form(""), own_number: str = Form("")):
+    """Send yourself a sample reminder — 'see exactly what parents get'.
+    Rate-limited to 3/day so nobody can burn SMS budget."""
+    provider, redirect = require_login(request)
+    if redirect:
+        return redirect
+    if return_to == "setup" and not setup_wizard.snapshot(provider)["preview_done"]:
+        return RedirectResponse("/setup?step=preview", status_code=303)
+    if return_to == "setup" and own_number != "on":
+        return HTMLResponse("Confirm this is your number and you want the test. <a href='/setup?step=test'>Go back</a>", status_code=400)
+    to = normalize_us_phone(phone)
+    if not to:
+        return HTMLResponse("That doesn't look like a valid 10-digit US number."
+                            " <a href='/dashboard'>Go back</a>", status_code=400)
+    today_iso = datetime.now(timezone.utc).date().isoformat()
+    used = store.count_test_texts_today(provider["id"], today_iso)
+    if used >= store.TEST_TEXT_DAILY_LIMIT:
+        return HTMLResponse(
+            "You've used your 3 test texts for today — try again tomorrow."
+            " <a href='/dashboard'>Go back</a>", status_code=400)
+    sample = test_text_preview(provider["id"])
     from sms import send_sms
-    send_sms(to, "[Test] " + sample, provider["id"], None)
+    try:
+        send_sms(to, sample, provider["id"], None)
+    except Exception:
+        return HTMLResponse("The test could not be sent. Your setup is saved. <a href='/setup?step=test'>Try again</a> or <a href='/support'>contact support</a>.", status_code=502)
     store.log_test_text(provider["id"])
-    return RedirectResponse("/dashboard?test=sent", status_code=303)
+    if return_to == "setup":
+        setup_wizard.mark_test(provider)
+    return RedirectResponse("/setup?step=test&test=sent" if return_to == "setup" else "/dashboard?test=sent", status_code=303)
 
 
 @app.post("/families/unsnooze/{family_id}")
@@ -1956,7 +1975,7 @@ def normalize_us_phone(raw: str) -> str | None:
 @app.post("/families/import")
 async def import_families(request: Request, classroom_id: int = Form(...),
                           consent: str = Form(""),
-                          file: UploadFile = File(...)):
+                          file: UploadFile = File(...), return_to: str = Form("")):
     import csv
     import io
     provider, redirect = require_login(request)
@@ -2055,7 +2074,7 @@ async def import_families(request: Request, classroom_id: int = Form(...),
         imported += 1
     return templates.TemplateResponse(request, "family_import_result.html",
                                       {"request": request, "provider": provider,
-                                       "imported": imported, "errors": errors})
+                                       "imported": imported, "errors": errors, "setup_return": return_to == "setup"})
 
 
 @app.post("/families/confirm-paid")
@@ -3006,3 +3025,9 @@ email_engagement.BASE = PUBLIC_BASE_URL
 email_routes.register(app, templates, require_admin,
                       lambda *args, **kwargs: send_email(*args, **kwargs),
                       lambda: EMAIL_ACTIVE)
+
+setup_wizard.register(app, templates, require_login=require_login, location_limit=_location_limit_response,
+                      timezones=TIMEZONES, hours=hour_options, preview_texts=template_previews,
+                      test_preview=test_text_preview, sms_demo=SMS_DEMO_MODE, needs_verification=needs_verification)
+
+partner_resources.register(app, templates, require_admin)

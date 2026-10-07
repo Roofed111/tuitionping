@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Conversions — Admin{% endblock %}
 {% block content %}
-<div class="tabs" style="flex-wrap:wrap"><a href="/admin">Customers</a><a href="/admin/attribution">Attribution</a><a href="/admin/visitors">Visitors</a><a href="/admin/conversions" class="active">Conversions</a><a href="/admin/email">Email</a></div>
+<div class="tabs" style="flex-wrap:wrap"><a href="/admin">Customers</a><a href="/admin/attribution">Attribution</a><a href="/admin/visitors">Visitors</a><a href="/admin/conversions" class="active">Conversions</a><a href="/admin/email">Email</a><a href="/admin/partners">Partners</a></div>
 <h1>From first visit to customer</h1>
 <p>Visitors first seen in the past <strong>{{ report.days }} days</strong>, with milestones recorded since that visit. <a href="?days=28">28 days</a> · <a href="?days=90">90 days</a></p>
 <p>Visits, demo use and downloads count distinct browsers, not people. Account milestones count distinct accounts. Demo use and downloads are optional paths. An account is not a trial, and a trial is not a paid customer.</p>

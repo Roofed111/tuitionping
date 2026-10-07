@@ -18,9 +18,9 @@ COOKIE = 'tp_growth'
 _KEY = os.getenv('SECRET_KEY', '').encode() or secrets.token_bytes(32)
 _ready = None
 _lock = threading.Lock()
-CLIENT_EVENTS = {'demo_started': {''}, 'demo_step': {'before', 'due', 'late', 'reported', 'verified', 'spanish'}, 'trial_click': {''}}
+CLIENT_EVENTS = {'demo_started': {''}, 'demo_step': {'before', 'due', 'late', 'reported', 'verified', 'spanish'}, 'trial_click': {''}, 'document_created': {'invoice','receipt'}}
 STAGES = [('page_view', 'Visitors'), ('demo_started', 'Demo used'), ('download', 'Resource downloaded'),
-          ('trial_click', 'Trial clicked'), ('signup', 'Account created'), ('checkout_started', 'Checkout opened'),
+          ('document_created', 'Document generated'), ('trial_click', 'Trial clicked'), ('signup', 'Account created'), ('checkout_started', 'Checkout opened'),
           ('checkout_completed', 'Checkout completed'), ('trial_started', 'Trial started'),
           ('first_reminder', 'First tuition reminder accepted'), ('paid_customer', 'Paid customer')]
 
@@ -37,6 +37,9 @@ def ensure_tables():
             conn.execute('CREATE TABLE IF NOT EXISTS growth_accounts (provider_id INTEGER PRIMARY KEY, visitor_id TEXT NOT NULL)')
             conn.execute(store.pg_ddl('CREATE TABLE IF NOT EXISTS growth_events (id INTEGER PRIMARY KEY AUTOINCREMENT, visitor_id TEXT NOT NULL, provider_id INTEGER, event TEXT NOT NULL, detail TEXT NOT NULL, path TEXT NOT NULL, ts TEXT NOT NULL, dedupe_key TEXT NOT NULL UNIQUE)'))
             conn.execute('CREATE INDEX IF NOT EXISTS growth_events_visitor ON growth_events (visitor_id)')
+            conn.execute('CREATE TABLE IF NOT EXISTS growth_partners (code TEXT PRIMARY KEY, name TEXT NOT NULL, kind TEXT NOT NULL, created_at TEXT NOT NULL)')
+            conn.execute('CREATE TABLE IF NOT EXISTS growth_partner_visitors (visitor_id TEXT PRIMARY KEY, partner_code TEXT NOT NULL, touched_at TEXT NOT NULL)')
+            conn.execute('CREATE TABLE IF NOT EXISTS growth_partner_accounts (provider_id INTEGER PRIMARY KEY, visitor_id TEXT NOT NULL, partner_code TEXT NOT NULL, bound_at TEXT NOT NULL)')
         _ready = key
 
 def _mac(value):
@@ -93,6 +96,8 @@ def register(visitor_id, source, medium, campaign, path):
         conn.execute('DELETE FROM growth_events WHERE ts < ?', (cutoff,))
         conn.execute('DELETE FROM growth_accounts WHERE visitor_id IN (SELECT visitor_id FROM growth_visitors WHERE first_seen < ?)', (cutoff,))
         conn.execute('DELETE FROM growth_visitors WHERE first_seen < ?', (cutoff,))
+        conn.execute('DELETE FROM growth_partner_accounts WHERE bound_at < ? OR visitor_id NOT IN (SELECT visitor_id FROM growth_visitors)', (cutoff,))
+        conn.execute('DELETE FROM growth_partner_visitors WHERE touched_at < ? OR visitor_id NOT IN (SELECT visitor_id FROM growth_visitors)', (cutoff,))
         conn.execute('INSERT INTO growth_visitors (visitor_id,first_seen,source,medium,campaign,landing_path) VALUES (?,?,?,?,?,?) ON CONFLICT(visitor_id) DO NOTHING', (visitor_id, now, source, medium, campaign, path))
 
 def record(visitor_id, event, detail='', path='', provider_id=None):
@@ -109,6 +114,11 @@ def bind_account(visitor_id, provider_id):
     ensure_tables()
     with store.db() as conn:
         conn.execute('INSERT INTO growth_accounts (provider_id,visitor_id) VALUES (?,?) ON CONFLICT(provider_id) DO NOTHING', (provider_id, visitor_id))
+    try:
+        import partner_resources
+        partner_resources.bind_account(visitor_id, provider_id)
+    except Exception:
+        logging.getLogger(__name__).warning('Partner attribution could not be recorded')
     milestone(provider_id, 'signup')
 
 def milestone(provider_id, event):
