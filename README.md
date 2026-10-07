@@ -120,3 +120,62 @@ temporary spreadsheet. Visitors can request the free collection kit from
 Consent/preference/queue behavior is covered by
 `python -m unittest discover -s tests -p 'test_*.py'`. Tests use a temporary
 SQLite database and mocked email delivery; they never email real contacts.
+
+## Four-step setup and public document resources
+
+The dashboard links to `/setup`: program details, families, preview, test text.
+The program step configures the selected location and shared account sending
+hours, and creates a Families group only when that location has none. Existing
+locations, groups and families are retained. Family add and CSV import reuse
+existing verified-email, consent, ownership and plan checks; each saved family
+still receives the existing welcome text. Import results link back to setup.
+
+Preview uses fictional names and amounts with the account's actual templates,
+program details and payment link. The displayed test is the same payload sent
+by the existing test-text action. Review and test completion are saved in
+`setup_progress`; changing program, families, sending settings or templates
+invalidates the earlier review/test. GET requests never send texts. Sending a
+test requires an explicit own-number attestation in setup, is limited to three
+per UTC day (matching the log), and records completion only after acceptance.
+Acceptance is not delivery. No reminder runs are required to finish setup.
+
+Public `/tools/daycare-invoice-receipt` creates USD invoices and receipts in
+browser memory. It stores no form data, sends no document fields, and never
+updates account billing or payment ledgers. Print / save as PDF is provided.
+Money uses integer cents; partial payments are separate from previous verified
+payments. A receipt requires a positive amount and provider verification.
+Overpayments, excessive credits and invalid dates/quantities are rejected.
+Changing fields clears the previous output. The optional analytics event stores
+only invoice or receipt, never document content. `/guides/tuition-collection`
+is the English bill-to-receipt resource hub, linked to the tools and `/demo`.
+
+## Partner resource distribution
+
+Public `/partners` and `/partners/download` provide a nine-file kit: an HTML
+handout, share-ready newsletter/group/bookkeeper copy and workshop outline,
+monthly checklist, existing Word/PDF policy and bilingual reminder templates,
+and the Excel tracker. This is resource sharing, without referral commissions.
+Register an organization in **Admin → Partners** (`/admin/partners`). Names and
+codes appear publicly; use business labels without private contact details.
+Copy its assigned link and download its personalized kit. Distribute that
+link or personalized handout; the generic kit has no assigned partner credit.
+The kit's tool links land on the assigned resource page before the user opens
+the selected tool, preserving attribution in a new browser. Existing included
+PDF/Word/XLSX documents are generic resources; use the personalized handout
+and share-ready copy to distribute tracked links.
+
+The latest registered partner landing in the same browser within 30 days
+before signup is copied into `growth_partner_accounts` once. Later partner
+visits do not change that account's credit. Existing first-touch Conversions
+reporting remains separate. Partners shows aggregate browser visits, demo use,
+downloads and distinct accounts/trials/first real reminders/paid subscriptions
+for 28- or 90-day signup/touch cohorts. Existing live billing and SMS milestones
+provide those business outcomes. A link association is not proof of causation.
+Opt-out, bot, logged-in browsing and retention rules remain in force. Browser
+attribution history expires after 90 days; partner definitions remain saved.
+No recipient contacts or family data are shared with partners, and creating a
+kit or partner link sends no outreach message.
+
+Validation: Python unittest discovery; `NODE_PATH=/tmp/tuitionping-ui/node_modules
+node --test tests/invoice-ui.test.cjs` for exact cents, partial receipts,
+verification, stale output, escaping, local-only data and print dispatch.

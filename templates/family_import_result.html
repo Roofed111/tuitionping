@@ -17,6 +17,6 @@
   {% else %}
   <p style="color:#166534">Every row imported cleanly. ✓</p>
   {% endif %}
-  <p><a class="btn" href="/dashboard">Back to dashboard</a></p>
+  <p>{% if setup_return %}<a class="btn" href="/setup?step=families">Back to setup</a> · <a href="/setup?step=preview">Preview reminders</a>{% else %}<a class="btn" href="/dashboard">Back to dashboard</a>{% endif %}</p>
 </div>
 {% endblock %}

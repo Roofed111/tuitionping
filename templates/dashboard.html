@@ -24,7 +24,7 @@
   {% elif ran == "0" %}
   <div class="banner banner-info">💤 <span><strong>No reminders were due today.</strong>
     Reminders only fire when one is actually due: 3 days before tuition, on due day, and 3 &amp; 7 days late.
-    To see one fire right now, set a child's due day to the 28th and hit <strong>Run reminders now</strong> again.</span></div>
+    Keep each family's actual due date. <a href="/setup?step=test">Send yourself a test text</a> to check the wording.</span></div>
   {% else %}
   <div class="banner banner-ok">✅ <span><strong>Reminder run complete.</strong>
     {% if ran == "1" %}1 message{% else %}{{ ran }} messages{% endif %} just went out to children.
@@ -54,19 +54,9 @@
   </form>
 </div>
 
-{% if not checklist_complete %}
-<div class="card" style="border-left:4px solid var(--brand)">
-  <h2>🚀 Finish your setup <span class="sub">{{ checklist_done_count }} of {{ checklist|length }} complete</span></h2>
-  <ol style="margin:8px 0 0;padding-left:22px">
-    {% for c in checklist %}
-    <li style="margin:7px 0">
-      {% if c.done %}✅ <span style="color:var(--muted)">{{ c.label }}</span>
-      {% else %}⬜ {{ c.label }} — <a href="{{ c.href }}"><strong>do it now ↓</strong></a>{% endif %}
-    </li>
-    {% endfor %}
-  </ol>
-</div>
-{% endif %}
+{% if not setup.complete %}
+<section class="card" style="border-left:4px solid var(--brand)"><h2>Finish your setup</h2><p>Program details → families → preview → test text. {{ setup.done_count }} of 4 steps complete.</p><a class="btn" href="/setup?step={{ setup.next_step }}">Continue setup</a><p><small>Your saved families and CSV import stay available.</small></p></section>
+{% else %}<p><a href="/setup">Review setup and send a test text</a></p>{% endif %}
 
 <div class="stats">
   <div class="stat">

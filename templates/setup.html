@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Set up your daycare — TuitionPing{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="/static/setup.css?v=1">
+<header class="page-head"><div><p class="resource-kicker">Your first reminders, one step at a time</p><h1>Set up TuitionPing</h1><p>Save as you go. You can return to this guide anytime.</p></div><a href="/dashboard">Back to dashboard</a></header>
+<nav class="setup-steps" aria-label="Setup steps">{% for s in setup.steps %}<a href="/setup?step={{ s.key }}"{% if step == s.key %} aria-current="step"{% endif %}><span>{{ loop.index }}</span>{{ s.label }}{% if s.done %}<small>Complete</small>{% endif %}</a>{% endfor %}</nav>
+{% if error %}<div class="banner banner-warn" role="alert">{{ error }}</div>{% endif %}
+{% if setup.complete %}<div class="banner banner-ok" role="status">Setup complete. Your test was accepted{% if sms_demo %} in demo mode{% endif %}. Reminders follow the families' actual due dates and your sending hours. <a href="/dashboard">Open dashboard</a></div>{% endif %}
+{% if step == 'program' %}
+<section class="card setup-card"><h2>1. Program details</h2><p>Choose how your program appears in texts. A payment link is optional.</p>
+{% if setup.locations|length > 1 %}<form method="get" action="/setup" class="form-stack"><input name="step" value="program" type="hidden"><label>Location to configure<select name="location_id">{% for loc in setup.locations %}<option value="{{ loc.id }}"{% if values.location_id|int == loc.id %} selected{% endif %}>{{ loc.name }}</option>{% endfor %}</select></label><button class="btn btn-ghost">Load location details</button></form><hr>{% endif %}
+<form method="post" action="/setup/program" class="form-stack">{{ csrf_input(request) }}<input type="hidden" name="location_id" value="{{ values.location_id }}">
+<label>Program / location name<input name="name" value="{{ values.name }}" required maxlength="200" autocomplete="organization"></label>
+<label>Address (optional)<input name="address" value="{{ values.address }}" maxlength="300" autocomplete="street-address"></label>
+<label>Existing payment link (optional)<input name="payment_url" value="{{ values.payment_url }}" type="url" maxlength="500" placeholder="https://…"></label>
+<p class="muted">Keep your existing payment method. TuitionPing does not collect tuition or verify bank transfers.</p>
+<label>Program timezone<select name="timezone">{% for tz in timezones %}<option{% if values.timezone == tz %} selected{% endif %}>{{ tz }}</option>{% endfor %}</select></label>
+<div class="setup-two"><label>Texts may start at<select name="quiet_start">{% for value,label in hours %}<option value="{{ value }}"{% if values.quiet_start == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label><label>Texts stop at<select name="quiet_end">{% for value,label in hours %}<option value="{{ value }}"{% if values.quiet_end == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label></div>
+<p><small>These hours and timezone apply to all locations in this account. A default Families group is created if this location has no classroom.</small></p>
+<button class="btn" type="submit">Save and add families</button></form></section>
+{% elif step == 'families' %}
+<section class="card setup-card"><h2>2. Add families</h2><p>{{ setup.families|length }} child{{ '' if setup.families|length == 1 else 'ren' }} saved. Add one to get started, or import your roster.</p>
+{% if unverified %}<p class="resource-note">Verify your email before adding families. <a href="/dashboard">Resend the verification email on your dashboard</a>.</p>{% endif %}
+<form method="post" action="/families/add" class="form-stack">{{ csrf_input(request) }}<input type="hidden" name="return_to" value="setup">
+<label>Group<select name="classroom_id">{% for room in setup.rooms %}<option value="{{ room.id }}">{{ room.location_name }} · {{ room.label }}</option>{% endfor %}</select></label>
+<div class="setup-two"><label>Child's first name<input name="first_name" required maxlength="100"></label><label>Last name (optional)<input name="last_name" maxlength="100"></label></div>
+<label>Parent's US mobile number<input name="phone" type="tel" required placeholder="(555) 123-4567" autocomplete="off"></label>
+<div class="setup-two"><label>Monthly tuition ($)<input name="tuition_amount" type="number" step="0.01" min="1" required></label><label>Due day of month<input name="due_day" type="number" min="1" max="31" required></label></div>
+<div class="setup-two"><label>First bill date (optional)<input name="next_due" type="date"></label><label>Family's message language<select name="language"><option value="en">English</option><option value="es">Español</option></select></label></div>
+<label class="check"><input name="consent" type="checkbox" required><span>This family agreed to receive tuition reminders by text.</span></label>
+<p><small>Saving a family sends a welcome text identifying your daycare. Use their real agreed due date; there is no need to change it to trigger a reminder.</small></p><button class="btn">Save family</button></form>
+<details class="setup-import"><summary>Import families from CSV</summary><form method="post" action="/families/import" enctype="multipart/form-data" class="form-stack">{{ csrf_input(request) }}<input type="hidden" name="return_to" value="setup">
+<label>Import into group<select name="classroom_id">{% for room in setup.rooms %}<option value="{{ room.id }}">{{ room.location_name }} · {{ room.label }}</option>{% endfor %}</select></label><label>CSV file<input name="file" type="file" accept=".csv" required></label>
+<label class="check"><input name="consent" type="checkbox" required><span>Every family in this file agreed to receive tuition reminders by text.</span></label>
+<p><small>Required: <code>name, phone, tuition, due_day</code>. Optional: <code>phone2, language, next_due_date</code>. Up to 1 MB; plan limits apply. Every imported family receives a welcome text. <a href="/families/sample-csv">Download sample CSV</a>.</small></p><button class="btn btn-ghost">Upload and import</button></form></details>
+{% if setup.families %}<div class="setup-next"><a class="btn" href="/setup?step=preview">Continue to preview</a><a href="/dashboard">Review saved families</a></div>{% endif %}</section>
+{% elif step == 'preview' %}
+<section class="card"><h2>3. Preview your reminders</h2><p>These examples use fictional names, $1,850 tuition and an October 1 due date. The program name, payment link and wording come from your settings. Actual reminders use each family's details.</p><p>Sending window: {{ setup.sending.quiet_start }}–{{ setup.sending.quiet_end }} in {{ setup.sending.timezone.replace('_',' ') }}. <a href="/settings">Edit templates or sending settings</a>.</p>
+<div class="resource-grid">{% for p in previews %}<article class="setup-message"><h3>{{ p.stage }}</h3><p>{{ p.text }}</p></article>{% endfor %}</div>
+<p class="resource-note">A parent's PAID reply is a reported payment. Check your payment records, then confirm receipt on the dashboard.</p>
+<form method="post" action="/setup/preview" class="form-stack">{{ csrf_input(request) }}<input type="hidden" name="digest" value="{{ setup.digest }}"><label class="check"><input type="checkbox" name="reviewed" required><span>I reviewed these examples, program details and sending hours.</span></label><button class="btn">Continue to test text</button></form></section>
+{% else %}
+<section class="card setup-card"><h2>4. Send yourself a test text</h2><p>Only the number you enter below receives this test. It does not mark a family's tuition paid.</p><div class="setup-message"><p>{{ test_preview }}</p></div>
+{% if test_sent %}<p role="status">Test accepted{% if sms_demo %} in demo mode; no SMS left the application{% else %}. Check your phone; acceptance does not guarantee delivery{% endif %}.</p>{% endif %}
+<form method="post" action="/test-text" class="form-stack">{{ csrf_input(request) }}<input type="hidden" name="return_to" value="setup"><label>Your own US mobile number<input name="phone" type="tel" required placeholder="(555) 123-4567" autocomplete="tel"></label><label class="check"><input type="checkbox" name="own_number" required><span>This is my number, and I want to receive this test.</span></label><p><small>{{ test_texts_left }} of 3 tests left today. This on-demand test sends immediately.</small></p><button class="btn"{% if test_texts_left <= 0 %} disabled{% endif %}>Send test text</button></form>
+<div class="setup-next"><a class="btn btn-ghost" href="/dashboard">Open my dashboard</a><a href="/setup?step=preview">Back to preview</a></div></section>
+{% endif %}
+{% endblock %}
