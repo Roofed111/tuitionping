@@ -67,3 +67,14 @@ test('real documents can be created from blank entries without example watermark
  const {dom,$,set,submit}=setup();Object.entries({program:'Sample daycare',family:'Private account', 'document-number':'INV-001',issued:'2026-10-01','period-start':'2026-10-01','period-end':'2026-10-31',due:'2026-10-05'}).forEach(([id,value])=>set(id,value));
  $('line-items').querySelector('[data-field="price"]').value='100.00';submit();assert.equal($('invoice-error').hidden,true);assert.doesNotMatch($('invoice-document').textContent,/Fictional example/);assert.match($('invoice-document').textContent,/Remaining balance\$100.00/);dom.window.close();
 });
+
+test('conditional receipt fields stay hidden with shared form styles',()=>{
+ const {dom,w,$,set}=setup();
+ const shared=w.document.createElement('style');shared.textContent='.form-stack{display:flex}';w.document.head.append(shared);
+ const tool=w.document.createElement('style');tool.textContent=fs.readFileSync('static/invoice.css','utf8');w.document.head.append(tool);
+ assert.equal(w.getComputedStyle($('receipt-fields')).display,'none');
+ set('document-type','receipt');$('document-type').dispatchEvent(new w.Event('change'));
+ assert.equal(w.getComputedStyle($('receipt-fields')).display,'flex');assert.equal(w.getComputedStyle($('due-field')).display,'none');
+ set('document-type','invoice');$('document-type').dispatchEvent(new w.Event('change'));
+ assert.equal(w.getComputedStyle($('receipt-fields')).display,'none');assert.notEqual(w.getComputedStyle($('due-field')).display,'none');dom.window.close();
+});
