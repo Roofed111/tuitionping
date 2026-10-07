@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Help me get set up | TuitionPing{% endblock %}
+{% block meta_description %}<meta name="description" content="Get help from Rob setting up TuitionPing: choose a plan, prepare your family CSV, preview reminders and send your own test text.">{% endblock %}
+{% block content %}
+<header class="resource-intro"><p class="resource-kicker">Personal setup help from the founder</p><h1>Help me get set up</h1><p>Tell Rob where you are getting stuck. He can help you choose a plan, prepare your CSV, configure reminders and understand payment confirmation.</p></header>
+{% if sent %}
+<section class="card" role="status"><h2>Your setup request is saved</h2><p>Rob will review it and reply to the email address you provided. You can close this page; your request is in the private setup inbox.</p><p>While you wait, explore a fictional daycare. The demo sends no texts.</p><div class="download-actions"><a class="btn" href="/demo">Try the interactive demo</a><a class="btn btn-ghost" href="/guides/tuition-collection">Browse free collection resources</a></div></section>
+{% else %}
+<div class="resource-grid" style="align-items:start">
+<section class="card"><h2>What would help you get started?</h2><p>No account or card is needed to request help.</p>
+{% if error %}<p role="alert" style="color:var(--bad)">{{ error }}</p>{% endif %}
+<form method="post" action="/setup-help" class="form-stack">
+{{ csrf_input(request) }}<input type="hidden" name="request_key" value="{{ request_key }}">
+<label>Your name<input name="name" required maxlength="100" autocomplete="name" value="{{ values.get('name','') }}"></label>
+<label>Email address<input name="email" type="email" required maxlength="254" autocomplete="email" value="{{ values.get('email','') }}"></label>
+<label>Program name (optional)<input name="program" maxlength="150" autocomplete="organization" value="{{ values.get('program','') }}"></label>
+<label>How many families?<select name="families" required><option value="">Choose a range</option>{% for key,label in families_options.items() %}<option value="{{ key }}" {% if values.get('families') == key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+<label>Where are you starting?<select name="stage" required><option value="">Choose an option</option>{% for key,label in stage_options.items() %}<option value="{{ key }}" {% if values.get('stage') == key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+<label>What do you need help with?<select name="topic" required>{% for key,label in topics.items() %}<option value="{{ key }}" {% if values.get('topic','start') == key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+<label>Anything else? (optional)<textarea name="note" rows="3" maxlength="1000" placeholder="For example: I use an Excel list and need help preparing the import.">{{ values.get('note','') }}</textarea></label>
+<p class="muted">Describe the issue without including family names, phone numbers, passwords, card details or bank records.</p>
+<div aria-hidden="true" style="position:absolute;left:-10000px"><label>Website<input name="website" tabindex="-1" autocomplete="off"></label></div>
+<label class="check"><input type="checkbox" name="contact_permission" required {% if values.get('contact_permission') == 'on' %}checked{% endif %}><span>Rob may email me about this setup request.</span></label>
+<p><small>This request is for setup help and does not subscribe you to marketing. <a href="/privacy">Privacy policy</a>.</small></p>
+<button class="btn" style="align-self:flex-start">Send setup request</button>
+</form></section>
+<section class="card"><h2>What happens next</h2><ol><li><strong>Rob replies by email.</strong> Explain your program size, billing process and the step you want help with.</li><li><strong>Work through your setup.</strong> You stay in control of your account while Rob guides you through program details, families, preview and test text.</li><li><strong>Check the result.</strong> Use your own number for a test and learn how to verify a parent's PAID reply against your records.</li></ol><p>Choose and complete your trial checkout when you are ready to use the customer dashboard. Standard trial and plan pricing apply.</p><a class="btn btn-ghost" href="/demo">See the workflow first</a></section>
+</div>
+{% endif %}
+{% endblock %}

@@ -42,6 +42,7 @@ import billing
 import growth
 import email_engagement
 import setup_wizard
+import setup_help
 import partner_resources
 from sms import DEMO_MODE as SMS_DEMO_MODE
 
@@ -160,11 +161,13 @@ async def csrf_protect(request: Request, call_next):
             session_token = request.cookies.get(SESSION_COOKIE, "")
             if session_token:
                 expected = csrf_token_for_session(session_token)
-            elif path in ("/signup", "/email-list/join"):
+            elif path in ("/signup", "/email-list/join", "/setup-help"):
                 expected = csrf_token_for_seed(
                     request.cookies.get("csrf_seed", ""))
             else:
                 expected = ""
+            if path == "/setup-help" and not session_token and not request.cookies.get("csrf_seed"):
+                return HTMLResponse("Reload the setup-help form before submitting.", status_code=403)
             if expected:
                 # Read the raw body first: on _CachedRequest this caches
                 # _body so the downstream app replays it. Parse the form
@@ -172,6 +175,8 @@ async def csrf_protect(request: Request, call_next):
                 # here would consume the stream without caching _body and
                 # leave route handlers with an empty body.
                 body = await request.body()
+                if path == "/setup-help" and len(body) > 16384:
+                    return HTMLResponse("The setup request is too large. Keep your note under 1,000 characters.", status_code=413)
 
                 async def _replay():
                     return {"type": "http.request", "body": body,
@@ -215,15 +220,16 @@ _NO_SUB_EXACT.update(PUBLIC_PAGES)
 _NO_SUB_EXACT.add("/analytics/event")
 _NO_SUB_EXACT.add("/email-kit")
 _NO_SUB_EXACT.add("/partners/download")
+_NO_SUB_EXACT.add("/setup-help")
 _NO_SUB_PREFIXES = ("/billing/", "/admin", "/webhooks/", "/internal/",
                     "/static/", "/s/", "/email-list/")
 
 
 @app.middleware("http")
 async def email_form_seed(request: Request, call_next):
-    paths = {"/email-kit", "/guides"}
+    paths = {"/email-kit", "/guides", "/setup-help"}
     seed = ""
-    if (request.method == "GET" and request.url.path in paths) or (request.method == "POST" and request.url.path == "/email-list/join"):
+    if (request.method == "GET" and request.url.path in paths) or (request.method == "POST" and request.url.path in {"/email-list/join", "/setup-help"}):
         session = request.cookies.get(SESSION_COOKIE, "")
         seed = request.cookies.get("csrf_seed", "") or _secrets.token_hex(16)
         request.state.csrf_token = csrf_token_for_session(session) if session else csrf_token_for_seed(seed)
@@ -277,6 +283,7 @@ _TRACKED_PATHS = {"/", "/guide", "/postcard", "/late-fee-policy",
 _TRACKED_PATHS.update(PUBLIC_PAGES)
 _TRACKED_PATHS.add("/email-kit")
 _TRACKED_PATHS.add("/partners/download")
+_TRACKED_PATHS.add("/setup-help")
 _TRACKED_PREFIXES = ("/compare/",)
 
 # Downloads are recorded only after a successful file response.
@@ -2393,8 +2400,12 @@ def internal_run_reminders_get(request: Request, token: str = ""):
         email_result = email_engagement.run(send_email, EMAIL_ACTIVE)
     except Exception:
         email_result = {"error": "Email guidance processing failed; check Admin Email."}
+    try:
+        setup_result = setup_help.notify(send_email, EMAIL_ACTIVE)
+    except Exception:
+        setup_result = {"error": "Setup notifications could not be processed; check Admin Setup requests."}
     return {"date": today().isoformat(), "sent": n, "deferred": deferred,
-            "details": sent, "email": email_result}
+            "details": sent, "email": email_result, "setup_help": setup_result}
 
 
 @app.post("/internal/run-reminders")
@@ -3031,3 +3042,6 @@ setup_wizard.register(app, templates, require_login=require_login, location_limi
                       test_preview=test_text_preview, sms_demo=SMS_DEMO_MODE, needs_verification=needs_verification)
 
 partner_resources.register(app, templates, require_admin)
+
+setup_help.register(app, templates, require_admin,
+                    lambda *args, **kwargs: send_email(*args, **kwargs), lambda: EMAIL_ACTIVE)

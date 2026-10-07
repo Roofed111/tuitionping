@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Partners — Admin{% endblock %}
 {% block content %}
-<div class="tabs" style="flex-wrap:wrap"><a href="/admin">Customers</a><a href="/admin/conversions">Conversions</a><a href="/admin/email">Email</a><a href="/admin/partners" class="active">Partners</a></div>
+<div class="tabs" style="flex-wrap:wrap"><a href="/admin">Customers</a><a href="/admin/conversions">Conversions</a><a href="/admin/email">Email</a><a href="/admin/partners" class="active">Partners</a><a href="/admin/setup-help">Setup requests</a></div>
 <h1>Partner resources and customer attribution</h1><p>Register a partner, copy its link, and download its personalized resource package. Share only after confirming the intended organization and contact.</p>
 {% if error %}<div class="banner banner-warn" role="alert">{% if error == 'duplicate' %}That code is already registered. Use its existing link or choose a different code.{% else %}Enter a name, a valid code and a partner type.{% endif %}</div>{% endif %}
 <section class="card"><h2>Create an assigned link</h2><form method="post" action="/admin/partners" class="form-stack">{{ csrf_input(request) }}<label>Organization or business display name<input name="name" required maxlength="120"></label><label>Public partner code<input name="code" required pattern="[a-z0-9][a-z0-9-]{2,47}" minlength="3" maxlength="48" placeholder="sample-provider-group"></label><label>Type<select name="kind">{% for value,label in kinds.items() %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></label><p><small>Names and codes appear in public links and landing pages. Use business labels, without personal contact information.</small></p><button class="btn">Create partner link</button></form></section>

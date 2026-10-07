@@ -179,3 +179,51 @@ kit or partner link sends no outreach message.
 Validation: Python unittest discovery; `NODE_PATH=/tmp/tuitionping-ui/node_modules
 node --test tests/invoice-ui.test.cjs` for exact cents, partial receipts,
 verification, stale output, escaping, local-only data and print dispatch.
+
+## Setup-help requests and founder follow-up
+
+`/setup-help` is available without login or checkout. The homepage, signup,
+Support and setup wizard link to it. The form asks for name, email, optional
+program name, family-count range, account stage, topic and a brief optional
+note. Explicit permission authorizes a response about this request only; no
+marketing contact, customer account, parent SMS or checkout is created.
+
+Requests are stored in `setup_help_requests` and visible only through
+**Admin → Setup requests** (`/admin/setup-help`). New requests queue an email
+notification to `rob@tuitionping.com` through the existing Resend sender. The
+request stays saved if email delivery is disabled or fails. Notification
+acceptance is not inbox delivery. The existing hourly reminder scheduler also
+processes pending setup notifications; the admin inbox can retry due entries.
+Atomic claims and a stable idempotency key prevent concurrent duplicate sends.
+Stale claims can be retried within 23 hours of the first attempt; uncertain
+older sends stop and require reviewing the email provider. This inbox never
+emails a requester automatically.
+
+Reply using the request's **Reply by email** link. The private guide and first
+reply draft are included in the inbox. Ask program size, billing frequency,
+payment method and account stage; make sure the actual billing schedule is
+supported. Recommend the capacity/location plan, and let the provider create
+and verify their account and complete their own Stripe checkout. Help explain
+the CSV columns using sample rows; real family information stays in the
+provider's file and is uploaded by them after confirming SMS consent. Saving
+families sends the existing welcome text. Walk through program details →
+families → preview → test text, using their own number for the test. Explain
+that a parent PAID reply must be checked against their payment records before
+confirming receipt. Never request passwords, card details or emailed family
+lists. Confirm they can proceed, then mark Replied, Helping, Complete or Not
+proceeding and save private next-action notes. Older requests remain accessible
+through pagination.
+
+CSRF protects public and admin forms; public requests also use a honeypot,
+five-request hourly hashed-IP limit, field limits, and 16 KiB body cap. Forms
+and inbox responses are private/no-store/noindex. Acquisition reporting counts
+accepted setup-help requests without storing form content in analytics and
+honors the existing DNT/GPC exclusions. Request contact and operational notes
+remain outside the marketing list. Privacy disclosures cover these records
+and the existing document/partner section is rendered in the visible content.
+
+Validation: `python -m unittest discover -s tests -p 'test_*.py'` covers public
+CSRF, request persistence, duplicate submits, validation/rate controls,
+founder-only notifications, failed-send recovery, retry-window limits, cron
+auth, private admin access/status editing, escaping and tracking opt-outs.
+All delivery is mocked with temporary providers and SQLite records.

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Email List & Campaigns — Admin{% endblock %}
 {% block content %}
-<div class="tabs"><a href="/admin">Customers</a><a href="/admin/conversions">Conversions</a><a class="active" href="/admin/email">Email</a><a href="/admin/partners">Partners</a></div>
+<div class="tabs"><a href="/admin">Customers</a><a href="/admin/conversions">Conversions</a><a class="active" href="/admin/email">Email</a><a href="/admin/partners">Partners</a><a href="/admin/setup-help">Setup requests</a></div>
 <h1>Email list and follow-ups</h1>
 {% if request.query_params.get('saved') %}<div class="banner banner-ok" role="status">Email settings saved.</div>{% endif %}
 {% if request.query_params.get('processed') %}<div class="banner banner-ok" role="status">{{ request.query_params.get('processed') }} emails accepted by the sending provider.</div>{% endif %}
