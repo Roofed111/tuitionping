@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}TuitionPing vs Brightwheel — A Simpler Alternative for Tuition Reminders{% endblock %}
-{% block meta_description %}<meta name="description" content="Brightwheel runs your whole center; TuitionPing fixes late tuition. Compare: flat $19–$99/mo, 10-minute setup, no sales call, parents just get texts — no app to install.">{% endblock %}
+{% block meta_description %}<meta name="description" content="Brightwheel runs your whole center; TuitionPing fixes late tuition. Compare: flat ${{ plans.micro.price }}–${{ plans.multisite.price }}/mo, 10-minute setup, no sales call, parents just get texts — no app to install.">{% endblock %}
 {% block content %}
 <div class="page-head"><div>
   <h1>TuitionPing vs brightwheel</h1>
@@ -18,7 +18,7 @@
   <table style="width:100%;border-collapse:collapse;font-size:.95em">
     <tr style="border-bottom:2px solid var(--line);text-align:left"><th scope="col" style="padding:10px 8px"></th><th scope="col" style="padding:10px 8px">TuitionPing</th><th scope="col" style="padding:10px 8px">brightwheel</th></tr>
     <tr style="border-bottom:1px solid var(--line)"><td style="padding:10px 8px"><strong>What it does</strong></td><td style="padding:10px 8px">Automatic tuition reminder texts</td><td style="padding:10px 8px">Full center management suite</td></tr>
-    <tr style="border-bottom:1px solid var(--line)"><td style="padding:10px 8px"><strong>Price</strong></td><td style="padding:10px 8px"><strong>$19–$99/mo flat</strong>, <a href="/#pricing">see published plans</a></td><td style="padding:10px 8px">Quote-based — book a sales call for pricing</td></tr>
+    <tr style="border-bottom:1px solid var(--line)"><td style="padding:10px 8px"><strong>Price</strong></td><td style="padding:10px 8px"><strong>${{ plans.micro.price }}–${{ plans.multisite.price }}/mo flat</strong>, <a href="/#pricing">see published plans</a></td><td style="padding:10px 8px">Quote-based — book a sales call for pricing</td></tr>
     <tr style="border-bottom:1px solid var(--line)"><td style="padding:10px 8px"><strong>Setup time</strong></td><td style="padding:10px 8px">~10 minutes, self-serve</td><td style="padding:10px 8px">Onboarding process with their team</td></tr>
     <tr style="border-bottom:1px solid var(--line)"><td style="padding:10px 8px"><strong>Parent experience</strong></td><td style="padding:10px 8px">Ordinary texts — no app, no login</td><td style="padding:10px 8px">Parent app to install and learn</td></tr>
     <tr style="border-bottom:1px solid var(--line)"><td style="padding:10px 8px"><strong>Languages</strong></td><td style="padding:10px 8px">English + Spanish built in</td><td style="padding:10px 8px">Interface supports English, Spanish and Canadian French; message translation is separate</td></tr>
@@ -46,7 +46,7 @@
 
 <div class="final-cta">
   <h2>Fix late tuition this week.</h2>
-  <p>Flat $19–$99/mo · 30-day free trial · no sales call, ever.</p>
+  <p>Flat ${{ plans.micro.price }}–${{ plans.multisite.price }}/mo · 30-day free trial · no sales call, ever.</p>
   <a class="btn" href="/signup?plan=growth" style="font-size:1.1em;padding:14px 32px">Start free — 10 minutes</a>
   <p style="margin-top:14px"><small>Card on file at signup · no charge for 30 days · cancel anytime</small></p>
 </div>

@@ -39,7 +39,13 @@ class ReferralTest(unittest.TestCase):
         self.clock = self.start
         self.invoices = {}
         self.subscriptions = {'sub_referee': {'id': 'sub_referee', 'customer': 'cus_referee',
-            'status': 'active', 'livemode': True, 'metadata': {'provider_id': str(self.referee)}}}
+            'status': 'active', 'livemode': True, 'metadata': {'provider_id': str(self.referee)},
+            'items': {'data': [{'quantity': 1, 'price': {'lookup_key': 'tuitionping_micro_monthly',
+                'unit_amount': 1900, 'currency': 'usd', 'recurring': {'interval': 'month'}}}]}},
+            'sub_referrer': {'id': 'sub_referrer', 'customer': 'cus_referrer',
+                'status': 'active', 'livemode': True,
+                'items': {'data': [{'quantity': 1, 'price': {'lookup_key': 'tuitionping_growth_monthly',
+                    'unit_amount': 5900, 'currency': 'usd', 'recurring': {'interval': 'month'}}}]}}}
         self.transactions = []
         self.creates = []
         self.fail_customer = None
@@ -53,6 +59,7 @@ class ReferralTest(unittest.TestCase):
         self.stripe.Customer.create_balance_transaction.side_effect = self.create_credit
         for p in (patch.object(billing, '_stripe_lib', return_value=self.stripe),
                   patch.object(billing, 'stripe_configured', return_value=True),
+                  patch.object(billing, 'sync_price_catalog'),
                   patch.object(referrals, 'now_ts', side_effect=lambda: self.clock)):
             p.start(); self.addCleanup(p.stop)
 
@@ -144,6 +151,37 @@ class ReferralTest(unittest.TestCase):
         self.clock = self.end
         referrals.run()
         self.assertEqual(len(self.transactions), 2)
+
+    def test_new_catalog_referral_credits_match_actual_prices_after_full_month(self):
+        inv = self.invoice(amount_paid=900)
+        line = inv['lines']['data'][0]
+        line['amount'] = 900
+        line['price']['lookup_key'] = billing.price_lookup('micro', 'monthly')
+        for sid, plan, amount in [('sub_referee', 'micro', 900), ('sub_referrer', 'growth', 3900)]:
+            price = self.subscriptions[sid]['items']['data'][0]['price']
+            price.update(lookup_key=billing.price_lookup(plan, 'monthly'), unit_amount=amount)
+        self.save(inv)
+        self.clock = self.end - 1
+        referrals.run()
+        self.assertFalse(self.transactions)
+        self.clock = self.end
+        self.assertEqual(referrals.run()['granted'], 1)
+        self.assertEqual(sorted(t['amount'] for t in self.transactions), [-3900, -900])
+
+    def test_new_annual_catalog_referral_uses_nominal_month(self):
+        inv = self.invoice(amount_paid=9000)
+        line = inv['lines']['data'][0]
+        line.update(amount=9000, price={'lookup_key': billing.price_lookup('micro', 'annual'),
+                                     'recurring': {'interval': 'year'}})
+        line['period']['end'] = ts('2027-10-07')
+        price = self.subscriptions['sub_referee']['items']['data'][0]['price']
+        price.update(lookup_key=billing.price_lookup('micro', 'annual'), unit_amount=9000,
+                     recurring={'interval': 'year'})
+        self.save(inv)
+        self.assertEqual(self.progress()['eligible_at'], self.end)
+        self.clock = self.end
+        self.assertEqual(referrals.run()['granted'], 1)
+        self.assertEqual(sorted(t['amount'] for t in self.transactions), [-5900, -900])
 
     def test_month_end_and_leap_year_clamp(self):
         self.assertEqual(referrals._next_month(ts('2026-01-31')), ts('2026-02-28'))

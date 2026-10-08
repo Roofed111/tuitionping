@@ -9,12 +9,11 @@ Subscribing redirects to Stripe Checkout (30-day trial, card collected but
 not charged until trial ends). Webhook events from Stripe activate and sync
 subscriptions via POST /webhooks/stripe.
 
-Founding members: the first FOUNDING_SPOTS providers to subscribe get
-FOUNDING_PCT_OFF% off for FOUNDING_MONTHS months. In real mode this is
-delivered via a Stripe coupon whose ID is in FOUNDING_COUPON_ID
-(create it in Stripe at launch: 50% off, repeating, 6 months).
+New subscriptions use the versioned price catalog. The founding offer is
+closed to new signups; existing subscription prices and coupons are retained.
 """
 import os
+import threading
 from datetime import datetime, timezone
 
 from store import get_subscription, set_subscription, set_stripe_ids
@@ -28,10 +27,10 @@ STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
 
 PLANS = {
-    "micro":     {"name": "Micro",      "price": 19, "families": 10,  "blurb": "Up to 10 families · 1 location"},
-    "starter":   {"name": "Starter",    "price": 29, "families": 30,  "blurb": "Up to 30 families · 1 location"},
-    "growth":    {"name": "Growth",     "price": 59, "families": 75,  "blurb": "Up to 75 families · unlimited locations"},
-    "multisite": {"name": "Multi-site", "price": 99, "families": 200, "blurb": "Up to 200 families · unlimited locations"},
+    "micro":     {"name": "Micro",      "price": 9, "families": 10,  "blurb": "Up to 10 families · 1 location"},
+    "starter":   {"name": "Starter",    "price": 19, "families": 30,  "blurb": "Up to 30 families · 1 location"},
+    "growth":    {"name": "Growth",     "price": 39, "families": 75,  "blurb": "Up to 75 families · unlimited locations"},
+    "multisite": {"name": "Multi-site", "price": 59, "families": 200, "blurb": "Up to 200 families · unlimited locations"},
 }
 
 PLAN_ORDER = ["micro", "starter", "growth", "multisite"]
@@ -59,11 +58,13 @@ def next_plan(plan: str) -> str | None:
 TRIAL_DAYS = 30
 CYCLES = ("monthly", "annual")
 
-# Founding-member program: first N subscribers get P% off for M months.
+# Retain the original founding terms for existing subscriptions.
 FOUNDING_SPOTS = 25
 FOUNDING_PCT_OFF = 50
 FOUNDING_MONTHS = 6
 FOUNDING_COUPON_ID = os.getenv("FOUNDING_COUPON_ID", "")
+FOUNDING_OPEN = False  # Existing subscription discounts continue in Stripe.
+CATALOG_VERSION = '20261008'
 # Postcard campaign: 10% off for 3 months, auto-applied when the customer
 # arrived via the /postcard QR landing page. Stripe coupon b9rSblgJ
 # ("Postcard 10% off 3 months", percent_off=10, duration=repeating,
@@ -73,6 +74,67 @@ POSTCARD_COUPON_ID = os.getenv("POSTCARD_COUPON_ID", "b9rSblgJ")
 
 _stripe = None
 _price_cache = {}
+_catalog_lock = threading.Lock()
+
+
+def price_lookup(plan, cycle, legacy=False):
+    if plan not in PLANS or cycle not in CYCLES:
+        raise ValueError('Unknown pricing plan or cycle')
+    return f'tuitionping_{plan}_{cycle}' + ('' if legacy else '_' + CATALOG_VERSION)
+
+
+def plan_from_lookup(lookup):
+    return next((plan for plan in PLANS for cycle in CYCLES
+                 if lookup in (price_lookup(plan,cycle),price_lookup(plan,cycle,legacy=True))),None)
+
+
+def _validate_price(raw, plan, cycle):
+    price = _as_dict(raw)
+    recurring = _as_dict(price.get('recurring') or {})
+    expected = PLANS[plan]['price'] * (1000 if cycle == 'annual' else 100)
+    if (price.get('unit_amount') != expected or price.get('currency') != 'usd'
+            or price.get('active') is not True or price.get('type') != 'recurring'
+            or recurring.get('interval') != ('year' if cycle == 'annual' else 'month')
+            or recurring.get('interval_count',1) != 1 or recurring.get('usage_type','licensed') != 'licensed'
+            or price.get('lookup_key') != price_lookup(plan, cycle)):
+        raise ValueError('Stripe catalog price does not match the published plan')
+    return price
+
+
+def sync_price_catalog():
+    """Create versioned prices on existing products, never change subscriptions."""
+    if not stripe_configured():
+        return {}
+    with _catalog_lock:
+        s = _stripe_lib()
+        resolved = {}
+        for plan in PLANS:
+            for cycle in CYCLES:
+                lookup = price_lookup(plan,cycle)
+                rows = _as_dict(s.Price.list(lookup_keys=[lookup],limit=1)).get('data') or []
+                if rows:
+                    price = _validate_price(rows[0],plan,cycle)
+                else:
+                    legacy_keys = list(dict.fromkeys([
+                        price_lookup(plan, cycle, legacy=True),
+                        price_lookup(plan, 'monthly', legacy=True),
+                    ]))
+                    previous = _as_dict(s.Price.list(lookup_keys=legacy_keys, limit=2)).get('data') or []
+                    if not previous: raise ValueError('Existing Stripe plan product was not found: '+plan)
+                    product = _as_dict(previous[0]).get('product')
+                    if not isinstance(product,str): product = _as_dict(product or {}).get('id')
+                    if not product: raise ValueError('Existing Stripe product is missing: '+plan)
+                    price = _validate_price(s.Price.create(product=product,currency='usd',
+                        unit_amount=PLANS[plan]['price']*(1000 if cycle=='annual' else 100),
+                        recurring={'interval':'year' if cycle=='annual' else 'month'},lookup_key=lookup,
+                        nickname=PLANS[plan]['name']+' '+cycle+' '+CATALOG_VERSION,
+                        metadata={'tuitionping_plan':plan,'catalog_version':CATALOG_VERSION,
+                                  'monthly_list_cents':str(PLANS[plan]['price']*100)},
+                        idempotency_key='tp-price-'+lookup),plan,cycle)
+                resolved[(plan,cycle)] = price['id']
+        _price_cache.update(resolved)  # Publish only after every price verifies.
+        print('[pricing] Stripe catalog '+CATALOG_VERSION+' verified: monthly 9/19/39/59; annual 90/190/390/590',flush=True)
+        return resolved
 
 
 def stripe_configured():
@@ -93,29 +155,28 @@ def price_id(plan: str, cycle: str = "monthly") -> str:
     key = (plan, cycle)
     if key not in _price_cache:
         s = _stripe_lib()
-        lookup = f"tuitionping_{plan}_{cycle}"
+        lookup = price_lookup(plan,cycle)
         prices = s.Price.list(lookup_keys=[lookup], limit=1)
         if not prices.data:
             raise ValueError(f"no Stripe price with lookup key {lookup}")
-        _price_cache[key] = prices.data[0].id
+        _price_cache[key] = _validate_price(prices.data[0],plan,cycle)['id']
     return _price_cache[key]
 
 
 def activate_demo_subscription(provider_id: int, plan: str) -> dict:
-    """What the demo Subscribe button does: start the 30-day trial instantly,
-    claiming a founding spot when any remain."""
+    """Start a 30-day trial without a card or external billing calls."""
     if plan not in PLANS:
         raise ValueError(f"unknown plan: {plan}")
     trial_ends = (datetime.now(timezone.utc).timestamp() + TRIAL_DAYS * 86400)
     trial_ends_iso = datetime.fromtimestamp(trial_ends, timezone.utc).isoformat()
     set_subscription(provider_id, plan, "trialing", trial_ends_at=trial_ends_iso)
-    founding = _claim_spot(provider_id, FOUNDING_SPOTS)
+    founding = _claim_spot(provider_id, FOUNDING_SPOTS) if FOUNDING_OPEN else False
     return {"plan": plan, "status": "trialing", "trial_ends_at": trial_ends_iso,
             "founding": founding}
 
 
 def founding_spots_left() -> int:
-    return max(0, FOUNDING_SPOTS - _claimed_count())
+    return max(0, FOUNDING_SPOTS - _claimed_count()) if FOUNDING_OPEN else 0
 
 
 def founding_price(plan: str, cycle: str = "monthly") -> float:
@@ -220,15 +281,15 @@ def create_checkout_session(provider: dict, plan: str, cycle: str, base_url: str
                             postcard: bool = False) -> str:
     """Create a Stripe Checkout session for a plan; returns the redirect URL.
 
-    Discount priority: founding members (50% off 6mo) first, then the postcard
-    campaign (10% off for 3 months). Everyone else can type a promo code."""
+    New subscriptions use the current catalog; the postcard campaign remains.
+    Previously applied founding coupons on existing subscriptions are untouched."""
     if plan not in PLANS:
         raise ValueError(f"unknown plan: {plan}")
     if cycle not in CYCLES:
         cycle = "monthly"
     s = _stripe_lib()
     customer_id = _get_or_create_customer(provider)
-    founding = _claim_spot(provider["id"], FOUNDING_SPOTS)
+    founding = _claim_spot(provider["id"], FOUNDING_SPOTS) if FOUNDING_OPEN else False
     source = "founding" if founding else ("postcard" if postcard else "direct")
     session_args = dict(
         customer=customer_id,
@@ -265,6 +326,34 @@ def _as_dict(obj):
     if isinstance(obj, dict):
         return obj
     return dict(obj)
+
+
+def monthly_credit_cents(sub, stripe):
+    """One nominal month of the beneficiary's actual recurring plan price."""
+    current = _as_dict(stripe.Subscription.retrieve(sub.get('stripe_subscription_id')))
+    if current.get('customer') != sub.get('stripe_customer_id') or current.get('livemode') is not True:
+        raise ValueError('Referral subscription could not be verified')
+    items = _as_dict(current.get('items') or {}).get('data') or []
+    if len(items) != 1:
+        raise ValueError('Referral subscription needs one plan item')
+    item = _as_dict(items[0])
+    if item.get('quantity', 1) != 1:
+        raise ValueError('Referral subscription has an unexpected quantity')
+    price = item.get('price') or {}
+    price = _as_dict(stripe.Price.retrieve(price)) if isinstance(price,str) else _as_dict(price)
+    if plan_from_lookup(price.get('lookup_key')) != sub.get('plan') or price.get('currency') != 'usd':
+        raise ValueError('Referral plan price could not be verified')
+    amount = price.get('unit_amount')
+    recurring = _as_dict(price.get('recurring') or {})
+    interval = recurring.get('interval')
+    if type(amount) is not int or amount <= 0 or recurring.get('interval_count', 1) != 1:
+        raise ValueError('Referral month price could not be verified')
+    if interval == 'month':
+        return amount
+    # Annual plans continue to charge ten monthly list prices (two months free).
+    if interval == 'year' and amount % 10 == 0:
+        return amount // 10
+    raise ValueError('Referral plan has an unsupported billing interval')
 
 
 def _sync_from_subscription(provider_id: int, sub) -> None:
@@ -318,9 +407,7 @@ def _plan_from_price(sub) -> str | None:
         s = _stripe_lib()
         price = _as_dict(s.Price.retrieve(price_id_))
         lk = price.get("lookup_key") or ""
-        for plan in PLANS:
-            if lk == f"tuitionping_{plan}_monthly" or lk == f"tuitionping_{plan}_annual":
-                return plan
+        return plan_from_lookup(lk)
     except Exception:
         pass
     return None

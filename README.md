@@ -11,7 +11,7 @@ Website for the provider, plain SMS for the family — nobody installs anything.
 | `store.py` | SQLite data layer (providers, locations, classrooms, families, logs, …) |
 | `reminders.py` | The daily engine — `run_reminders()` decides who gets texted today |
 | `sms.py` | Sends SMS; in demo mode it prints to console + logs instead |
-| `billing.py` | Plans + demo subscribe; real Stripe hooks go here later |
+| `billing.py` | Plan catalog, demo subscribe, Stripe checkout and subscription hooks |
 | `templates/` | Server-rendered pages (no frontend build step) |
 
 ## Run locally
@@ -257,13 +257,33 @@ disputes and early service termination disqualify the reward. Stripe failures
 remain pending; the cron response reports referral grant/error counts. No new
 webhook event subscription or cron service is required.
 
-Both accounts receive their own plan’s monthly list price in USD account credit,
-including annual accounts. The credit applies to future invoices and carries
+Both accounts receive their own Stripe subscription's monthly list price in USD
+account credit, preserving legacy amounts; annual amounts are divided by ten
+under the two-month savings policy. The credit applies to future invoices and carries
 forward. Delivery has one durable row per referral/beneficiary, frozen request
 parameters, database locking, a Stripe idempotency key and transaction-metadata
 reconciliation for retries beyond Stripe’s 24-hour key retention. Each benefit
 is counted only once it is issued. Existing `referral_rewards` rows are legacy
 rewards and never trigger a second grant; no historical credits are clawed back.
+
+## Pricing catalog — October 8, 2026
+
+New monthly subscriptions cost Micro $9, Starter $19, Growth $39 and Multi-site
+$59. Annual plans cost $90, $190, $390 and $590 respectively (ten monthly prices).
+The 30-day trial, family/location limits and existing postcard coupon are retained.
+The extra 50% founding offer is closed to new signups; existing coupons remain
+on their subscriptions under their original terms.
+
+At startup, `billing.sync_price_catalog()` resolves or idempotently creates eight
+Stripe prices on the existing products using versioned lookup keys such as
+`tuitionping_micro_monthly_20261008`. Every price's amount, currency and recurring
+interval is verified before the application becomes ready. A mismatch fails
+startup rather than sending customers to a differently priced checkout.
+Original prices and lookup keys are retained, and no existing subscription,
+customer or invoice is changed. Webhook plan recognition and referral eligibility
+accept both catalogs. Persisted referral credits retain their original amount
+on retries. Public pricing, signup, billing, structured offers and ROI calculations
+use the same `billing.PLANS` values.
 
 
 ## Landing-page product walkthrough

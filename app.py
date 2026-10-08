@@ -53,6 +53,9 @@ from sms import DEMO_MODE as SMS_DEMO_MODE
 
 @asynccontextmanager
 async def analytics_lifespan(application):
+    # Complete the explicit price rollout before the new deployment is ready.
+    # Idempotent price creation does not charge or migrate any customer.
+    await asyncio.to_thread(billing.sync_price_catalog)
     async def maintain_analytics():
         while True:
             await asyncio.sleep(30)
@@ -76,10 +79,10 @@ app = FastAPI(title="TuitionPing", lifespan=analytics_lifespan)
 
 # Dates describe substantive page edits, not filesystem timestamps at deployment.
 PUBLIC_PAGES = {
-    "/": ("landing.html", "2026-10-06"),
+    "/": ("landing.html", "2026-10-08"),
     "/guide": ("guide.html", "2026-10-06"),
     "/late-fee-policy": ("late-fee-policy.html", "2026-10-06"),
-    "/compare/brightwheel": ("compare-brightwheel.html", "2026-10-06"),
+    "/compare/brightwheel": ("compare-brightwheel.html", "2026-10-08"),
     "/guides": ("guides.html", "2026-10-06"),
     "/guides/tuition-collection": ("collection_hub.html", "2026-10-06"),
     "/tools/daycare-invoice-receipt": ("tool_invoice.html", "2026-10-06"),
@@ -756,7 +759,8 @@ def compare_brightwheel(request: Request):
     """SEO comparison page: honest TuitionPing vs brightwheel breakdown."""
     provider = current_provider(request)
     return templates.TemplateResponse(request, "compare-brightwheel.html",
-                                      {"request": request, "provider": provider})
+                                      {"request": request, "provider": provider,
+                                       "plans": billing.PLANS})
 
 
 @app.get("/guides", response_class=HTMLResponse)
@@ -2407,6 +2411,7 @@ def billing_page(request: Request):
         "checkout": checkout,
         "stripe_live": billing.stripe_configured(),
         "founding_spots_left": billing.founding_spots_left(),
+        "founding_open": billing.FOUNDING_OPEN,
         "founding_pct": billing.FOUNDING_PCT_OFF,
         "founding_months": billing.FOUNDING_MONTHS,
         "founding_price": billing.founding_price,

@@ -78,7 +78,7 @@ def _qualifying_period(invoice, stripe):
         price = line.get('price') or _dict(_dict(line.get('pricing')).get('price_details')).get('price')
         price = _dict(stripe.Price.retrieve(price)) if isinstance(price, str) else _dict(price)
         lookup = price.get('lookup_key')
-        if lookup not in {f'tuitionping_{plan}_{cycle}' for plan in billing.PLANS for cycle in billing.CYCLES}:
+        if not billing.plan_from_lookup(lookup):
             continue
         recurring = _dict(price.get('recurring'))
         period = _dict(line.get('period'))
@@ -160,10 +160,14 @@ def _deliver_credit(referee_id, beneficiary_id, stripe):
     if plan not in billing.PLANS:
         return False
     with store.db() as conn:
+        previous = conn.execute('SELECT amount_cents FROM referral_credits WHERE referee_id=? AND beneficiary_id=?', (referee_id,beneficiary_id)).fetchone()
+    # Retried credits retain their original amount through any catalog change.
+    amount = previous['amount_cents'] if previous else billing.monthly_credit_cents(sub,stripe)
+    with store.db() as conn:
         conn.execute("""INSERT INTO referral_credits
             (referee_id, beneficiary_id, customer_id, amount_cents) VALUES (?,?,?,?)
             ON CONFLICT(referee_id, beneficiary_id) DO NOTHING""",
-            (referee_id, beneficiary_id, customer, int(billing.PLANS[plan]['price'] * 100)))
+            (referee_id, beneficiary_id, customer, amount))
     with store.db() as conn:
         if not store.USE_PG:
             conn.execute('BEGIN IMMEDIATE')
