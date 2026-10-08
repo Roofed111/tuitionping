@@ -3,7 +3,7 @@
 {% block content %}
 <div class="tabs" style="flex-wrap:wrap"><a href="/admin">Customers</a><a href="/admin/abuse">Abuse monitor</a><a href="/admin/suggestions">Suggestions</a><a href="/admin/attribution">Attribution</a><a href="/admin/visitors" class="active">Visitors</a><a href="/admin/conversions">Conversions</a><a href="/admin/email">Email</a><a href="/admin/partners">Partners</a><a href="/admin/setup-help">Setup requests</a></div>
 <h1>Site visitors</h1>
-<p class="muted">Human counts include Human and Likely Human. Automated traffic stays in the audit log. Logged-in browsing is excluded; today follows Pacific Time.</p>
+<p class="muted">Human counts include Human and Likely Human. Automated totals count stable hashed network groups, not newly minted sessions. Every request stays in the audit log. Logged-in browsing is excluded; today follows Pacific Time.</p>
 <div class="stats" aria-label="Human visitor totals">
   <div class="stat"><div class="label">Human Visitors Today</div><div class="value">{{ report.human_today }}</div></div>
   <div class="stat"><div class="label">Human Visitors Total</div><div class="value">{{ report.human_total }}</div></div>
@@ -22,13 +22,13 @@
 {% for kind, label in [('human','Human'),('automated','Automated'),('all','All Traffic'),('unknown','Unknown')] %}<a href="{{ report.filter_links[kind] }}"{% if report.kind == kind %} class="active" aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}
 </nav>
 <section class="card">
-  <h2>Visitors <span class="sub">{{ report.filtered_total }} matching</span></h2>
+  <h2>Visitors <span class="sub">{{ report.filtered_total }} matching records</span></h2>
   <p class="muted">Click any column heading to sort the full filtered list. Click a traffic type for its reasons. Hits count requests; pages count distinct recorded paths.</p>
   <div class="resource-table"><table>
     <caption class="visually-hidden">Classified site visitors, sortable across all pages</caption>
     <thead><tr>{% for header in report.headers %}<th scope="col" aria-sort="{{ header.aria_sort }}"><a href="{{ header.url }}">{{ header.label }}{% if header.aria_sort == 'ascending' %} ↑{% elif header.aria_sort == 'descending' %} ↓{% endif %}</a></th>{% endfor %}</tr></thead>
     <tbody>{% for r in report.rows %}<tr>
-      <td><code title="{{ r.visitor_id }}">{{ r.visitor_id[:12] }}</code>{% if r.identity_kind == 'historical_ip' %}<br><small>Historical network estimate</small>{% elif r.identity_kind == 'anonymous' %}<br><small>Anonymous 30-minute estimate</small>{% endif %}</td>
+      <td><code title="{{ r.visitor_id }}">{{ r.visitor_id[:12] }}</code>{% if r.identity_kind == 'historical_ip' %}<br><small>Historical network estimate</small>{% elif r.identity_kind == 'anonymous' %}<br><small>{{ 'Stable automated estimate' if r.classification in ('KNOWN BOT','LIKELY BOT') else 'Anonymous 30-minute estimate' }}</small>{% endif %}</td>
       <td><details><summary>{{ r.type_label }}</summary><ul>{% for reason in r.reasons %}<li>{{ reason }}</li>{% endfor %}</ul><small>Bot risk: {{ r.bot_score }}/100<br>Browser execution: {{ 'confirmed' if r.browser_verified else 'unconfirmed' }}<br>User-Agent: {{ r.ua or 'Not recorded' }}</small></details></td>
       <td>{{ r.hit_count }}</td><td>{{ r.page_count }}</td>
       <td style="white-space:nowrap"><time datetime="{{ r.first_seen }}">{{ r.first_seen|admin_time }}</time></td>
@@ -40,10 +40,11 @@
   <nav aria-label="Visitor pages" style="margin-top:16px">{% if report.offset %}<a href="{{ report.previous_url }}">← Previous</a> · {% endif %}Showing {{ report.offset + 1 if report.rows else 0 }}–{{ report.offset + report.rows|length }} of {{ report.filtered_total }}{% if report.next is not none %} · <a href="{{ report.next_url }}">Next →</a>{% endif %}</nav>
 </section>
 <section class="card">
-  <h2>Recent hits <span class="sub">latest {{ report.hits|length }} matching requests</span></h2>
-  <div class="resource-table"><table><thead><tr><th scope="col">When</th><th scope="col">Visitor</th><th scope="col">Type</th><th scope="col">Page</th><th scope="col">Status</th><th scope="col">From</th></tr></thead><tbody>
-  {% for h in report.hits %}<tr><td style="white-space:nowrap">{{ h.ts|admin_time }}</td><td><code>{{ h.visitor_id[:12] }}</code></td><td>{{ traffic_labels.get(h.classification, 'Unknown / Unclassified') }}</td><td><code>{{ h.path }}</code></td><td>{{ h.status_code }}</td><td>{{ h.referrer or 'Direct / not recorded' }}</td></tr>{% else %}<tr><td colspan="6">No requests match this filter.</td></tr>{% endfor %}
+  <h2>Request audit <span class="sub">{{ report.hits_total }} retained matching requests</span></h2>
+  <div class="resource-table"><table><thead><tr><th scope="col">When</th><th scope="col">Visitor</th><th scope="col">Type</th><th scope="col">Page / scan target</th><th scope="col">Method</th><th scope="col">Status</th><th scope="col">From</th></tr></thead><tbody>
+  {% for h in report.hits %}<tr><td style="white-space:nowrap">{{ h.ts|admin_time }}</td><td><code>{{ h.visitor_id[:12] }}</code></td><td>{{ traffic_labels.get(h.classification, 'Unknown / Unclassified') }}</td><td><code>{{ h.probe_target or h.path }}</code>{% if h.probe_category %}<br><small>{{ h.probe_category }}</small>{% endif %}<details><summary>User-Agent</summary>{{ h.ua or 'Not recorded' }}</details></td><td>{{ h.method }}</td><td>{{ h.status_code }}</td><td>{{ h.referrer or 'Direct / not recorded' }}</td></tr>{% else %}<tr><td colspan="7">No requests match this filter.</td></tr>{% endfor %}
   </tbody></table></div>
+  <nav aria-label="Request audit pages">{% if report.hit_offset %}<a href="{{ report.hits_previous_url }}">← Previous requests</a> · {% endif %}Showing {{ report.hit_offset + 1 if report.hits else 0 }}–{{ report.hit_offset + report.hits|length }} of {{ report.hits_total }}{% if report.hits_next %} · <a href="{{ report.hits_next_url }}">Next requests →</a>{% endif %}</nav>
 </section>
 <p class="muted">Visitors are browser estimates, not identified people. JavaScript confirmation is one positive signal. Privacy opt-outs use a short-lived anonymous network/browser estimate without an analytics cookie; shared networks or cleared cookies can affect counts. Historical network estimates cannot be reliably linked to older conversion cookies. Requests are classified without blocking or challenging anyone.</p>
 {% endblock %}
