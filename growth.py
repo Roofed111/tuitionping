@@ -5,6 +5,7 @@ server-confirmed and deduplicated. Analytics failures never block the product.
 """
 import hashlib
 import hmac
+import json
 import logging
 import os
 import re
@@ -14,12 +15,14 @@ from datetime import datetime, timedelta, timezone
 from urllib.parse import urlsplit
 import store
 import traffic
+import acquisition
 
 COOKIE = 'tp_growth'
 _KEY = os.getenv('SECRET_KEY', '').encode() or secrets.token_bytes(32)
 _ready = None
 _lock = threading.Lock()
 CLIENT_EVENTS = {'browser_verified': {'', 'webdriver'}, 'demo_started': {''}, 'demo_step': {'before', 'due', 'late', 'reported', 'verified', 'spanish'}, 'trial_click': {''}, 'document_created': {'invoice','receipt'}, 'video_started': {''}, 'video_completed': {''}}
+CLIENT_EVENTS['visitor_engaged'] = {'interaction','active_reading'}
 STAGES = [('page_view', 'Visitors'), ('video_started', 'Walkthrough played'), ('video_completed', 'Walkthrough completed'), ('demo_started', 'Demo used'), ('download', 'Resource downloaded'),
           ('document_created', 'Document generated'), ('setup_help_requested', 'Setup help requested'), ('trial_click', 'Trial clicked'), ('signup', 'Account created'), ('checkout_started', 'Checkout opened'),
           ('checkout_completed', 'Checkout completed'), ('trial_started', 'Trial started'),
@@ -67,35 +70,15 @@ def excluded(request):
             or bool(traffic.known_bot(request.headers.get('user-agent', ''))))
 
 def attribution(request):
-    # Only public campaign labels are accepted. Never retain arbitrary queries.
-    def label(key):
-        value = request.query_params.get(key, '')
-        return value if re.fullmatch(r'[A-Za-z0-9_.-]{1,60}', value) else ''
-    source, medium, campaign = label('utm_source'), label('utm_medium'), label('utm_campaign')
-    if request.url.path == '/postcard' or request.cookies.get('tp_src') == 'postcard':
-        return 'postcard', 'direct_mail', campaign
-    if re.fullmatch(r'TP-[A-Z0-9]{6,20}', request.query_params.get('ref', '').upper()):
-        return 'customer_referral', 'referral', campaign
-    if source:
-        return source, medium or 'campaign', campaign
-    try:
-        host = (urlsplit(request.headers.get('referer', '')).hostname or '').lower()
-    except ValueError:
-        host = ''
-    if host in {'www.tuitionping.com', 'tuitionping.com', request.url.hostname}:
-        return 'direct', 'none', ''
-    if re.search(r'(^|\.)(google\.[a-z.]+|bing.com|duckduckgo.com|search.yahoo.com)$', host):
-        return host, 'organic', ''
-    if host and re.fullmatch(r'[a-z0-9.-]{1,60}', host):
-        return host, 'referral', ''
-    return 'direct', 'none', ''
+    detail = acquisition.describe(request)
+    return detail['source'], detail['medium'], detail['campaign']
 
-def register(visitor_id, source, medium, campaign, path):
+def register(visitor_id, source, medium, campaign, path, detail=None):
     ensure_tables()
     now = store.now_iso()
     with store.db() as conn:
         # Reporting windows limit the report, not the underlying audit records.
-        conn.execute('INSERT INTO growth_visitors (visitor_id,first_seen,source,medium,campaign,landing_path) VALUES (?,?,?,?,?,?) ON CONFLICT(visitor_id) DO NOTHING', (visitor_id, now, source, medium, campaign, path))
+        conn.execute('INSERT INTO growth_visitors (visitor_id,first_seen,source,medium,campaign,landing_path,attribution_json) VALUES (?,?,?,?,?,?,?) ON CONFLICT(visitor_id) DO NOTHING', (visitor_id, now, source, medium, campaign, path, json.dumps(detail) if detail else ''))
 
 def record(visitor_id, event, detail='', path='', provider_id=None):
     if not visitor_id:
@@ -108,6 +91,8 @@ def record(visitor_id, event, detail='', path='', provider_id=None):
             if state['generation']:
                 key = state['generation'] + ':' + key
         conn.execute('INSERT INTO growth_events (visitor_id,provider_id,event,detail,path,ts,dedupe_key) VALUES (?,?,?,?,?,?,?) ON CONFLICT(dedupe_key) DO NOTHING', (visitor_id, provider_id, event, detail, path, store.now_iso(), key))
+    if provider_id:
+        traffic.confirm_account_activity(visitor_id,event)
 
 def bind_account(visitor_id, provider_id):
     if not visitor_id:
@@ -158,7 +143,8 @@ def reset_report(provider_id):
 def report(days=28, kind='human'):
     ensure_tables()
     traffic.refresh_candidates()
-    kind = kind if kind in ('human', 'automated', 'all', 'unknown') else 'human'
+    traffic.refresh_account_engagement()
+    kind = kind if kind in ('engaged','browser','unconfirmed','human', 'automated', 'all', 'unknown') else 'engaged'
     cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat(timespec='seconds')
     with store.db() as conn:
         state = conn.execute('SELECT * FROM growth_report_state WHERE id = 1').fetchone()
@@ -173,7 +159,21 @@ def report(days=28, kind='human'):
     # Anonymous hit-only records belong in Visitors, not the acquisition funnel.
     event_ids = {e['visitor_id'] for e in events}
     raw_visitors = [v for v in visitors if v['visitor_id'] in event_ids]
-    visitors = [v for v in raw_visitors if traffic.matches(kind, v['classification'])]
+    quality = {}
+    for v in raw_visitors:
+        if v['classification'] not in traffic.HUMAN_TYPES: continue
+        key = (v['source'],v['medium'],v['campaign'])
+        group = quality.setdefault(key, {'key':key,'label':acquisition.source_label(key[0],key[1]),'visitors':0,'engaged':0,'browser':0,'unconfirmed':0,'ids':set()})
+        group['visitors'] += 1
+        group['engaged'] += int(traffic.eligible('engaged',v))
+        group['browser'] += int(traffic.eligible('browser',v))
+        group['unconfirmed'] += int(traffic.eligible('unconfirmed',v))
+        group['ids'].add(v['visitor_id'])
+    for group in quality.values():
+        ids = group.pop('ids')
+        group['demo'] = len({e['visitor_id'] for e in events if e['visitor_id'] in ids and e['event']=='demo_started'})
+        group['signups'] = len({e['provider_id'] for e in events if e['visitor_id'] in ids and e['event']=='signup' and e['provider_id'] is not None})
+    visitors = [v for v in raw_visitors if traffic.eligible(kind, v)]
     eligible = {v['visitor_id'] for v in visitors}
     events = [e for e in events if e['visitor_id'] in eligible]
     identities = {v['visitor_id']: traffic.metric_id(v) for v in visitors}
@@ -181,7 +181,7 @@ def report(days=28, kind='human'):
     for e in events:
         event_sets.setdefault(e['event'], set()).add(e['visitor_id'])
     account_stages = {'signup','checkout_started','checkout_completed','trial_started','first_reminder','paid_customer'}
-    stages = [{'event': event, 'label': ('Human visitors' if event == 'page_view' and kind == 'human' else label),
+    stages = [{'event': event, 'label': (('Engaged visitors' if kind == 'engaged' else 'All likely people' if kind == 'human' else label) if event == 'page_view' else label),
                'count': (len({e['provider_id'] for e in events if e['event'] == event and e['provider_id'] is not None})
                          if event in account_stages else (len({identities[vid] for vid in event_sets.get(event,set())}) if event == 'page_view' else len(event_sets.get(event, set()))))} for event, label in STAGES]
     def groups(keys):
@@ -191,7 +191,7 @@ def report(days=28, kind='human'):
             buckets.setdefault(k, set()).add(v['visitor_id'])
         def accounts(ids, event):
             return len({e['provider_id'] for e in events if e['event'] == event and e['visitor_id'] in ids and e['provider_id'] is not None})
-        return [{'key': k, 'visitors': len({identities[vid] for vid in ids}), 'demo': len(ids & event_sets.get('demo_started', set())),
+        return [{'key': k, 'label':acquisition.source_label(k[0],k[1]) if len(k)==3 else '', 'details': sorted({acquisition.display(v)['term'] for v in visitors if v['visitor_id'] in ids and acquisition.display(v)['term']}), 'visitors': len({identities[vid] for vid in ids}), 'demo': len(ids & event_sets.get('demo_started', set())),
                  'help': len(ids & event_sets.get('setup_help_requested', set())), 'signups': accounts(ids, 'signup'), 'trials': accounts(ids, 'trial_started'),
                  'paid': accounts(ids, 'paid_customer')} for k, ids in sorted(buckets.items(), key=lambda p: -len(p[1]))]
     # Visitor rates use the same eligible browser cohort for both sides. Two
@@ -200,9 +200,13 @@ def report(days=28, kind='human'):
     signed_up = {identities[e['visitor_id']] for e in events if e['event'] == 'signup' and e['provider_id'] is not None} & denominator
     paid = {identities[e['visitor_id']] for e in events if e['event'] == 'paid_customer' and e['provider_id'] is not None} & denominator
     return {'stages': stages, 'sources': groups(['source', 'medium', 'campaign']), 'pages': groups(['landing_path']),
+            'source_quality':sorted(quality.values(),key=lambda g:(-g['engaged'],-g['visitors'],g['key'])),
             'days': days, 'reset_at': state['reset_at'], 'kind': kind,
             'rate_denominator': len(denominator), 'converting_visitors': len(signed_up), 'paid_visitors': len(paid),
             'conversion_rate': round(100 * len(signed_up) / len(denominator), 2) if denominator else None,
             'paid_conversion_rate': round(100 * len(paid) / len(denominator), 2) if denominator else None,
             'automated_visitors': len({traffic.metric_id(v) for v in raw_visitors if v['classification'] in traffic.BOT_TYPES}),
+            'engaged_visitors': sum(traffic.eligible('engaged',v) for v in raw_visitors),
+            'browser_only_visitors': sum(traffic.eligible('browser',v) for v in raw_visitors),
+            'unconfirmed_visitors': sum(traffic.eligible('unconfirmed',v) for v in raw_visitors),
             'unknown_visitors': sum(v['classification'] == 'UNKNOWN' for v in raw_visitors)}

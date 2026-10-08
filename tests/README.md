@@ -124,3 +124,17 @@ Pacific midnight / 23- and 25-hour DST days. `growth-ui.test.cjs` uses jsdom
 to check two render frames, a single signed browser beacon, no page-view
 inflation, privacy opt-outs, webdriver and retained trial click tracking.
 All data is temporary and external sends/payments are mocked.
+
+## Engagement and detailed acquisition sources
+
+Admin Visitors and Conversions now default to Engaged: signed browser execution
+plus trusted interaction after eight visible seconds, scrolling after thirty
+visible seconds, or retained server-side account activity linked to a real
+provider. Browser-only and unconfirmed visits remain separate, not presumed bots.
+`test_engagement_sources.py` checks strict versus broad conversion rates, one-page
+Chrome/Safari/iPhone, time thresholds, bot overrides, stable raw hit counts,
+historical account evidence, safe first-touch sources, campaign terms, advertising
+marker privacy, keyword CSV validation and Admin/CSRF protection. The DOM suite
+also covers synthetic events, hidden-tab time, waiting alone and one-time signals.
+Search keywords are aggregate, dated Search Console snapshots; they are never
+guessed for individual visitors or refreshed by a public page request.

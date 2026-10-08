@@ -117,7 +117,7 @@ class AdminTimePagesTest(unittest.TestCase):
             with patch.object(traffic, 'now', return_value=traffic.parsed(stamp)):
                 traffic.observe('sample-'+str(i), '/demo', '', 'Mozilla/5.0 Safari/605.1')
         with patch.object(traffic, 'now', return_value=datetime(2026,1,15,9,tzinfo=timezone.utc)):
-            response = self.page("/admin/visitors")
+            response = self.page("/admin/visitors?kind=all")
         self.assertEqual(response.context["report"]["human_today"], 2)
         self.assertIn("2026-01-14 11:59:59 PM PST", response.text)
         self.assertIn("2026-01-15 12:00:00 AM PST", response.text)

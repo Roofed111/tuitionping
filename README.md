@@ -396,3 +396,51 @@ exploit targets, encoded paths, other application scans, normal missing routes,
 120 anonymous sessions across time/UA changes, 15 rotating signed cookies,
 original record preservation/reclassification, shared-network humans, POST/CSRF
 scans, query privacy, raw conversions, and full request-audit pagination.
+
+### Stronger engagement counts and detailed sources
+
+Admin Visitors and Conversions default to **Engaged**, rather than combining
+every Human/Likely Human estimate. The main cards and conversion denominator
+require `engagement_confirmed`: existing browser execution plus a signed,
+path-matched interaction after eight visible seconds, scrolling after thirty
+visible seconds, or a retained server-side account milestone for a real provider.
+The client ignores synthetic input and hidden-tab time and sends no keystrokes,
+coordinates, form values or personal identity. Its engagement event does not
+create visitors, hits or page views. Sophisticated automation can imitate these
+signals; the UI describes evidence, not certainty. Known/Likely Bot always
+overrides a positive engagement flag. Account activity does not turn an account
+into a paid customer: the existing positive, live Stripe checks still apply.
+
+Browser-only and Unconfirmed filters preserve visits without enough engagement
+evidence. All likely people retains the former broader report. Historical quiet
+visits are not retroactively claimed as engaged or relabeled as bots. Existing
+server-side account records can establish engagement in bounded report batches.
+Pacific timestamps, sorting, conversion reset boundaries and all audit data stay
+intact. Additional visitor columns are `engagement_confirmed`, `engaged_at`,
+`engagement_reason`, and `attribution_json`, plus one supporting index.
+
+`acquisition.py` centralizes first-touch Google/Bing/other search, paid marker,
+social, QR, referral and unavailable-source labels. It retains safe public UTM
+content/term labels, referring host, a whitelisted search-referrer path, and the
+attribution basis. No arbitrary referral queries, search strings, click IDs or
+private URL paths are saved. First-touch detail is immutable. A campaign term is
+explicitly labeled a campaign keyword, never a visitor's proven organic query.
+Source quality compares engaged, browser-only, unconfirmed, demo and account
+counts in the acquisition cohort, excluding bots.
+
+Conversions includes a dated, aggregate Google Search Console keyword report
+with clicks, impressions, calculated CTR and average position. The initial
+GSC Wizard/API snapshot returned no query rows for 2026-09-08 through 2026-10-05;
+the empty state does not claim zero people visited. Google anonymizes some
+queries, and this report cannot associate a keyword with a visitor. It does not
+auto-refresh: Admin can open Search Console or upload its Queries.csv and date
+range. Protected uploads accept up to 512 KB / 1,000 rows, reject invalid metrics
+and personal contact strings, and append immutable `search_query_imports`
+snapshots. They do not reset conversion or visitor records. No third-party API
+is called while serving a public page.
+
+Validation: 167 Python regression tests and the browser engagement DOM tests
+cover stricter conversion rates, browser-only/quiet one-page visitors, visible
+timing, bot overrides, signed event validation, first-touch preservation, search
+versus Gmail/maps/social/referral, marker/query privacy, keyword import limits,
+Admin protection and Pacific time.
