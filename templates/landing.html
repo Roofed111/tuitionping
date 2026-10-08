@@ -234,11 +234,11 @@
 <div class="section" id="pricing">
   <h2>Simple pricing</h2>
   <p class="sub">Every plan starts with a 30-day free trial. Choose the family capacity that fits your program.</p>
-  <div class="founding">
+  {% if spots_left > 0 %}<div class="founding">
     <span class="tag">FOUNDING MEMBERS</span>
     <div><b>50% off for 6 months — {{ spots_left }} of 25 spots left</b><p>The first 25 providers lock in half price for half a year. After that, full price — still less than one late tuition payment a month.</p></div>
   </div>
-  <div class="plans">
+  {% endif %}<div class="plans">
     {% for key, p in plans.items() %}
     <div class="plan{% if key == "growth" %} pop{% endif %}">
       {% if key == "growth" %}<span class="pop-tag">MOST POPULAR</span>{% endif %}
@@ -270,7 +270,7 @@
       <tr><td>Automatic text reminders</td><td class="yes">✓</td><td class="no">✗</td><td class="yes">✓*</td></tr>
       <tr><td>Parents reply PAID by text</td><td class="yes">✓</td><td class="no">✗</td><td>Varies</td></tr>
       <tr><td>Setup time</td><td>~10 minutes</td><td>Ongoing</td><td>Days–weeks</td></tr>
-      <tr><td>Pricing</td><td>From $19/mo</td><td>Free, plus your evenings</td><td>Quote-based</td></tr>
+      <tr><td>Pricing</td><td>From ${{ plans.micro.price }}/mo</td><td>Free, plus your evenings</td><td>Quote-based</td></tr>
       <tr><td>Built for small providers</td><td class="yes">✓</td><td class="no">—</td><td class="no">✗</td></tr>
     </tbody>
   </table>
@@ -297,7 +297,7 @@
       <div class="roi-stat"><span class="roi-num" id="roi-texts">0</span><span class="roi-cap">scheduled reminder opportunities — per year*</span><span class="roi-sub">actual sends depend on payment status and opt-outs</span></div>
     </div>
     <p class="roi-punch" id="roi-punch"></p>
-    <p class="roi-fine">*Hypothetical annual scenario: 12 identical months, your assumed reduction, 30 minutes of follow-up per late bill, and up to four reminder stages per family per month. Tuition shifted earlier is not extra revenue. Actual results and text delivery vary. TuitionPing Micro is $19/mo after a free 30-day trial.</p>
+    <p class="roi-fine">*Hypothetical annual scenario: 12 identical months, your assumed reduction, 30 minutes of follow-up per late bill, and up to four reminder stages per family per month. Tuition shifted earlier is not extra revenue. Actual results and text delivery vary. TuitionPing Micro is ${{ plans.micro.price }}/mo after a free 30-day trial.</p>
     <p style="margin-top:14px"><a class="btn" href="/signup?plan=micro">Start free — 30-day trial</a></p>
   </div>
 </div>
@@ -323,7 +323,7 @@
 (function(){
   var fam = document.getElementById('roi-fam'), tui = document.getElementById('roi-tui'), late = document.getElementById('roi-late');
   var improvement = document.getElementById('roi-improvement');
-  var MONTHLY_COST = 19; // Micro $19/mo
+  var MONTHLY_COST = {{ plans.micro.price }}; // Current Micro monthly price
   function fmt(n){ return '$' + Math.round(n).toLocaleString('en-US'); }
   function vals(){
     var f = +fam.value, t = +tui.value;
@@ -400,13 +400,13 @@
 
 <div class="final-cta">
   <h2>Put your tuition reminders on a schedule.</h2>
-  <p>Join the founding members — 50% off for 6 months, 30-day free trial.</p>
+  <p>Plans from ${{ plans.micro.price }}/month. Start with a 30-day free trial.</p>
   <a class="btn" href="/signup?plan=growth" style="font-size:1.1em;padding:14px 32px">Start free — it takes 10 minutes</a>
   <p style="margin-top:14px"><small>Card on file at signup · no charge for 30 days · cancel anytime</small></p>
 </div>
 <script type="application/ld+json">
 {"@context":"https://schema.org","@graph":[
-{"@type":"Organization","name":"TuitionPing","url":"https://www.tuitionping.com/","logo":"https://www.tuitionping.com/static/logo.webp","address":{"@type":"PostalAddress","addressLocality":"Concord","addressRegion":"CA","addressCountry":"US"}},{"@type":"SoftwareApplication","name":"TuitionPing","applicationCategory":"BusinessApplication","operatingSystem":"Web","url":"https://www.tuitionping.com/","description":"Automatic tuition reminder texts for daycares. Parents get reminders before tuition is due and can reply PAID. 30-day free trial.","offers":[{"@type":"Offer","name":"Micro","price":"19","priceCurrency":"USD"},{"@type":"Offer","name":"Starter","price":"29","priceCurrency":"USD"},{"@type":"Offer","name":"Growth","price":"59","priceCurrency":"USD"},{"@type":"Offer","name":"Multi-site","price":"99","priceCurrency":"USD"}]},
+{"@type":"Organization","name":"TuitionPing","url":"https://www.tuitionping.com/","logo":"https://www.tuitionping.com/static/logo.webp","address":{"@type":"PostalAddress","addressLocality":"Concord","addressRegion":"CA","addressCountry":"US"}},{"@type":"SoftwareApplication","name":"TuitionPing","applicationCategory":"BusinessApplication","operatingSystem":"Web","url":"https://www.tuitionping.com/","description":"Automatic tuition reminder texts for daycares. Parents get reminders before tuition is due and can reply PAID. 30-day free trial.","offers":[{"@type":"Offer","name":"Micro","price":"{{ plans.micro.price }}","priceCurrency":"USD"},{"@type":"Offer","name":"Starter","price":"{{ plans.starter.price }}","priceCurrency":"USD"},{"@type":"Offer","name":"Growth","price":"{{ plans.growth.price }}","priceCurrency":"USD"},{"@type":"Offer","name":"Multi-site","price":"{{ plans.multisite.price }}","priceCurrency":"USD"}]},
 {"@type":"FAQPage","mainEntity":[
 {"@type":"Question","name":"Do parents need to install anything?","acceptedAnswer":{"@type":"Answer","text":"No. They receive ordinary text messages from your TuitionPing number and reply like any other text. No app, no account, no login."}},
 {"@type":"Question","name":"How long does setup take?","acceptedAnswer":{"@type":"Answer","text":"About 10 minutes: create your account, add families (or import a CSV), and you're done. Reminders start going out on the next scheduled stage."}},

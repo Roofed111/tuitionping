@@ -15,18 +15,19 @@
 {% elif checkout == "required" %}
 <div class="banner banner-info">🔒 <strong>One step left:</strong> complete checkout below to unlock your dashboard. Your {{ trial_days }}-day free trial starts as soon as your card is processed — $0 charged today.</div>
 {% endif %}
-{% if not subscription.founding and founding_spots_left > 0 %}
+{% if founding_open and not subscription.founding and founding_spots_left > 0 %}
 <div class="banner banner-ok">🌱 <strong>Founding members get {{ founding_pct }}% off for {{ founding_months }} months.</strong> Only {{ founding_spots_left }} of 25 spots left — subscribe below to lock yours in.</div>
-{% elif founding_spots_left == 0 and not subscription.founding %}
+{% elif founding_open and founding_spots_left == 0 and not subscription.founding %}
 <div class="banner banner-info">The founding-member spots are all claimed — welcome anyway! Every plan still starts with a {{ trial_days }}-day free trial.</div>
 {% endif %}
 {% if demo %}
 <div class="demo-banner">🧪 <strong>Demo mode:</strong> clicking Subscribe instantly activates the plan with a {{ trial_days }}-day trial. No real charges.</div>
 {% endif %}
+<p>Prices below apply to new subscriptions. Existing subscription prices and discounts continue under their current terms; view your invoices in Manage billing.</p>
 <div class="stats">
   {% for key, p in plans.items() %}
   <div class="stat">
-    {% if not subscription.founding and founding_spots_left > 0 %}
+    {% if founding_open and not subscription.founding and founding_spots_left > 0 %}
     <b>${{ "%.2f"|format(founding_price(key, "monthly")) }}/mo</b>
     <div style="font-size:.85em;color:#555">founding price for {{ founding_months }} months, then ${{ p.price }}/mo · or ${{ "%.2f"|format(founding_price(key, "annual")) }}/yr founding annual</div>
     {% else %}
