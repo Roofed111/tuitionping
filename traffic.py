@@ -11,6 +11,7 @@ from datetime import datetime, timedelta, timezone
 from urllib.parse import unquote, urlencode, urlsplit
 
 import store
+import acquisition
 from admin_time import PACIFIC
 
 HUMAN_TYPES = ("HUMAN", "LIKELY HUMAN")
@@ -73,6 +74,9 @@ COLUMNS = {
     "review_pending": "INTEGER NOT NULL DEFAULT 0",
     "scan_kind": "TEXT NOT NULL DEFAULT ''", "scan_reasons": "TEXT NOT NULL DEFAULT '[]'",
     "automation_key": "TEXT NOT NULL DEFAULT ''",
+    "engagement_confirmed": "INTEGER NOT NULL DEFAULT 0",
+    "engaged_at": "TEXT NOT NULL DEFAULT ''", "engagement_reason": "TEXT NOT NULL DEFAULT ''",
+    "attribution_json": "TEXT NOT NULL DEFAULT ''",
 }
 
 
@@ -198,6 +202,7 @@ def ensure_schema(conn):
     conn.execute("CREATE INDEX IF NOT EXISTS traffic_history ON growth_visitors (history,last_seen)")
     conn.execute("CREATE INDEX IF NOT EXISTS traffic_unassigned ON site_visits (visitor_id,ip_hash,ua)")
     conn.execute("CREATE INDEX IF NOT EXISTS traffic_pending ON growth_visitors (review_pending,first_seen)")
+    conn.execute("CREATE INDEX IF NOT EXISTS traffic_engagement ON growth_visitors (engagement_confirmed,classification)")
     conn.execute("CREATE INDEX IF NOT EXISTS traffic_version ON growth_visitors (classification_version,hit_count)")
 
 
@@ -299,7 +304,7 @@ def _classify(conn, row, dt, allow_recovery=False):
 
 
 def observe(ip, path, referrer, ua, visitor_id="", source="direct", medium="none", campaign="",
-            status_code=200, request_type="page", identity_kind="anonymous", method="GET", scan_query=""):
+            status_code=200, request_type="page", identity_kind="anonymous", method="GET", scan_query="", attribution_detail=None):
     import growth
     growth.ensure_tables()
     dt = now(); ts = stamp(dt)
@@ -314,8 +319,8 @@ def observe(ip, path, referrer, ua, visitor_id="", source="direct", medium="none
     ua = (ua or "")[:512]; ref = referrer_host(referrer)
     path = "/[probe]/" + category if scan_kind and category != "Exploit query payload" else audit_path(path, status_code)
     with store.db() as conn:
-        conn.execute("INSERT INTO growth_visitors (visitor_id,first_seen,source,medium,campaign,landing_path) VALUES (?,?,?,?,?,?) ON CONFLICT(visitor_id) DO NOTHING",
-                     (visitor_id, ts, source, medium, campaign, path))
+        conn.execute("INSERT INTO growth_visitors (visitor_id,first_seen,source,medium,campaign,landing_path,attribution_json) VALUES (?,?,?,?,?,?,?) ON CONFLICT(visitor_id) DO NOTHING",
+                     (visitor_id, ts, source, medium, campaign, path, json.dumps(attribution_detail) if attribution_detail else ''))
         # UPDATE obtains a row lock before counting/inserting this hit.
         conn.execute("UPDATE growth_visitors SET last_seen=?,hit_count=hit_count+1,last_path=?,ua=?,referrer_host=?,ip_hash=?,history=0,identity_kind=? WHERE visitor_id=?",
                      (ts, path, ua, ref, ip_hash, identity_kind, visitor_id))
@@ -346,6 +351,42 @@ def verify_browser(visitor_id, path, webdriver=False):
             return False
         _classify(conn, dict(row), dt, allow_recovery=True)
     return True
+
+
+def confirm_engagement(visitor_id, path, signal):
+    """Additional signed browser evidence; never a page view or proof of identity."""
+    import growth
+    growth.ensure_tables()
+    if signal not in ('interaction','active_reading'):
+        return False
+    dt = now()
+    with store.db() as conn:
+        row = conn.execute('SELECT * FROM growth_visitors WHERE visitor_id=?', (visitor_id,)).fetchone()
+        hit = conn.execute("SELECT MIN(ts) AS ts FROM site_visits WHERE visitor_id=? AND path=? AND status_code=200", (visitor_id,path)).fetchone()
+        rendered = parsed(hit['ts']) if hit else None
+        if (not row or not row['browser_verified'] or not browser_agent(row['ua']) or row['webdriver']
+                or row['classification'] not in HUMAN_TYPES or not rendered
+                or (dt-rendered).total_seconds() < (30 if signal == 'active_reading' else 8)):
+            return False
+        reason = 'Browser execution plus trusted interaction after 8 seconds' if signal == 'interaction' else 'Browser execution, interaction and 30 seconds of visible reading'
+        conn.execute("UPDATE growth_visitors SET engagement_confirmed=1,engaged_at=CASE WHEN engaged_at='' THEN ? ELSE engaged_at END,engagement_reason=CASE WHEN engagement_reason='' THEN ? ELSE engagement_reason END WHERE visitor_id=?", (stamp(dt),reason,visitor_id))
+    return True
+
+
+def confirm_account_activity(visitor_id, event):
+    # Called only after a server-side account milestone has been retained.
+    if event not in {'signup','checkout_completed','trial_started','first_reminder','paid_customer'}:
+        return
+    with store.db() as conn:
+        conn.execute("UPDATE growth_visitors SET engagement_confirmed=1,engaged_at=CASE WHEN engaged_at='' THEN ? ELSE engaged_at END,engagement_reason=CASE WHEN engagement_reason='' THEN ? ELSE engagement_reason END WHERE visitor_id=? AND classification IN ('HUMAN','LIKELY HUMAN') AND EXISTS (SELECT 1 FROM growth_events e JOIN providers p ON p.id=e.provider_id WHERE e.visitor_id=growth_visitors.visitor_id AND e.event=? AND e.provider_id IS NOT NULL)",
+                     (stamp(),'Server-confirmed account activity: '+event,visitor_id,event))
+
+
+def refresh_account_engagement(limit=250):
+    with store.db() as conn:
+        rows = conn.execute("SELECT v.visitor_id,MIN(e.ts) AS ts FROM growth_visitors v JOIN growth_events e ON e.visitor_id=v.visitor_id JOIN providers p ON p.id=e.provider_id WHERE v.engagement_confirmed=0 AND v.classification IN ('HUMAN','LIKELY HUMAN') AND e.event IN ('signup','checkout_completed','trial_started','first_reminder','paid_customer') AND e.provider_id IS NOT NULL GROUP BY v.visitor_id LIMIT ?", (limit,)).fetchall()
+        for row in rows:
+            conn.execute("UPDATE growth_visitors SET engagement_confirmed=1,engaged_at=?,engagement_reason='Existing server-confirmed account activity' WHERE visitor_id=?", (row['ts'],row['visitor_id']))
 
 
 def backfill(limit=250):
@@ -396,6 +437,13 @@ def matches(kind, classification):
     return kind == "all" or (kind == "human" and classification in HUMAN_TYPES) or (kind == "automated" and classification in BOT_TYPES) or (kind == "unknown" and classification == "UNKNOWN")
 
 
+def eligible(kind, row):
+    if kind == 'engaged': return row['classification'] in HUMAN_TYPES and bool(row['engagement_confirmed'])
+    if kind == 'browser': return row['classification'] in HUMAN_TYPES and bool(row['browser_verified']) and not row['engagement_confirmed']
+    if kind == 'unconfirmed': return row['classification'] in HUMAN_TYPES and not row['browser_verified'] and not row['engagement_confirmed']
+    return matches(kind,row['classification'])
+
+
 def metric_id(row):
     if row["classification"] in BOT_TYPES:
         return "automated:" + (row.get("automation_key") or row["visitor_id"])
@@ -407,6 +455,9 @@ def counters_sql():
     bot = "v.classification IN ('KNOWN BOT','LIKELY BOT')"
     human = "v.classification IN ('HUMAN','LIKELY HUMAN')"
     return (f"COUNT(DISTINCT CASE WHEN {human} THEN v.visitor_id END) AS human,"
+            f"COUNT(DISTINCT CASE WHEN {human} AND v.engagement_confirmed=1 THEN v.visitor_id END) AS engaged,"
+            f"COUNT(DISTINCT CASE WHEN {human} AND v.browser_verified=1 AND v.engagement_confirmed=0 THEN v.visitor_id END) AS browser_only,"
+            f"COUNT(DISTINCT CASE WHEN {human} AND v.browser_verified=0 AND v.engagement_confirmed=0 THEN v.visitor_id END) AS unconfirmed,"
             f"COUNT(DISTINCT CASE WHEN {bot} THEN {actor} END) AS automated,"
             "COUNT(DISTINCT CASE WHEN v.classification='UNKNOWN' THEN v.visitor_id END) AS unknown,"
             f"COUNT(DISTINCT CASE WHEN {bot} THEN 'a:' || ({actor}) ELSE 'v:' || v.visitor_id END) AS all_count")
@@ -436,7 +487,8 @@ def report(kind="human", offset=0, sort="last_seen", direction="desc", hit_offse
     growth.ensure_tables()
     remaining = backfill()
     refresh_candidates()
-    kind = kind if kind in ("human", "automated", "all", "unknown") else "human"
+    refresh_account_engagement()
+    kind = kind if kind in ("engaged", "browser", "unconfirmed", "human", "automated", "all", "unknown") else "engaged"
     sort = sort if sort in SORT_COLUMNS else "last_seen"
     direction = direction if direction in ("asc", "desc") else "desc"
     order = SORT_COLUMNS[sort][1] + " " + direction.upper()
@@ -448,7 +500,10 @@ def report(kind="human", offset=0, sort="last_seen", direction="desc", hit_offse
     with store.db() as conn:
         totals = dict(conn.execute(f"SELECT {counters_sql()} FROM growth_visitors v WHERE v.hit_count>0").fetchone())
         today = dict(conn.execute(f"SELECT {counters_sql()} FROM growth_visitors v JOIN site_visits h ON h.visitor_id=v.visitor_id WHERE h.ts>=? AND h.ts<?", (start.isoformat(timespec="seconds"), end.isoformat(timespec="seconds"))).fetchone())
-        where = {"human": "classification IN ('HUMAN','LIKELY HUMAN')", "automated": "classification IN ('LIKELY BOT','KNOWN BOT')", "unknown": "classification='UNKNOWN'", "all": "1=1"}[kind]
+        where = {"engaged": "classification IN ('HUMAN','LIKELY HUMAN') AND engagement_confirmed=1",
+                 "browser": "classification IN ('HUMAN','LIKELY HUMAN') AND browser_verified=1 AND engagement_confirmed=0",
+                 "unconfirmed": "classification IN ('HUMAN','LIKELY HUMAN') AND browser_verified=0 AND engagement_confirmed=0",
+                 "human": "classification IN ('HUMAN','LIKELY HUMAN')", "automated": "classification IN ('LIKELY BOT','KNOWN BOT')", "unknown": "classification='UNKNOWN'", "all": "1=1"}[kind]
         filtered_total = conn.execute(f"SELECT COUNT(*) AS n FROM growth_visitors WHERE hit_count>0 AND {where}").fetchone()["n"]
         rows = [dict(r) for r in conn.execute(f"SELECT * FROM growth_visitors WHERE hit_count>0 AND {where} ORDER BY {order},visitor_id ASC LIMIT 101 OFFSET ?", (offset,)).fetchall()]
         hit_where = f"v.{where if where != '1=1' else 'hit_count>0'}"
@@ -459,6 +514,7 @@ def report(kind="human", offset=0, sort="last_seen", direction="desc", hit_offse
     for row in rows:
         row["type_label"] = LABELS.get(row["classification"], LABELS["UNKNOWN"])
         row["reasons"] = json.loads(row["classification_reasons"] or "[]") or ["Historical record has insufficient evidence"]
+        row['acquisition'] = acquisition.display(row)
     for hit in hits:
         hit["referrer"] = referrer_host(hit["referrer"])
     def url(**changes):
@@ -468,7 +524,7 @@ def report(kind="human", offset=0, sort="last_seen", direction="desc", hit_offse
                 "aria_sort": ("ascending" if direction == "asc" else "descending") if sort == key else "none"}
                for key, value in SORT_COLUMNS.items()]
     return {"kind": kind, "sort": sort, "direction": direction, "headers": headers, "filtered_total": filtered_total,
-            "filter_links": {k: "?" + urlencode({"kind": k, "sort": sort, "direction": direction}) for k in ("human", "automated", "all", "unknown")},
+            "filter_links": {k: "?" + urlencode({"kind": k, "sort": sort, "direction": direction}) for k in ("engaged", "browser", "unconfirmed", "human", "automated", "all", "unknown")},
             "next_url": url(offset=offset+100), "previous_url": url(offset=max(0,offset-100)),
             "rows": rows[:100], "hits": hits[:100], "offset": offset, "next": offset + 100 if len(rows)>100 else None,
             "hits_total": hits_total, "hit_offset": hit_offset, "hits_next": len(hits)>100,
@@ -476,6 +532,9 @@ def report(kind="human", offset=0, sort="last_seen", direction="desc", hit_offse
             "hits_previous_url": url(offset=offset,hit_offset=max(0,hit_offset-100)),
             "previous": max(0,offset-100), "remaining": remaining, "pending_reviews": pending, "spike": spike,
             "human_total": totals["human"], "human_today": today["human"],
+            "engaged_total": totals["engaged"], "engaged_today": today["engaged"],
+            "browser_only_total": totals["browser_only"], "browser_only_today": today["browser_only"],
+            "unconfirmed_total": totals["unconfirmed"], "unconfirmed_today": today["unconfirmed"],
             "automated_total": totals["automated"], "automated_today": today["automated"],
             "unknown_total": totals["unknown"], "unknown_today": today["unknown"],
             "all_total": totals["all_count"], "all_today": today["all_count"]}

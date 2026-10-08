@@ -210,8 +210,8 @@ async def csrf_protect(request: Request, call_next):
 
                 try:
                     probe = Request(request.scope, _replay)
-                    form = await probe.form()
-                    got = str(form.get("csrf_token", ""))
+                    async with probe.form() as form:
+                        got = str(form.get("csrf_token", ""))
                 except Exception:
                     got = ""
                 if not _hmac.compare_digest(got, expected):
@@ -335,7 +335,7 @@ async def track_conversions(request: Request, call_next):
     if visitor and public and request.method == "GET" and response.status_code == 200:
         try:
             source, medium, campaign = growth.attribution(request)
-            growth.register(visitor, source, medium, campaign, path)
+            growth.register(visitor, source, medium, campaign, path, detail=growth.acquisition.describe(request))
             if path in {"/partners", "/partners/download"}:
                 partner_resources.touch(visitor, request.query_params.get("partner", ""))
             if path in _GROWTH_DOWNLOADS:
@@ -375,6 +375,9 @@ async def conversion_event(request: Request):
         if event == "browser_verified":
             if not traffic.verify_browser(visitor, path, webdriver=detail == "webdriver"):
                 return Response(status_code=400)
+        elif event == 'visitor_engaged':
+            if not traffic.confirm_engagement(visitor,path,detail):
+                return Response(status_code=400)
         else:
             growth.record(visitor, event, detail, path)
     except (ValueError, TypeError):
@@ -409,7 +412,8 @@ async def track_site_visits(request: Request, call_next):
                                      source=source, medium=medium, campaign=campaign,
                                      status_code=resp.status_code, identity_kind=kind,
                                      request_type="page" if public else "audit",
-                                     method=request.method, scan_query=request.url.query)
+                                     method=request.method, scan_query=request.url.query,
+                                     attribution_detail=growth.acquisition.describe(request))
     except Exception:
         pass
     return resp
@@ -2865,15 +2869,35 @@ def admin_attribution(request: Request):
 
 
 @app.get("/admin/conversions", response_class=HTMLResponse)
-def admin_conversions(request: Request, days: int = 28, kind: str = "human"):
+def admin_conversions(request: Request, days: int = 28, kind: str = "engaged"):
     provider, redirect = require_admin(request)
     if redirect:
         return redirect
+    import search_reporting
     response = templates.TemplateResponse(request, "admin_conversions.html", {
-        "request": request, "provider": provider, "report": growth.report(90 if days == 90 else 28, kind)})
+        "request": request, "provider": provider, "report": growth.report(90 if days == 90 else 28, kind),
+        "keywords": search_reporting.report()})
     response.headers["Cache-Control"] = "private, no-store"
     response.headers["X-Robots-Tag"] = "noindex"
     return response
+
+
+@app.post('/admin/conversions/search-keywords')
+async def admin_search_keywords(request: Request, file: UploadFile = File(...),
+                                start_date: str = Form(''), end_date: str = Form('')):
+    provider, redirect = require_admin(request)
+    if redirect:
+        return redirect
+    import search_reporting
+    try:
+        raw = await file.read(524289)
+        search_reporting.save(raw,start_date,end_date,provider['id'])
+    except ValueError as exc:
+        return Response(str(exc),status_code=400,media_type='text/plain',headers={'Cache-Control':'private, no-store'})
+    finally:
+        await file.close()
+    return RedirectResponse('/admin/conversions?keywords=updated#search-keywords',status_code=303,
+                            headers={'Cache-Control':'private, no-store'})
 
 
 @app.post("/admin/conversions/reset")
@@ -2888,7 +2912,7 @@ def admin_reset_conversions(request: Request, days: int = Form(28)):
 
 
 @app.get("/admin/visitors", response_class=HTMLResponse)
-def admin_visitors(request: Request, kind: str = "human", offset: int = 0,
+def admin_visitors(request: Request, kind: str = "engaged", offset: int = 0,
                    sort: str = "last_seen", direction: str = "desc", hit_offset: int = 0):
     _, redirect = require_admin(request)
     if redirect:

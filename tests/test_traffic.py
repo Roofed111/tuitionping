@@ -305,7 +305,7 @@ class TrafficTest(unittest.TestCase):
                 self.assertEqual(vals, sorted(vals))
                 self.assertNotEqual(up['rows'][0][expression], down['rows'][0][expression])
         bad = traffic.report("human'; DROP TABLE growth_visitors", sort='hit_count; DELETE FROM site_visits', direction='desc; DELETE')
-        self.assertEqual((bad['kind'],bad['sort'],bad['direction']), ('human','last_seen','desc'))
+        self.assertEqual((bad['kind'],bad['sort'],bad['direction']), ('engaged','last_seen','desc'))
         self.hit(ua='curl/8')
         self.assertEqual(traffic.report('automated')['filtered_total'], 1)
         self.assertEqual(traffic.report('human')['filtered_total'], 125)
@@ -320,7 +320,7 @@ class TrafficTest(unittest.TestCase):
         with patch.object(app,'require_admin',return_value=({'id':1},None)):
             response = self.client.get('/admin/visitors?kind=all&sort=hits&direction=asc')
             self.assertEqual(response.status_code,200)
-            self.assertIn('Human Visitors Today',response.text)
+            self.assertIn('Engaged Visitors Today',response.text)
             self.assertIn('Automated Traffic Total',response.text)
             self.assertIn('aria-sort="ascending"',response.text)
             self.assertIn('2026-01-14 6:30:00 PM PST',response.text)

@@ -1,0 +1,20 @@
+<section class="card" id="search-keywords">
+  <h2>Google search keywords · aggregate report</h2>
+  <p>{{ keywords.start_date }}–{{ keywords.end_date }} · {{ keywords.source }}<br>Last loaded: {{ keywords.fetched_at|admin_time }}. This is a dated snapshot; it does not refresh automatically.</p>
+  <p>These are search terms Google reports for the site, not keywords assigned to individual visitors. Some queries are hidden for privacy. A campaign's utm_term is a link label, not proof of what someone searched.</p>
+  {% if keywords.queries %}
+  <p>{{ keywords.clicks }} clicks and {{ keywords.impressions }} impressions across the reported query rows; these can be lower than Google's overall totals.</p>
+  <div class="resource-table"><table><thead><tr><th scope="col">Search query</th><th scope="col">Clicks</th><th scope="col">Impressions</th><th scope="col">CTR</th><th scope="col">Average position</th></tr></thead><tbody>{% for row in keywords.queries %}<tr><td>{{ row.query }}</td><td>{{ row.clicks }}</td><td>{{ row.impressions }}</td><td>{{ '%.2f%%'|format(row.ctr) }}</td><td>{{ '%.1f'|format(row.position) }}</td></tr>{% endfor %}</tbody></table></div>
+  {% else %}<p role="status">Google returned no reportable keyword rows for this snapshot. That does not prove there were no people on the site. Search data can lag and small-volume queries may be withheld.</p>{% endif %}
+  <p><a href="{{ keywords.link }}" target="_blank" rel="noopener noreferrer">Open TuitionPing in Google Search Console →</a></p>
+  <details><summary>Update keywords from a Search Console export</summary>
+    <p>In Search Console, open Performance → Search results, choose the date range and Queries tab, then Export → Download CSV. Extract the ZIP and upload Queries.csv below with the same date range. Imports retain previous snapshots and do not reset visitor or conversion data.</p>
+    <form method="post" action="/admin/conversions/search-keywords" enctype="multipart/form-data">
+      {{ csrf_input(request) }}
+      <label>Start date <input type="date" name="start_date" value="{{ keywords.start_date }}" required></label>
+      <label>End date <input type="date" name="end_date" value="{{ keywords.end_date }}" required></label>
+      <label>Queries.csv <input type="file" name="file" accept=".csv,text/csv" required></label>
+      <button class="btn btn-ghost" type="submit">Load keyword report</button>
+    </form>
+  </details>
+</section>
