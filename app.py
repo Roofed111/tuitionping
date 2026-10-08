@@ -389,13 +389,15 @@ async def track_site_visits(request: Request, call_next):
     """Retain human/automated hits together, sharing conversion visitor IDs."""
     resp = await call_next(request)
     try:
-        if request.method in {"GET", "HEAD"}:
-            path = request.url.path
+        path = request.url.path
+        scan_kind, _, _ = traffic.scanner_evidence(path, resp.status_code, request.url.query)
+        scanner_ua = traffic.known_bot(request.headers.get("user-agent", "")) == "Security scanner"
+        if request.method in {"GET", "HEAD"} or scan_kind or scanner_ua:
             public = path in _TRACKED_PATHS or path in _GROWTH_DOWNLOADS or path.startswith(_TRACKED_PREFIXES)
-            audit = path in {"/healthz", "/robots.txt", "/sitemap.xml"} or resp.status_code in {404,405}
-            if (public or audit) and "tuitionping_session" not in request.cookies \
-                    and not path.startswith(("/admin", "/internal/", "/webhooks/", "/s/")) \
-                    and (not path.startswith("/static/") or path in _GROWTH_DOWNLOADS):
+            audit = bool(scan_kind or scanner_ua) or path in {"/healthz", "/robots.txt", "/sitemap.xml"} or resp.status_code in {404,405}
+            if (public or audit) and ("tuitionping_session" not in request.cookies or scan_kind or scanner_ua) \
+                    and (not path.startswith(("/admin", "/internal/", "/webhooks/", "/s/")) or scan_kind) \
+                    and (not path.startswith("/static/") or path in _GROWTH_DOWNLOADS or scan_kind):
                 fwd = request.headers.get("x-forwarded-for", "")
                 ip = fwd.split(",")[0].strip() if fwd else \
                     (request.client.host if request.client else "")
@@ -406,7 +408,8 @@ async def track_site_visits(request: Request, call_next):
                                      request.headers.get("user-agent", ""), visitor_id=visitor,
                                      source=source, medium=medium, campaign=campaign,
                                      status_code=resp.status_code, identity_kind=kind,
-                                     request_type="page" if public else "audit")
+                                     request_type="page" if public else "audit",
+                                     method=request.method, scan_query=request.url.query)
     except Exception:
         pass
     return resp
@@ -2886,12 +2889,12 @@ def admin_reset_conversions(request: Request, days: int = Form(28)):
 
 @app.get("/admin/visitors", response_class=HTMLResponse)
 def admin_visitors(request: Request, kind: str = "human", offset: int = 0,
-                   sort: str = "last_seen", direction: str = "desc"):
+                   sort: str = "last_seen", direction: str = "desc", hit_offset: int = 0):
     _, redirect = require_admin(request)
     if redirect:
         return redirect
     return templates.TemplateResponse(request, "admin_visitors.html", {
-        "request": request, "report": traffic.report(kind, offset, sort, direction), "traffic_labels": traffic.LABELS},
+        "request": request, "report": traffic.report(kind, offset, sort, direction, hit_offset), "traffic_labels": traffic.LABELS},
         headers={"Cache-Control": "private, no-store", "X-Robots-Tag": "noindex"})
 
 

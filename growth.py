@@ -176,13 +176,14 @@ def report(days=28, kind='human'):
     visitors = [v for v in raw_visitors if traffic.matches(kind, v['classification'])]
     eligible = {v['visitor_id'] for v in visitors}
     events = [e for e in events if e['visitor_id'] in eligible]
+    identities = {v['visitor_id']: traffic.metric_id(v) for v in visitors}
     event_sets = {}
     for e in events:
         event_sets.setdefault(e['event'], set()).add(e['visitor_id'])
     account_stages = {'signup','checkout_started','checkout_completed','trial_started','first_reminder','paid_customer'}
     stages = [{'event': event, 'label': ('Human visitors' if event == 'page_view' and kind == 'human' else label),
                'count': (len({e['provider_id'] for e in events if e['event'] == event and e['provider_id'] is not None})
-                         if event in account_stages else len(event_sets.get(event, set())))} for event, label in STAGES]
+                         if event in account_stages else (len({identities[vid] for vid in event_sets.get(event,set())}) if event == 'page_view' else len(event_sets.get(event, set()))))} for event, label in STAGES]
     def groups(keys):
         buckets = {}
         for v in visitors:
@@ -190,18 +191,18 @@ def report(days=28, kind='human'):
             buckets.setdefault(k, set()).add(v['visitor_id'])
         def accounts(ids, event):
             return len({e['provider_id'] for e in events if e['event'] == event and e['visitor_id'] in ids and e['provider_id'] is not None})
-        return [{'key': k, 'visitors': len(ids), 'demo': len(ids & event_sets.get('demo_started', set())),
+        return [{'key': k, 'visitors': len({identities[vid] for vid in ids}), 'demo': len(ids & event_sets.get('demo_started', set())),
                  'help': len(ids & event_sets.get('setup_help_requested', set())), 'signups': accounts(ids, 'signup'), 'trials': accounts(ids, 'trial_started'),
                  'paid': accounts(ids, 'paid_customer')} for k, ids in sorted(buckets.items(), key=lambda p: -len(p[1]))]
     # Visitor rates use the same eligible browser cohort for both sides. Two
     # accounts on one browser cannot turn a visitor conversion rate above 100%.
-    denominator = event_sets.get('page_view', set())
-    signed_up = {e['visitor_id'] for e in events if e['event'] == 'signup' and e['provider_id'] is not None} & denominator
-    paid = {e['visitor_id'] for e in events if e['event'] == 'paid_customer' and e['provider_id'] is not None} & denominator
+    denominator = {identities[vid] for vid in event_sets.get('page_view',set())}
+    signed_up = {identities[e['visitor_id']] for e in events if e['event'] == 'signup' and e['provider_id'] is not None} & denominator
+    paid = {identities[e['visitor_id']] for e in events if e['event'] == 'paid_customer' and e['provider_id'] is not None} & denominator
     return {'stages': stages, 'sources': groups(['source', 'medium', 'campaign']), 'pages': groups(['landing_path']),
             'days': days, 'reset_at': state['reset_at'], 'kind': kind,
             'rate_denominator': len(denominator), 'converting_visitors': len(signed_up), 'paid_visitors': len(paid),
             'conversion_rate': round(100 * len(signed_up) / len(denominator), 2) if denominator else None,
             'paid_conversion_rate': round(100 * len(paid) / len(denominator), 2) if denominator else None,
-            'automated_visitors': sum(v['classification'] in traffic.BOT_TYPES for v in raw_visitors),
+            'automated_visitors': len({traffic.metric_id(v) for v in raw_visitors if v['classification'] in traffic.BOT_TYPES}),
             'unknown_visitors': sum(v['classification'] == 'UNKNOWN' for v in raw_visitors)}

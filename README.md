@@ -357,3 +357,42 @@ filters/sorting/pagination, raw conversion retention, verified billing,
 partner/QR filtering, exact visitor rates, Pacific/DST and fail-open behavior.
 `tests/growth-ui.test.cjs` verifies render timing, one beacon, signed token,
 privacy exclusions, explicit automation, existing clicks and silent failure.
+
+### Scanner reconnaissance and durable automated counts (classification v2)
+
+The local scanner catalog recognizes WordPress login/admin/XML-RPC/REST,
+plugin/theme/include paths, configuration backups, secret files, Git exposure,
+PHP execution/scanner scripts, application admin panels, and explicit exploit
+query signatures. Reconnaissance targets plus an unsuccessful response on this
+non-WordPress app are Likely Bot (risk 75). Explicit secret-file/code-execution
+or exploit-payload requests are Known Bot (risk 95); known scanner User-Agents
+remain Known Bot (risk 100). Normal typos/404s, direct/QR traffic and single-page
+browser visits are still eligible. JS execution cannot wash away scanner evidence.
+
+Existing version-one normalized probe records are reviewed in bounded batches
+and moved to Automated without deleting hits, cookies, account links or events.
+Their coarse target family is retained; an exact historical target is never
+invented. Three additive visitor fields store scanner kind, JSON evidence and
+stable automated network key; hit fields add method, safe probe family and
+catalog target. Strong scanner requests are logged for all HTTP methods,
+including failed CSRF/authorization responses and requests carrying a bogus
+login cookie. Request bodies and arbitrary query payloads are never retained.
+
+Anonymous scanner identifiers are stable across 30-minute slots and User-Agent
+rotation. Known client identifiers are stable across client versions. Automated
+Today/Total and All Traffic visitor metrics group bots by the existing keyed
+network hash even when they rotate signed browser cookies. Raw identifiers and
+every hit are retained, so the table counts matching records while automated
+cards count network groups. Human visitors sharing the same network are not
+classified by someone else's scan. Human conversions exclude scanner-linked
+records; All Traffic audit visitor denominators also use stable network groups.
+The request audit now paginates every matching retained request (100 per page),
+with method, response, safe scan target and per-request User-Agent. Visitor
+sorting and Pacific timestamps remain unchanged. Changing networks can still
+create new source groups; these are estimates, not identified people.
+
+Validation: test_scanner_traffic.py covers single WordPress probes, stronger
+exploit targets, encoded paths, other application scans, normal missing routes,
+120 anonymous sessions across time/UA changes, 15 rotating signed cookies,
+original record preservation/reclassification, shared-network humans, POST/CSRF
+scans, query privacy, raw conversions, and full request-audit pagination.

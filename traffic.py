@@ -8,7 +8,7 @@ import json
 import re
 import threading
 from datetime import datetime, timedelta, timezone
-from urllib.parse import urlencode, urlsplit
+from urllib.parse import unquote, urlencode, urlsplit
 
 import store
 from admin_time import PACIFIC
@@ -17,7 +17,7 @@ HUMAN_TYPES = ("HUMAN", "LIKELY HUMAN")
 BOT_TYPES = ("LIKELY BOT", "KNOWN BOT")
 LABELS = {"HUMAN": "Human", "LIKELY HUMAN": "Likely Human", "LIKELY BOT": "Likely Bot",
           "KNOWN BOT": "Known Bot", "UNKNOWN": "Unknown / Unclassified"}
-VERSION = 1
+VERSION = 2
 GRACE_SECONDS = 20
 _history_lock = threading.Lock()
 SORT_COLUMNS = {
@@ -46,12 +46,17 @@ BOT_PATTERNS = tuple((name, re.compile(pattern, re.I)) for name, pattern in (
     ("HTTP library", r"python-requests|python-httpx|python-urllib|aiohttp|go-http-client|libwww-perl|okhttp|apache-httpclient|java/|node-fetch|undici|axios/|scrapy"),
     ("Other crawler", r"\b(?:crawler|spider|scraper)(?:/|\b)|\b[a-z][a-z0-9_.-]*bot/\d|\b(?-i:[A-Za-z][A-Za-z0-9_.-]*Bot)\b|\bbot(?:\s|$)|gptbot|chatgpt-user|oai-searchbot|claudebot|perplexitybot"),
 ))
-PROBES = tuple((name, re.compile(pattern, re.I)) for name, pattern in (
-    ("environment file", r"(?:^|/)\.env(?:[./]|$)"),
-    ("WordPress endpoint", r"(?:^|/)(?:wp-admin|wp-login\.php|wp-config\.php|xmlrpc\.php)(?:/|$)"),
-    ("Git repository", r"(?:^|/)\.git(?:/|$)"),
-    ("PHP admin endpoint", r"phpmyadmin|phpunit|vendor/phpunit"),
-    ("Server configuration", r"(?:^|/)(?:\.aws|actuator|server-status|cgi-bin)(?:/|$)"),
+PROBES = tuple((name, kind, target, re.compile(pattern, re.I)) for name, kind, target, pattern in (
+    ("environment file", "KNOWN BOT", "/.env", r"(?:^|/)\.env(?:[./]|$)"),
+    ("WordPress configuration", "KNOWN BOT", "/wp-config.php", r"(?:^|/)wp-config\.php(?:[./~]|$)"),
+    ("PHP code execution", "KNOWN BOT", "/phpunit/eval-stdin.php", r"(?:^|/)(?:vendor/)?phpunit(?:/|$)|(?:^|/)(?:shell|wso|c99|r57|alfa)\.php(?:/|$)"),
+    ("Git repository", "KNOWN BOT", "/.git", r"(?:^|/)\.git(?:/|$)"),
+    ("Credential configuration", "KNOWN BOT", "/[credential-file]", r"(?:^|/)(?:\.aws/credentials|\.htpasswd|\.vscode/sftp\.json|web\.config)(?:[./]|$)"),
+    ("System file traversal", "KNOWN BOT", "/[system-file]", r"(?:^|/)(?:etc/passwd|proc/self/environ)(?:/|$)"),
+    ("WordPress endpoint", "LIKELY BOT", "/wp-admin or wp-login.php", r"(?:^|/)(?:wp-admin|wp-login\.php|xmlrpc\.php|wp-json)(?:/|$)|(?:^|/)(?:wp-content|wp-includes)(?:/|$)"),
+    ("PHP admin endpoint", "LIKELY BOT", "/phpmyadmin or adminer.php", r"(?:^|/)(?:phpmyadmin|pma|adminer\.php)(?:/|$)"),
+    ("Server configuration", "LIKELY BOT", "/actuator, server-status or cgi-bin", r"(?:^|/)(?:actuator|server-status|cgi-bin|\.aws)(?:/|$)"),
+    ("Application admin scanner", "LIKELY BOT", "/[application-admin]", r"(?:^|/)(?:manager/html|jenkins|solr|owa|autodiscover|\.DS_Store)(?:/|$)"),
 ))
 COLUMNS = {
     "classification": "TEXT NOT NULL DEFAULT 'UNKNOWN'",
@@ -66,6 +71,8 @@ COLUMNS = {
     "identity_kind": "TEXT NOT NULL DEFAULT 'historical_browser'",
     "history": "INTEGER NOT NULL DEFAULT 1",
     "review_pending": "INTEGER NOT NULL DEFAULT 0",
+    "scan_kind": "TEXT NOT NULL DEFAULT ''", "scan_reasons": "TEXT NOT NULL DEFAULT '[]'",
+    "automation_key": "TEXT NOT NULL DEFAULT ''",
 }
 
 
@@ -105,7 +112,37 @@ def referrer_host(value):
 
 
 def probe_name(path):
-    return next((name for name, pattern in PROBES if pattern.search(path or "")), "")
+    return scanner_evidence(path, 404)[1]
+
+
+def scanner_evidence(path, status, query=""):
+    """Return safe catalog labels, never arbitrary query payloads.
+
+    Reconnaissance needs a technology-specific target and a failed route.
+    Secret-file/execution targets are stronger evidence on this non-PHP app.
+    Ordinary missing pages and single-page visits are not scanner evidence.
+    """
+    candidate = (path or "")[:2048].split("?", 1)[0].split("#", 1)[0]
+    for _ in range(2):
+        candidate = unquote(candidate)
+    candidate = candidate.replace("\\", "/")
+    if candidate.startswith("/[probe]/"):
+        # Version-one logs kept the family, not the precise exploit target.
+        name = candidate[len("/[probe]/"):]
+        if name in {item[0] for item in PROBES} and status in (404,405):
+            return "LIKELY BOT", name, "/[probe]/" + name
+        return "", "", ""
+    for name, kind, target, pattern in PROBES:
+        if pattern.search(candidate) and (status >= 300 or kind == "KNOWN BOT"):
+            if name == "WordPress endpoint":
+                token = re.search(r"(?:^|/)(wp-admin|wp-login\.php|xmlrpc\.php|wp-json|wp-content|wp-includes)(?:/|$)", candidate, re.I)
+                if token:
+                    target = "/" + token.group(1).lower()
+            return kind, name, target
+    payload = unquote((query or "")[:4096])
+    if re.search(r"\$\{jndi:(?:ldap|rmi|dns):|<\?php|(?:\.\./){2,}(?:etc/passwd|proc/self/environ)", payload, re.I):
+        return "KNOWN BOT", "Exploit query payload", "/[exploit-query]"
+    return "", "", ""
 
 
 def audit_path(path, status):
@@ -119,6 +156,9 @@ def audit_path(path, status):
 
 def fallback_id(ip, ua, dt=None):
     import growth
+    signature = known_bot(ua)
+    if signature:
+        return growth._mac(f"traffic-agent:{ip or ''}:{signature}")[:32]
     slot = int((dt or now()).timestamp()) // 1800
     # HMAC hides dictionary-guessable IP/UA combinations. No raw IP is saved.
     return growth._mac(f"traffic:{slot}:{ip or ''}:{ua or ''}")[:32]
@@ -142,7 +182,8 @@ def ensure_schema(conn):
         id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, ip_hash TEXT NOT NULL,
         path TEXT NOT NULL, referrer TEXT NOT NULL DEFAULT '', ua TEXT NOT NULL DEFAULT '')"""))
     for column, definition in {"visitor_id": "TEXT NOT NULL DEFAULT ''", "status_code": "INTEGER NOT NULL DEFAULT 200",
-                               "request_type": "TEXT NOT NULL DEFAULT 'page'"}.items():
+                               "request_type": "TEXT NOT NULL DEFAULT 'page'", "method": "TEXT NOT NULL DEFAULT 'GET'",
+                               "probe_category": "TEXT NOT NULL DEFAULT ''", "probe_target": "TEXT NOT NULL DEFAULT ''"}.items():
         if not store._has_column(conn, "site_visits", column):
             conn.execute(f"ALTER TABLE site_visits ADD COLUMN {column} {definition}")
     conn.execute(store.pg_ddl("""CREATE TABLE IF NOT EXISTS traffic_classifications (
@@ -157,6 +198,7 @@ def ensure_schema(conn):
     conn.execute("CREATE INDEX IF NOT EXISTS traffic_history ON growth_visitors (history,last_seen)")
     conn.execute("CREATE INDEX IF NOT EXISTS traffic_unassigned ON site_visits (visitor_id,ip_hash,ua)")
     conn.execute("CREATE INDEX IF NOT EXISTS traffic_pending ON growth_visitors (review_pending,first_seen)")
+    conn.execute("CREATE INDEX IF NOT EXISTS traffic_version ON growth_visitors (classification_version,hit_count)")
 
 
 def _save_decision(conn, row, kind, score, reasons, dt):
@@ -167,15 +209,30 @@ def _save_decision(conn, row, kind, score, reasons, dt):
     start = parsed(row["first_seen"]) or dt
     pending = int(not row["history"] and not row["browser_verified"] and kind not in BOT_TYPES
                   and (dt - start).total_seconds() < GRACE_SECONDS)
-    conn.execute("UPDATE growth_visitors SET classification=?,bot_score=?,classification_reasons=?,classification_version=?,review_pending=? WHERE visitor_id=?",
-                 (kind, score, reasons, VERSION, pending, row["visitor_id"]))
+    actor = "network:" + row["ip_hash"] if kind in BOT_TYPES and row["ip_hash"] else ""
+    conn.execute("UPDATE growth_visitors SET classification=?,bot_score=?,classification_reasons=?,classification_version=?,review_pending=?,automation_key=? WHERE visitor_id=?",
+                 (kind, score, reasons, VERSION, pending, actor, row["visitor_id"]))
 
 
 def _classify(conn, row, dt, allow_recovery=False):
+    if row["classification_version"] < VERSION and not row["scan_kind"]:
+        for hit in conn.execute("SELECT DISTINCT path,status_code FROM site_visits WHERE visitor_id=?", (row["visitor_id"],)).fetchall():
+            kind, category, target = scanner_evidence(hit["path"], hit["status_code"])
+            if kind:
+                row["scan_kind"] = kind
+                row["scan_reasons"] = json.dumps(["Scanner target: " + category, "Recorded response: " + str(hit["status_code"]), "Target: " + target])
+                if kind == "KNOWN BOT":
+                    break
+        if row["scan_kind"]:
+            conn.execute("UPDATE growth_visitors SET scan_kind=?,scan_reasons=? WHERE visitor_id=?", (row["scan_kind"],row["scan_reasons"],row["visitor_id"]))
     match = known_bot(row["ua"])
     if match or row["webdriver"] or row["classification"] == "KNOWN BOT":
         reasons = ["User-Agent matched " + match] if match else (["Browser reported navigator.webdriver"] if row["webdriver"] else json.loads(row["classification_reasons"]))
         _save_decision(conn, row, "KNOWN BOT", 100, reasons, dt)
+        return
+    if row["scan_kind"]:
+        _save_decision(conn, row, row["scan_kind"], 95 if row["scan_kind"] == "KNOWN BOT" else 75,
+                       json.loads(row["scan_reasons"]), dt)
         return
     if row["history"]:
         kind = "LIKELY HUMAN" if browser_agent(row["ua"]) else "UNKNOWN"
@@ -242,23 +299,32 @@ def _classify(conn, row, dt, allow_recovery=False):
 
 
 def observe(ip, path, referrer, ua, visitor_id="", source="direct", medium="none", campaign="",
-            status_code=200, request_type="page", identity_kind="anonymous"):
+            status_code=200, request_type="page", identity_kind="anonymous", method="GET", scan_query=""):
     import growth
     growth.ensure_tables()
     dt = now(); ts = stamp(dt)
-    visitor_id = visitor_id or fallback_id(ip, ua, dt)
+    scan_kind, category, target = scanner_evidence(path, status_code, scan_query)
+    if identity_kind == "anonymous" and scan_kind:
+        visitor_id = growth._mac("traffic-scanner:" + (ip or ""))[:32]
+    elif identity_kind == "anonymous" and known_bot(ua):
+        visitor_id = fallback_id(ip, ua, dt)
+    else:
+        visitor_id = visitor_id or fallback_id(ip, ua, dt)
     ip_hash = growth._mac("traffic-ip:" + (ip or ""))[:32]
     ua = (ua or "")[:512]; ref = referrer_host(referrer)
-    path = audit_path(path, status_code)
+    path = "/[probe]/" + category if scan_kind and category != "Exploit query payload" else audit_path(path, status_code)
     with store.db() as conn:
         conn.execute("INSERT INTO growth_visitors (visitor_id,first_seen,source,medium,campaign,landing_path) VALUES (?,?,?,?,?,?) ON CONFLICT(visitor_id) DO NOTHING",
                      (visitor_id, ts, source, medium, campaign, path))
         # UPDATE obtains a row lock before counting/inserting this hit.
         conn.execute("UPDATE growth_visitors SET last_seen=?,hit_count=hit_count+1,last_path=?,ua=?,referrer_host=?,ip_hash=?,history=0,identity_kind=? WHERE visitor_id=?",
                      (ts, path, ua, ref, ip_hash, identity_kind, visitor_id))
+        if scan_kind:
+            scan_reasons = json.dumps(["Scanner target: " + category, "Response: " + str(status_code), "Target: " + target])
+            conn.execute("UPDATE growth_visitors SET scan_kind=?,scan_reasons=? WHERE visitor_id=? AND scan_kind!='KNOWN BOT'", (scan_kind,scan_reasons,visitor_id))
         seen = conn.execute("SELECT 1 FROM site_visits WHERE visitor_id=? AND path=? LIMIT 1", (visitor_id, path)).fetchone()
-        conn.execute("INSERT INTO site_visits (ts,ip_hash,path,referrer,ua,visitor_id,status_code,request_type) VALUES (?,?,?,?,?,?,?,?)",
-                     (ts, ip_hash, path, ref, ua, visitor_id, status_code, request_type))
+        conn.execute("INSERT INTO site_visits (ts,ip_hash,path,referrer,ua,visitor_id,status_code,request_type,method,probe_category,probe_target) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                     (ts, ip_hash, path, ref, ua, visitor_id, status_code, request_type, method[:12], category, target))
         if not seen:
             conn.execute("UPDATE growth_visitors SET page_count=page_count+1 WHERE visitor_id=?", (visitor_id,))
         row = dict(conn.execute("SELECT * FROM growth_visitors WHERE visitor_id=?", (visitor_id,)).fetchone())
@@ -316,18 +382,34 @@ def refresh_candidates(limit=250):
     growth.ensure_tables()
     dt = now()
     with store.db() as conn:
-        rows = conn.execute("SELECT visitor_id FROM growth_visitors WHERE review_pending=1 AND first_seen<=? ORDER BY first_seen LIMIT ?",
-                            (stamp(dt - timedelta(seconds=GRACE_SECONDS)), limit)).fetchall()
+        rows = conn.execute("SELECT visitor_id FROM growth_visitors WHERE (review_pending=1 AND first_seen<=?) OR (classification_version<? AND hit_count>0) ORDER BY classification_version,first_seen LIMIT ?",
+                            (stamp(dt - timedelta(seconds=GRACE_SECONDS)), VERSION, limit)).fetchall()
         for candidate in rows:
             # Lock before rereading so a concurrent browser beacon is respected.
             conn.execute("UPDATE growth_visitors SET review_pending=review_pending WHERE visitor_id=?", (candidate["visitor_id"],))
             row = conn.execute("SELECT * FROM growth_visitors WHERE visitor_id=?", (candidate["visitor_id"],)).fetchone()
-            if row and row["review_pending"]:
+            if row and (row["review_pending"] or row["classification_version"] < VERSION):
                 _classify(conn, dict(row), dt)
 
 
 def matches(kind, classification):
     return kind == "all" or (kind == "human" and classification in HUMAN_TYPES) or (kind == "automated" and classification in BOT_TYPES) or (kind == "unknown" and classification == "UNKNOWN")
+
+
+def metric_id(row):
+    if row["classification"] in BOT_TYPES:
+        return "automated:" + (row.get("automation_key") or row["visitor_id"])
+    return "visitor:" + row["visitor_id"]
+
+
+def counters_sql():
+    actor = "CASE WHEN v.automation_key!='' THEN v.automation_key ELSE v.visitor_id END"
+    bot = "v.classification IN ('KNOWN BOT','LIKELY BOT')"
+    human = "v.classification IN ('HUMAN','LIKELY HUMAN')"
+    return (f"COUNT(DISTINCT CASE WHEN {human} THEN v.visitor_id END) AS human,"
+            f"COUNT(DISTINCT CASE WHEN {bot} THEN {actor} END) AS automated,"
+            "COUNT(DISTINCT CASE WHEN v.classification='UNKNOWN' THEN v.visitor_id END) AS unknown,"
+            f"COUNT(DISTINCT CASE WHEN {bot} THEN 'a:' || ({actor}) ELSE 'v:' || v.visitor_id END) AS all_count")
 
 
 def postcard_summary(accounts):
@@ -349,7 +431,7 @@ def postcard_summary(accounts):
             "converting_visitors": len({links[a["id"]]["visitor_id"] for a in signups})}
 
 
-def report(kind="human", offset=0, sort="last_seen", direction="desc"):
+def report(kind="human", offset=0, sort="last_seen", direction="desc", hit_offset=0):
     import growth
     growth.ensure_tables()
     remaining = backfill()
@@ -359,16 +441,19 @@ def report(kind="human", offset=0, sort="last_seen", direction="desc"):
     direction = direction if direction in ("asc", "desc") else "desc"
     order = SORT_COLUMNS[sort][1] + " " + direction.upper()
     offset = max(0, min(offset, 1000000))
+    hit_offset = max(0, min(hit_offset, 1000000))
     day = now().astimezone(PACIFIC).date()
     start = datetime.combine(day, datetime.min.time(), PACIFIC).astimezone(timezone.utc)
     end = datetime.combine(day + timedelta(days=1), datetime.min.time(), PACIFIC).astimezone(timezone.utc)
     with store.db() as conn:
-        totals = {r["classification"]: r["n"] for r in conn.execute("SELECT classification,COUNT(*) AS n FROM growth_visitors WHERE hit_count>0 GROUP BY classification").fetchall()}
-        today = {r["classification"]: r["n"] for r in conn.execute("SELECT v.classification,COUNT(DISTINCT v.visitor_id) AS n FROM growth_visitors v JOIN site_visits h ON h.visitor_id=v.visitor_id WHERE h.ts>=? AND h.ts<? GROUP BY v.classification", (start.isoformat(timespec="seconds"), end.isoformat(timespec="seconds"))).fetchall()}
+        totals = dict(conn.execute(f"SELECT {counters_sql()} FROM growth_visitors v WHERE v.hit_count>0").fetchone())
+        today = dict(conn.execute(f"SELECT {counters_sql()} FROM growth_visitors v JOIN site_visits h ON h.visitor_id=v.visitor_id WHERE h.ts>=? AND h.ts<?", (start.isoformat(timespec="seconds"), end.isoformat(timespec="seconds"))).fetchone())
         where = {"human": "classification IN ('HUMAN','LIKELY HUMAN')", "automated": "classification IN ('LIKELY BOT','KNOWN BOT')", "unknown": "classification='UNKNOWN'", "all": "1=1"}[kind]
         filtered_total = conn.execute(f"SELECT COUNT(*) AS n FROM growth_visitors WHERE hit_count>0 AND {where}").fetchone()["n"]
         rows = [dict(r) for r in conn.execute(f"SELECT * FROM growth_visitors WHERE hit_count>0 AND {where} ORDER BY {order},visitor_id ASC LIMIT 101 OFFSET ?", (offset,)).fetchall()]
-        hits = [dict(r) for r in conn.execute(f"SELECT h.*,v.classification,v.classification_reasons FROM site_visits h JOIN growth_visitors v ON h.visitor_id=v.visitor_id WHERE v.{where if where != '1=1' else 'hit_count>0'} ORDER BY h.id DESC LIMIT 100").fetchall()]
+        hit_where = f"v.{where if where != '1=1' else 'hit_count>0'}"
+        hits_total = conn.execute(f"SELECT COUNT(*) AS n FROM site_visits h JOIN growth_visitors v ON h.visitor_id=v.visitor_id WHERE {hit_where}").fetchone()["n"]
+        hits = [dict(r) for r in conn.execute(f"SELECT h.*,v.classification,v.classification_reasons FROM site_visits h JOIN growth_visitors v ON h.visitor_id=v.visitor_id WHERE {hit_where} ORDER BY h.id DESC LIMIT 101 OFFSET ?", (hit_offset,)).fetchall()]
         spike = conn.execute("SELECT COUNT(*) AS n FROM site_visits h JOIN growth_visitors v ON h.visitor_id=v.visitor_id WHERE h.ts>=? AND v.classification IN ('LIKELY BOT','KNOWN BOT')", (stamp(now() - timedelta(minutes=5)),)).fetchone()["n"] >= 30
         pending = conn.execute("SELECT COUNT(*) AS n FROM growth_visitors WHERE review_pending=1 AND first_seen<=?", (stamp(now() - timedelta(seconds=GRACE_SECONDS)),)).fetchone()["n"]
     for row in rows:
@@ -385,9 +470,12 @@ def report(kind="human", offset=0, sort="last_seen", direction="desc"):
     return {"kind": kind, "sort": sort, "direction": direction, "headers": headers, "filtered_total": filtered_total,
             "filter_links": {k: "?" + urlencode({"kind": k, "sort": sort, "direction": direction}) for k in ("human", "automated", "all", "unknown")},
             "next_url": url(offset=offset+100), "previous_url": url(offset=max(0,offset-100)),
-            "rows": rows[:100], "hits": hits, "offset": offset, "next": offset + 100 if len(rows)>100 else None,
+            "rows": rows[:100], "hits": hits[:100], "offset": offset, "next": offset + 100 if len(rows)>100 else None,
+            "hits_total": hits_total, "hit_offset": hit_offset, "hits_next": len(hits)>100,
+            "hits_next_url": url(offset=offset,hit_offset=hit_offset+100),
+            "hits_previous_url": url(offset=offset,hit_offset=max(0,hit_offset-100)),
             "previous": max(0,offset-100), "remaining": remaining, "pending_reviews": pending, "spike": spike,
-            "human_total": sum(totals.get(k,0) for k in HUMAN_TYPES), "human_today": sum(today.get(k,0) for k in HUMAN_TYPES),
-            "automated_total": sum(totals.get(k,0) for k in BOT_TYPES), "automated_today": sum(today.get(k,0) for k in BOT_TYPES),
-            "unknown_total": totals.get("UNKNOWN",0), "unknown_today": today.get("UNKNOWN",0),
-            "all_total": sum(totals.values()), "all_today": sum(today.values())}
+            "human_total": totals["human"], "human_today": today["human"],
+            "automated_total": totals["automated"], "automated_today": today["automated"],
+            "unknown_total": totals["unknown"], "unknown_today": today["unknown"],
+            "all_total": totals["all_count"], "all_today": today["all_count"]}

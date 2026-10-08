@@ -80,8 +80,9 @@ class TrafficTest(unittest.TestCase):
         self.assertEqual(self.row(vid)['classification'], 'KNOWN BOT')
         report = traffic.report('all')
         self.assertEqual(report['human_total'], 0)
-        self.assertEqual(report['automated_total'], len(agents) + 1)
-        self.assertEqual(report['all_total'], len(agents) + 1)
+        self.assertEqual(report['automated_total'], 1)
+        self.assertEqual(report['all_total'], 1)
+        self.assertEqual(report['hits_total'], len(agents) + 1)
 
     def test_direct_qr_and_privacy_visitors_are_not_bots(self):
         for headers in ({}, {'dnt': '1'}, {'sec-gpc': '1'}):
@@ -185,10 +186,10 @@ class TrafficTest(unittest.TestCase):
         self.assertTrue(all(self.row(v)['classification'] in traffic.HUMAN_TYPES for v in vids))
 
     def test_scanner_paths_are_categorized_without_private_urls(self):
-        vid = self.hit(ua='')
+        vid = self.hit(ua='', identity_kind='browser')
         for n, path in enumerate(['/.env?secret=private', '/.git/config', '/wp-login.php']):
-            self.hit(vid, path=path, ua='', status_code=404, at=n + 1)
-        self.assertEqual(self.row(vid)['classification'], 'LIKELY BOT')
+            self.hit(vid, path=path, ua='', status_code=404, at=n + 1, identity_kind='browser')
+        self.assertEqual(self.row(vid)['classification'], 'KNOWN BOT')
         with store.db() as conn:
             saved = str([dict(r) for r in conn.execute('SELECT * FROM site_visits').fetchall()])
         self.assertNotIn('secret=private', saved)
@@ -199,7 +200,7 @@ class TrafficTest(unittest.TestCase):
         for ua, path, status in [('Googlebot/2.1','/demo',200), ('curl/8','/',200), ('UptimeRobot/2','/healthz',200), ('Nuclei','/.env',404)]:
             response = self.client.get(path, headers={'user-agent': ua})
             self.assertEqual(response.status_code, status)
-        self.assertEqual(traffic.report()['automated_total'], 4)
+        self.assertEqual(traffic.report()['automated_total'], 1)
         self.assertEqual(self.counts()['page_view'], 0)
         before = traffic.report('all')['all_total']
         self.client.get('/static/growth.js')
