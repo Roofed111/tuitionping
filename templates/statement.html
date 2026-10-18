@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  @media print {
+    .no-print { display: none !important; }
+    body { background: #fff; }
+    .card { box-shadow: none; border: 1px solid #ddd; }
+  }
+  .stmt-head { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; }
+  .stmt-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+  .stmt-table th, .stmt-table td { text-align: left; padding: 8px 6px; border-bottom: 1px solid #e5e7eb; }
+  .stmt-table td.num, .stmt-table th.num { text-align: right; }
+  .stmt-total { font-size: 1.25em; font-weight: 700; }
+</style>
+
+<div class="card no-print">
+  {% if public %}
+  <button class="btn" onclick="window.print()">🖨 Print / Save as PDF</button>
+  {% else %}
+  <a class="btn btn-ghost" href="/families/edit/{{ family['id'] }}">← Back to family</a>
+  <button class="btn" onclick="window.print()" style="margin-left:8px">🖨 Print / Save as PDF</button>
+  {% endif %}
+  <span style="margin-left:12px;color:var(--muted);font-size:.9em">
+    {% if year > 2025 %}<a href="/families/{{ family['id'] }}/statement/{{ year - 1 }}">← {{ year - 1 }}</a>{% endif %}
+  </span>
+</div>
+
+<div class="card">
+  <div class="stmt-head">
+    <div>
+      <h2 style="margin:0">{{ company }}</h2>
+      {% if tax_id %}<div style="color:var(--muted)">Tax ID (EIN): {{ tax_id }}</div>{% endif %}
+    </div>
+    <div style="text-align:right;color:var(--muted)">
+      <div><strong>Childcare payment statement</strong></div>
+      <div>{{ year }}</div>
+    </div>
+  </div>
+
+  <p style="margin-top:14px"><strong>Family:</strong> {{ family["name"] }}</p>
+
+  {% if payments %}
+  <table class="stmt-table">
+    <thead><tr><th scope="col">Date paid</th><th scope="col">Billing period</th><th scope="col" class="num">Amount</th></tr></thead>
+    <tbody>
+    {% for p in payments %}
+      <tr>
+        <td>{{ p["paid_at"][:10] }}</td>
+        <td>{{ p["period"] }}</td>
+        <td class="num">${{ "{:,.2f}".format(p["amount"]) }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <p class="stmt-total" style="text-align:right;margin-top:12px">Total paid in {{ year }}: ${{ "{:,.2f}".format(total) }}</p>
+  {% else %}
+  <p style="color:var(--muted)">No payments recorded for {{ year }}.</p>
+  {% endif %}
+
+  <p style="color:var(--muted);font-size:.85em;margin-top:18px">
+    Generated {{ today }} by TuitionPing from payment records. Based on payments recorded
+    in TuitionPing — if any cash or check payments are missing, contact your daycare office.
+    This statement is for your tax records — consult your tax advisor about childcare
+    credits and deductions.
+  </p>
+</div>
+{% endblock %}

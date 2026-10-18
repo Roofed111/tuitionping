@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="tabs"><a href="/admin" class="active">Customers</a><a href="/admin/abuse">Abuse monitor</a><a href="/admin/suggestions">Suggestions</a><a href="/admin/attribution">Attribution</a><a href="/admin/visitors">Visitors</a></div>
+<h2>Customers</h2>
+<p class="muted">{{ stats|length }} accounts{% if new_count %} · <strong>{{ new_count }} new this week</strong> 🎉{% endif %} · click a column header to sort · good for spotting long-time customers to reward.</p>
+{% if not admin_configured %}
+<p class="alert">ADMIN_EMAILS isn't set, so this page is reachable by nobody. Add your login email as <code>ADMIN_EMAILS</code> in Railway variables to lock it to your account.</p>
+{% endif %}
+<div class="card" style="overflow-x:auto">
+<table class="table" id="customers">
+  <thead><tr>
+    <th scope="col">Company</th>
+    <th scope="col">Contact</th>
+    <th scope="col">Locations</th>
+    <th scope="col" class="sortable" data-sort="date" data-dir="1">Joined ⇅</th>
+    <th scope="col" class="sortable" data-sort="num" data-dir="1">Families ⇅</th>
+    <th scope="col">Plan</th>
+    <th scope="col" class="sortable" data-sort="num" data-dir="1">Texts 30d ⇅</th>
+    <th scope="col"></th>
+  </tr></thead>
+  <tbody>
+  {% for s in stats %}
+  <tr>
+    <td><span class="family-name">{{ s["company"] or "—" }}</span></td>
+    <td>{{ s["name"] }}<br><span class="family-phone">{{ s["email"] }}</span>{% if s["is_new"] %} <span class="pill pill-new">New</span>{% endif %}</td>
+    <td>{% if s["locations"] %}{{ s["locations"]|join(", ") }}{% else %}<span class="muted">—</span>{% endif %}</td>
+    <td data-sort="{{ s['created_at'] }}">{{ s["created_at"][:10] }}</td>
+    <td data-sort="{{ s['families'] }}">{{ s["families"] }}</td>
+    <td>{{ s["plan_display"] }}<br><span class="family-phone">{{ s["sub_status"] }}{% if s["trial_ends"] and s["sub_status"] == "trialing" %} · ends {{ s["trial_ends"] }}{% endif %}</span>{% if s["suspended"] %} <span class="flag flag-bad">Suspended</span>{% endif %}{% if s["subscription"] and s["subscription"]["founding"] %} <span class="pill paid" title="Holds one of the 25 founding spots">🌱 founder</span>{% endif %}</td>
+    <td data-sort="{{ s['sent_30d'] }}">{{ s["sent_30d"] }}</td>
+    <td>
+      <form method="post" action="/admin/suspend" style="display:inline">
+        {{ csrf_input(request) }}
+        <input type="hidden" name="provider_id" value="{{ s['id'] }}">
+        {% if s["suspended"] %}
+        <input type="hidden" name="suspend" value="0">
+        <button class="btn btn-ghost btn-small" type="submit">Unsuspend</button>
+        {% else %}
+        <input type="hidden" name="suspend" value="1">
+        <button class="btn btn-small" type="submit" onclick="return confirm('Suspend {{ s['email'] }}? Their reminders stop and they cannot log in.')">Suspend</button>
+        {% endif %}
+      </form>
+      <form method="post" action="/admin/delete" style="display:inline" onsubmit="return confirmDelete(this, '{{ s['email'] }}')">
+        {{ csrf_input(request) }}
+        <input type="hidden" name="provider_id" value="{{ s['id'] }}">
+        <input type="hidden" name="confirm_email" value="">
+        <button class="btn btn-small btn-danger-ghost" type="submit">Delete</button>
+      </form>
+      {% if s["subscription"] and s["subscription"]["founding"] %}
+      <form method="post" action="/admin/founding/release" style="display:inline" onsubmit="return confirm('Release {{ s['email'] }}’s founding spot? They keep their account; the spot goes back to the pool of 25.')">
+        {{ csrf_input(request) }}
+        <input type="hidden" name="provider_id" value="{{ s['id'] }}">
+        <button class="btn btn-ghost btn-small" type="submit" title="Free up this founding spot without deleting the account">Release spot</button>
+      </form>
+      {% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<script>
+function confirmDelete(form, email) {
+  var typed = prompt("Type the account's email to permanently delete it and all its data:\n" + email);
+  if (typed === null) return false;
+  form.confirm_email.value = typed;
+  return confirm("Last chance — this cannot be undone. Delete " + email + "?");
+}
+document.querySelectorAll("th.sortable").forEach(function(th) {
+  th.addEventListener("click", function() {
+    var table = document.getElementById("customers");
+    var tbody = table.querySelector("tbody");
+    var rows = Array.from(tbody.querySelectorAll("tr"));
+    var idx = Array.from(th.parentNode.children).indexOf(th);
+    var dir = parseInt(th.dataset.dir || "1", 10);
+    var kind = th.dataset.sort;
+    rows.sort(function(a, b) {
+      var va = a.children[idx].dataset.sort, vb = b.children[idx].dataset.sort;
+      var cmp = kind === "num" ? (parseFloat(va) - parseFloat(vb))
+                              : (va < vb ? -1 : va > vb ? 1 : 0);
+      return cmp * dir;
+    });
+    rows.forEach(function(r) { tbody.appendChild(r); });
+    th.dataset.dir = String(-dir);
+  });
+});
+</script>
+{% endblock %}

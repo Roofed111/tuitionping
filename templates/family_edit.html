@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Edit child — TuitionPing{% endblock %}
+{% block content %}
+<h1>Edit child</h1>
+<div class="card" style="max-width:560px">
+  <form method="post" action="/families/edit/{{ family['id'] }}">
+    {{ csrf_input(request) }}
+    <div class="form-grid">
+      <label>First name<input name="first_name" required value="{{ family['first_name'] }}"></label>
+      <label>Last name<input name="last_name" value="{{ family['last_name'] }}"></label>
+      <label>Phone<input name="phone" required value="{{ family['phone'] }}"></label>
+      <label>Second parent phone <span style="font-weight:400">(optional)</span><input name="phone2" value="{{ family['phone2'] or '' }}" placeholder="(555) 987-6543"></label>
+      <label>Language
+        <select name="language">
+          <option value="en" {% if (family['language'] or 'en') == 'en' %}selected{% endif %}>English</option>
+          <option value="es" {% if family['language'] == 'es' %}selected{% endif %}>Español</option>
+        </select>
+      </label>
+      <label>Monthly tuition ($)<input name="tuition_amount" type="number" step="0.01" min="0.01" required value="{{ family['tuition_amount'] }}"></label>
+      <label>Due day of month (1–31)<input name="due_day" type="number" min="1" max="31" required value="{{ family['due_day'] }}"></label>
+      <label>Next bill due <span style="font-weight:400">(optional — first bill only)</span><input name="next_due" type="date" value="{{ family['next_due_date'] or '' }}"></label>
+      <label>Pause reminders until <span style="font-weight:400">(optional — vacation, payment plan…)</span><input name="snooze_until" type="date" value="{{ family['snoozed_until'] or '' }}"></label>
+      <label>Notes <span style="font-weight:400">(optional — kid's name, pickup details…)</span><textarea name="notes" rows="2" placeholder="Anything worth remembering about this family">{{ family['notes'] or '' }}</textarea></label>
+      <label>Sibling discount % <span style="font-weight:400">(optional — applied to tuition everywhere)</span><input name="discount_pct" type="number" min="0" max="100" step="1" value="{{ (family['discount_pct'] or 0)|int }}"></label>
+      <label>Child's first name <span style="font-weight:400">(optional — for birthday texts & absence replies)</span><input name="child_name" maxlength="40" placeholder="Emma" value="{{ family['child_name'] or '' }}"></label>
+      <label>Child's birthday <span style="font-weight:400">(optional — MM-DD, gets a 🎂 text each year)</span><input name="child_birthday" maxlength="5" placeholder="MM-DD" pattern="(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])" value="{{ family['child_birthday'] or '' }}"></label>
+      <label>Immunization record expires <span style="font-weight:400">(optional — parents get a reminder before it lapses)</span><input name="immunization_expires" type="date" value="{{ family['immunization_expires'] or '' }}"></label>
+      <div>
+        <button class="btn">Save changes</button>
+        <a class="btn btn-ghost" href="/dashboard">Cancel</a>
+        <a class="btn btn-ghost" href="/families/{{ family['id'] }}/statement">🧾 Tax statement</a>
+      </div>
+    </div>
+  </form>
+</div>
+<div class="card" style="max-width:560px;margin-top:16px">
+  <h2 style="margin-top:0">➕ Extra charges</h2>
+  <p class="muted" style="margin-top:0">One-time charges — late pickup, field trips, supplies. Added to what the family owes (BAL, reminders, forecast) until their next payment.</p>
+  {% if charges %}
+  <ul style="list-style:none;padding:0;margin:0 0 12px">
+    {% for c in charges %}
+    <li style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)">
+      <span>{{ c["label"] }} <strong>${{ "%.2f"|format(c["amount"]) }}</strong></span>
+      <form class="inline" method="post" action="/families/charge/remove">{{ csrf_input(request) }}<input type="hidden" name="family_id" value="{{ family['id'] }}"><input type="hidden" name="charge_id" value="{{ c['id'] }}"><button class="btn btn-ghost btn-sm">Remove</button></form>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">No extra charges.</p>
+  {% endif %}
+  <form method="post" action="/families/charge" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+    {{ csrf_input(request) }}
+    <input type="hidden" name="family_id" value="{{ family['id'] }}">
+    <label style="flex:2;min-width:160px">Label<input name="label" required placeholder="Late pickup 9/26" maxlength="80"></label>
+    <label style="flex:1;min-width:100px">Amount ($)<input name="amount" required type="number" step="0.01" min="0.01" placeholder="25.00"></label>
+    <button class="btn" style="padding:8px 14px">Add charge</button>
+  </form>
+</div>
+{% endblock %}

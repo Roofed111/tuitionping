@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Privacy Policy — TuitionPing{% endblock %}
+{% block meta_description %}<meta name="description" content="TuitionPing's privacy policy — how we handle your account data and your families' information.">{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Privacy Policy</h1><p class="sub">Last updated: October 2026</p></div></div>
+<div class="card">
+  <h2>What we collect</h2>
+  <p><strong>Your account:</strong> name, email, company name, and a salted hash of your password (never the password itself). Payment details are processed by Stripe and never touch our servers.</p>
+  <p><strong>Family information you enter:</strong> parent names, phone numbers, tuition amounts, due dates, classroom or location, and each family's preferred language (English or Spanish). Optionally: a child's first name and birthday (for birthday texts), and absence records from parent replies.</p>
+  <p><strong>Message records:</strong> every reminder we send and every reply we receive, with timestamps, delivery status, and opt-out status — so you can see exactly what was communicated.</p>
+  <p><strong>Consent records:</strong> when you add a family, we record your attestation (who added them and when). The underlying proof of consent — the signed form or the verbal-consent record — is kept by you, the provider.</p>
+  <p><strong>Program settings:</strong> location names, payment links you add, late-fee rules, and your message templates.</p>
+  <p><strong>Campaign measurement:</strong> we log a hashed IP address, the page visited, the timestamp, the referring site, and browser type for visits to our public pages (for example, to measure our direct-mail postcard) — no personal identity is stored from this, and logged-in account holders' browsing is not logged.</p>
+  <h2>How we use it</h2>
+  <p>We use your data only to operate TuitionPing: sending tuition reminders by SMS, managing your account and billing, and providing support. We do not sell your data or share it with advertisers. Phone numbers you enter are used solely to send the reminders you configure.</p>
+  <p><strong>Mobile messaging data.</strong> Mobile phone numbers and SMS opt-in and consent records are never sold, rented, or shared with third parties or affiliates. They are disclosed only to our operational processors as needed to deliver the service: Twilio (message delivery) and Stripe (billing).</p>
+  <h2>SMS and messaging</h2>
+  <p><strong>Adding a family does not create consent.</strong> You must obtain each parent's permission to receive tuition texts <em>before</em> adding their number — at enrollment, verbally, or in your tuition agreement (see our <a href="/sms-consent">model consent language</a>). When you add a family in TuitionPing you attest that you have that permission; you retain the underlying proof. Anyone can opt out at any time by replying <strong>STOP</strong>; opt-outs are honored immediately and the number will not be texted again unless they reply <strong>START</strong>.</p>
+  <h2>Data security</h2>
+  <p>Passwords are stored as salted hashes, never in plain text. Payment details are processed by Stripe and never touch our servers. Account access is protected by login sessions; contact us immediately if you believe your account was accessed without permission.</p>
+  <h2>Retention and deletion</h2>
+  <p>We keep your data while your account is active. If you cancel, you can request deletion of your account data via support; message logs needed for compliance disputes may be retained as required by law.</p>
+  <h2>Questions</h2>
+  <p>Contact us at <a href="/support">contact our support team</a>.</p>
+</div>
+{% endblock %}

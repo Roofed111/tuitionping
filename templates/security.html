@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Security & Data Practices — TuitionPing{% endblock %}
+{% block meta_description %}<meta name="description" content="How TuitionPing protects your account and family data: password hashing, secure sessions, webhook signature checks, and honest limits.">{% endblock %}
+{% block content %}
+<div class="page-head"><div>
+  <h1>Security &amp; data practices</h1>
+  <p class="sub">What we actually do to protect your account — and what we don't claim.</p>
+</div></div>
+
+<div class="card">
+  <h2>Account protection</h2>
+  <p><strong>Passwords</strong> are stored as salted PBKDF2 hashes (200,000 iterations) — never in plain text, and we can't see them either.</p>
+  <p><strong>Sessions</strong> use random 256-bit tokens in HttpOnly cookies, marked Secure on HTTPS and SameSite=Lax, so other sites can't ride your login.</p>
+  <p><strong>Logins are throttled</strong> — repeated failed attempts from the same address are temporarily blocked, and error messages never reveal whether an email is registered.</p>
+  <p><strong>Every state-changing form</strong> carries a per-session security token, so a malicious site can't submit actions on your behalf.</p>
+</div>
+
+<div class="card">
+  <h2>Payments</h2>
+  <p><strong>We never see your card.</strong> All billing is processed by Stripe; card details go directly to them and never touch our servers. Subscription changes from your Billing page go through Stripe's own secure portal.</p>
+</div>
+
+<div class="card">
+  <h2>Messages</h2>
+  <p><strong>Twilio callbacks are signature-checked</strong> — we verify that delivery reports and parent replies actually came from Twilio before acting on them.</p>
+  <p><strong>STOP is honored immediately and automatically.</strong> An opted-out number is never texted again unless the parent replies START.</p>
+  <p><strong>Consent attestation is recorded</strong> — when you add a family, we log who added them and when. The underlying proof of consent (your signed form or verbal-consent record) stays with you.</p>
+</div>
+
+<div class="card">
+  <h2>Data handling</h2>
+  <p>We collect only what's needed to send reminders and run your account: your profile, the family information you enter, message logs, and your settings. We don't sell your data or share it with advertisers. Your number lists are shared only with Twilio (to deliver messages) and your own staff view. Campaign measurement uses hashed identifiers, not identities.</p>
+  <p><strong>Deletion:</strong> cancel anytime and ask us to delete your account data — <a href="/support">contact our support team</a>. Message logs needed for compliance disputes may be retained as required by law.</p>
+</div>
+
+<div class="card">
+  <h2>Honest limits</h2>
+  <p>We're a small, focused product — not a bank. We don't claim certifications we haven't earned (no SOC 2 audit), and we don't verify tuition payments (a parent's PAID reply is recorded as <em>reported</em> paid until you confirm it). If you spot a security issue, <a href="/support">contact our support team</a> and we'll take it seriously.</p>
+</div>
+{% endblock %}

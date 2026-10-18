@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Daycare Tuition Reminder Text Templates (Copy-Paste, English & Spanish){% endblock %}
+{% block meta_description %}<meta name="description" content="Copy-paste daycare tuition reminder text message templates: 3-days-before, due date, and late payment nudges — in English and Spanish. Free to use.">{% endblock %}
+{% block content %}
+<style>
+  .tpl { background: #f8fafc; border: 1px solid var(--line); border-radius: 12px;
+         padding: 16px 18px; margin: 12px 0; position: relative; }
+  .tpl .tag { display: inline-block; background: var(--brand-soft); color: var(--brand-dark);
+              font-weight: 700; font-size: .75em; letter-spacing: .04em; text-transform: uppercase;
+              padding: 4px 12px; border-radius: 999px; margin-bottom: 8px; }
+  .tpl p { margin: 0; font-size: .95em; line-height: 1.6; }
+  .tpl .es { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); }
+  .guide-cta { background: var(--brand-soft); border-radius: 10px; padding: 12px 16px;
+               font-size: .92em; margin-top: 12px; }
+  .guide-cta a { font-weight: 700; }
+</style>
+<div class="page-head"><div>
+  <h1>Daycare tuition reminder text templates</h1>
+  <p class="sub">Copy, paste, customize. Four messages that cover the whole billing cycle — in English and Spanish. Free to use, no signup needed.</p>
+</div></div>
+
+<div class="card">
+  <h2>What makes a reminder text work</h2>
+  <p>Every template below follows the same formula: <strong>program name</strong> (so they know it's you) + <strong>amount</strong> + <strong>due date</strong> + <strong>how to pay</strong>. Leave any of those out and you get a reply asking for it instead of a payment. Keep it under 160 characters when you can — one text segment, no split messages.</p>
+</div>
+
+<div class="card">
+  <h2>3 days before — the heads-up</h2>
+  <p>This one prevents most late payments. Friendly, no pressure.</p>
+  <div class="tpl"><span class="tag">Template</span>
+    <p>Hi {Parent}, friendly reminder that tuition of ${Amount} for {Program} is due on {Date}. Pay here: {PayLink} — Thanks!</p>
+    <p class="es">Hola {Parent}, recordatorio amistoso: la colegiatura de ${Amount} para {Program} vence el {Date}. Pague aquí: {PayLink} — ¡Gracias!</p>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Due date — short and direct</h2>
+  <p>Same-day reminders catch the "oh right, today!" parents. Keep it brief.</p>
+  <div class="tpl"><span class="tag">Template</span>
+    <p>Hi {Parent}, just a reminder that tuition of ${Amount} for {Program} is due today ({Date}). {PayLink}</p>
+    <p class="es">Hola {Parent}, recordatorio: la colegiatura de ${Amount} para {Program} vence hoy ({Date}). {PayLink}</p>
+  </div>
+</div>
+
+<div class="card">
+  <h2>+3 days late — the gentle nudge</h2>
+  <p>Only send to families who haven't paid. Assume forgetfulness, not defiance.</p>
+  <div class="tpl"><span class="tag">Template</span>
+    <p>Hi {Parent}, we haven't received tuition of ${Amount} for {Program} yet (was due {Date}). Reply PAID once sent, or pay here: {PayLink}</p>
+    <p class="es">Hola {Parent}, aún no recibimos la colegiatura de ${Amount} para {Program} (vencía el {Date}). Responda PAID cuando pague, o pague aquí: {PayLink}</p>
+  </div>
+</div>
+
+<div class="card">
+  <h2>+7 days late — the firm follow-up</h2>
+  <p>Direct, with the consequence stated. No anger, no apology.</p>
+  <div class="tpl"><span class="tag">Template</span>
+    <p>Hi {Parent}, tuition of ${Amount} for {Program} is now 7 days overdue. Please remit right away to avoid a ${LateFee} late fee. {PayLink}</p>
+    <p class="es">Hola {Parent}, la colegiatura de ${Amount} para {Program} tiene 7 días de retraso. Pague lo antes posible para evitar un recargo de ${LateFee}. {PayLink}</p>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Payment received — close the loop</h2>
+  <p>Always confirm. It ends the mental thread and builds the pay → acknowledged habit.</p>
+  <div class="tpl"><span class="tag">Template</span>
+    <p>Thanks {Parent}! Receipt: ${Amount} for {Month} received. 🎉</p>
+    <p class="es">¡Gracias {Parent}! Recibo: ${Amount} por {Month} recibido. 🎉</p>
+  </div>
+  <p class="guide-cta"><span aria-hidden="true">✉️</span> <strong>TuitionPing sends all of these automatically</strong> — the right message, at the right stage, in each family's preferred language. You just add families once. <a href="/signup?plan=growth">Start your free 30-day trial →</a></p>
+</div>
+
+<div class="card">
+  <h2>Three rules for all of them</h2>
+  <p><strong>1. Always include your program name.</strong> Parents get texts from many numbers. "TuitionPing:" or your program name in the first line prevents "who is this?"</p>
+  <p><strong>2. One idea per text.</strong> Reminder texts aren't the place for policy updates or newsletter content. Amount, date, pay link, done.</p>
+  <p><strong>3. Respect opt-outs instantly.</strong> If a parent replies STOP, stop texting them — immediately, no exceptions. It's federal law (TCPA), and it's also just decent. They can rejoin with START.</p>
+</div>
+{% endblock %}

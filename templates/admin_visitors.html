@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Visitors — Admin{% endblock %}
+{% block content %}
+<div class="tabs"><a href="/admin">Customers</a><a href="/admin/abuse">Abuse monitor</a><a href="/admin/suggestions">Suggestions</a><a href="/admin/attribution">Attribution</a><a href="/admin/visitors" class="active">Visitors</a></div>
+<h1>Site visitors</h1>
+<p class="muted">First-party analytics: one row per hit on public pages. Visitors are told apart by hashed IP — no personal identity is stored. Your own logged-in browsing is excluded.</p>
+
+<div class="card">
+  <h2 style="margin-top:0">Visitors <span class="sub">{{ total_visitors }} distinct · {{ today_visitors }} today</span></h2>
+  <table>
+    <caption class="visually-hidden">Distinct site visitors</caption>
+    <thead><tr><th scope="col">Visitor</th><th scope="col">Hits</th><th scope="col">Pages</th><th scope="col">First seen</th><th scope="col">Last seen</th><th scope="col">Last page</th></tr></thead>
+    <tbody>
+    {% for r in rollup %}
+    <tr>
+      <td><code>{{ r["short_id"] }}</code></td>
+      <td>{{ r["visits"] }}</td>
+      <td>{{ r["pages"] }}</td>
+      <td class="family-phone">{{ r["first"] }}</td>
+      <td class="family-phone">{{ r["last"] }}</td>
+      <td><code>{{ r["last_path"] }}</code></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6"><div class="empty"><span class="big">👀</span>No visits logged yet.</div></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0">Recent hits <span class="sub">latest {{ total_visits }}</span></h2>
+  <table>
+    <caption class="visually-hidden">Recent page hits</caption>
+    <thead><tr><th scope="col">When</th><th scope="col">Visitor</th><th scope="col"></th><th scope="col">Page</th><th scope="col">From</th></tr></thead>
+    <tbody>
+    {% for v in visits %}
+    <tr>
+      <td class="family-phone" style="white-space:nowrap">{{ v["when"] }}</td>
+      <td><code>{{ v["short_id"] }}</code></td>
+      <td>{{ v["device"] }}</td>
+      <td><code>{{ v["path"] }}</code></td>
+      <td class="family-phone">{{ v["ref_label"] }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5"><div class="empty"><span class="big">👀</span>No visits logged yet.</div></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
