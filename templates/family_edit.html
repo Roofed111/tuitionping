@@ -2,6 +2,22 @@
 {% block title %}Edit child — TuitionPing{% endblock %}
 {% block content %}
 <h1>Edit child</h1>
+{% if request.query_params.get('payment_confirmed') %}<p style="color:#166534">Payment confirmed. The original payment amount and date are now included in statements.</p>{% endif %}
+{% if unverified_payments %}
+<div class="card" style="max-width:560px">
+  <h2>Payments needing verification</h2>
+  <p>These records are excluded from statements and collected totals. Check each amount against your bank, cash, or check records before confirming. Older records may not have a saved verification status.</p>
+  {% for payment in unverified_payments %}
+  <form method="post" action="/families/confirm-logged-payment" style="padding:12px 0;border-top:1px solid var(--line)">
+    {{ csrf_input(request) }}
+    <input type="hidden" name="family_id" value="{{ family['id'] }}">
+    <input type="hidden" name="payment_id" value="{{ payment['id'] }}">
+    <p>{{ payment['paid_at'][:10] }} · {{ payment['period'] }} · <strong>${{ "{:,.2f}".format(payment['amount']) }}</strong><br><span class="muted">{{ 'Parent reported PAID' if payment['paid_source'] == 'reply' else 'Older record — verification needed' }}</span></p>
+    <button class="btn btn-ghost">Confirm payment received</button>
+  </form>
+  {% endfor %}
+</div>
+{% endif %}
 <div class="card" style="max-width:560px">
   <form method="post" action="/families/edit/{{ family['id'] }}">
     {{ csrf_input(request) }}

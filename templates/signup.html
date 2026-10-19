@@ -4,6 +4,7 @@
 {% block content %}
 <div class="auth-card">
   <h1>Start your 30-day free trial</h1>
+  <p>Need a hand before you start? <a href="/setup-help">Help me get set up</a>.</p>
   <div class="card" style="border-left:4px solid var(--brand);margin-bottom:16px">
     <div style="font-weight:700">{{ plan_name }} plan</div>
     <div class="muted" style="font-size:.9em">${{ plan_price }}/mo{% if cycle == "annual" %} · ${{ plan_price * 10 }}/yr annual (2 months free){% endif %} · 30-day free trial · <b>$0 today</b></div>
@@ -26,6 +27,7 @@
           </select>
         </label>
         <label>Referral code <span style="font-weight:400">(optional)</span><input name="referral_code" value="{{ ref or '' }}" placeholder="TP-XXXXXX" autocomplete="off"></label>
+        {% if ref %}<p class="muted">Referral credit is issued to both accounts after you complete your first paid month. Your free trial does not count. Credit applies to future TuitionPing subscription invoices.</p>{% endif %}
         <label>How did you hear about us? <span style="font-weight:400">(optional)</span>
           <select name="heard_about">
             <option value="">Prefer not to say</option>
@@ -39,6 +41,8 @@
         </label>
         <label class="check"><input type="checkbox" name="agree_terms" required>I agree to the <a href="/terms">Terms of Service</a> and <a href="/privacy">Privacy Policy</a>.</label>
         <label class="check"><input type="checkbox" name="attest_consent" required>I confirm I have my families' permission to text them about tuition (US numbers only). Every message honors STOP automatically.</label>
+        <label class="check"><input type="checkbox" name="marketing_optin">Send me occasional TuitionPing tuition tips, product improvements and offers. I can unsubscribe anytime. (Optional; email confirmation required.)</label>
+        <p class="muted">We also send account setup guidance during checkout and your trial. You can stop optional follow-ups using the unsubscribe link.</p>
         <div><button class="btn" style="width:100%">Continue to secure checkout</button></div>
         <p class="muted" style="font-size:.82em;margin:4px 0 0">Next: Stripe's secure checkout collects your card — $0 charged today, trial starts immediately.</p>
       </div>

@@ -554,7 +554,7 @@ def _remind_family(family, provider_id, templates, day, periods, sent,
                                    extra=outstanding_charges_total(family["id"]))
             phones = family_phones(family)
             for phone in phones:
-                send_sms(phone, body, provider_id, family["id"])
+                send_sms(phone, body, provider_id, family["id"], tuition_reminder=True)
             mark_reminder_sent(family["id"], period, stage)
             sent.append({"family": family["name"], "phone": family["phone"],
                          "phones": len(phones),

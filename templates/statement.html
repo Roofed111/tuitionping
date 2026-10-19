@@ -54,12 +54,14 @@
   </table>
   <p class="stmt-total" style="text-align:right;margin-top:12px">Total paid in {{ year }}: ${{ "{:,.2f}".format(total) }}</p>
   {% else %}
-  <p style="color:var(--muted)">No payments recorded for {{ year }}.</p>
+  <p style="color:var(--muted)">No provider-verified payments recorded for {{ year }}.</p>
   {% endif %}
 
   <p style="color:var(--muted);font-size:.85em;margin-top:18px">
-    Generated {{ today }} by TuitionPing from payment records. Based on payments recorded
-    in TuitionPing — if any cash or check payments are missing, contact your daycare office.
+    Generated {{ today }} by TuitionPing from provider-verified payment records.
+    Parent PAID replies are excluded until the provider confirms receipt. Older records
+    without a saved verification status also require confirmation. If any payments are
+    missing, contact your daycare office.
     This statement is for your tax records — consult your tax advisor about childcare
     credits and deductions.
   </p>

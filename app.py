@@ -20,7 +20,11 @@ Routes:
   GET  /healthz                 200 when alive
 """
 import os
+import json
 import re
+import asyncio
+import logging
+from contextlib import asynccontextmanager, suppress
 from datetime import date, datetime, timedelta, timezone
 
 from collections import deque as _deque
@@ -38,9 +42,67 @@ from reminders import run_reminders, today, open_period, family_status, period_o
     provider_local_now, render_template, due_date_for_family, cash_forecast, \
     pending_reminders, in_quiet_hours
 import billing
+import growth
+import email_engagement
+import setup_wizard
+import setup_help
+import partner_resources
+import traffic
+from admin_time import pacific_date, pacific_time, pacific_today
 from sms import DEMO_MODE as SMS_DEMO_MODE
 
-app = FastAPI(title="TuitionPing")
+@asynccontextmanager
+async def analytics_lifespan(application):
+    # Complete the explicit price rollout before the new deployment is ready.
+    # Idempotent price creation does not charge or migrate any customer.
+    await asyncio.to_thread(billing.sync_price_catalog)
+    async def maintain_analytics():
+        while True:
+            await asyncio.sleep(30)
+            try:
+                # Bounded local work, off the public request path. No messages,
+                # external detection calls, or changes to request handling.
+                await asyncio.to_thread(traffic.backfill)
+                await asyncio.to_thread(traffic.refresh_candidates)
+            except Exception:
+                logging.getLogger(__name__).warning("Traffic analytics maintenance will retry")
+    task = asyncio.create_task(maintain_analytics())
+    try:
+        yield
+    finally:
+        task.cancel()
+        with suppress(asyncio.CancelledError):
+            await task
+
+
+app = FastAPI(title="TuitionPing", lifespan=analytics_lifespan)
+
+# Dates describe substantive page edits, not filesystem timestamps at deployment.
+PUBLIC_PAGES = {
+    "/": ("landing.html", "2026-10-08"),
+    "/guide": ("guide.html", "2026-10-06"),
+    "/late-fee-policy": ("late-fee-policy.html", "2026-10-06"),
+    "/compare/brightwheel": ("compare-brightwheel.html", "2026-10-08"),
+    "/guides": ("guides.html", "2026-10-06"),
+    "/guides/tuition-collection": ("collection_hub.html", "2026-10-06"),
+    "/tools/daycare-invoice-receipt": ("tool_invoice.html", "2026-10-06"),
+    "/partners": ("partners.html", "2026-10-06"),
+    "/guides/tuition-reminder-templates": ("guide_templates.html", "2026-10-06"),
+    "/guides/handling-late-paying-parents": ("guide_late_parents.html", "2026-10-06"),
+    "/tools/late-fee-calculator": ("tool_late_fee_calc.html", "2026-10-06"),
+    "/tools/tuition-payment-tracker": ("tool_payment_tracker.html", "2026-10-06"),
+    "/about": ("about.html", "2026-10-06"),
+    "/demo": ("demo.html", "2026-10-06"),
+    "/home-daycare-tuition-reminders": ("audience.html", "2026-10-06"),
+    "/small-daycare-tuition-reminders": ("audience.html", "2026-10-06"),
+    "/bilingual-daycare-tuition-reminders": ("audience.html", "2026-10-06"),
+    "/support": ("support.html", None),
+    "/privacy": ("privacy.html", None),
+    "/terms": ("terms.html", None),
+    "/sms-consent": ("sms_consent.html", None),
+    "/sms-privacy": ("sms_privacy.html", None),
+    "/security": ("security.html", None),
+}
 
 
 @app.middleware("http")
@@ -83,12 +145,16 @@ import secrets as _secrets
 # POST paths that must NOT get CSRF-checked: machine callbacks (Twilio/Stripe
 # signatures already authenticate them), the cron token endpoint, and the
 # pre-session auth forms.
+# /analytics/event validates its own signed-cookie-bound token and event allowlist.
 _CSRF_EXEMPT_PREFIXES = ("/webhooks/", "/internal/")
 # /logout is exempt on purpose: a forged logout can only end the victim's own
 # session (nuisance, not data loss), while a strict check strands users on
 # stale tabs with "Security check failed" after any re-login rotates the
 # session-bound token. The handler still deletes the session server-side.
-_CSRF_EXEMPT_EXACT = {"/login", "/forgot-password", "/reset-password", "/logout"}
+_CSRF_EXEMPT_EXACT = {"/login", "/forgot-password", "/reset-password", "/logout", "/analytics/event"}
+# Email preference/confirmation links are authenticated by opaque capability
+# tokens. GET never changes consent; POST also serves RFC 8058 one-click opt-out.
+_CSRF_EXEMPT_EXACT.update({"/email-list/confirm", "/email-list/preferences"})
 
 
 def csrf_token_for_session(session_token: str) -> str:
@@ -124,11 +190,13 @@ async def csrf_protect(request: Request, call_next):
             session_token = request.cookies.get(SESSION_COOKIE, "")
             if session_token:
                 expected = csrf_token_for_session(session_token)
-            elif path == "/signup":
+            elif path in ("/signup", "/email-list/join", "/setup-help"):
                 expected = csrf_token_for_seed(
                     request.cookies.get("csrf_seed", ""))
             else:
                 expected = ""
+            if path == "/setup-help" and not session_token and not request.cookies.get("csrf_seed"):
+                return HTMLResponse("Reload the setup-help form before submitting.", status_code=403)
             if expected:
                 # Read the raw body first: on _CachedRequest this caches
                 # _body so the downstream app replays it. Parse the form
@@ -136,6 +204,8 @@ async def csrf_protect(request: Request, call_next):
                 # here would consume the stream without caching _body and
                 # leave route handlers with an empty body.
                 body = await request.body()
+                if path == "/setup-help" and len(body) > 16384:
+                    return HTMLResponse("The setup request is too large. Keep your note under 1,000 characters.", status_code=413)
 
                 async def _replay():
                     return {"type": "http.request", "body": body,
@@ -143,8 +213,8 @@ async def csrf_protect(request: Request, call_next):
 
                 try:
                     probe = Request(request.scope, _replay)
-                    form = await probe.form()
-                    got = str(form.get("csrf_token", ""))
+                    async with probe.form() as form:
+                        got = str(form.get("csrf_token", ""))
                 except Exception:
                     got = ""
                 if not _hmac.compare_digest(got, expected):
@@ -173,9 +243,30 @@ _NO_SUB_EXACT = {
     "/healthz", "/sitemap.xml", "/robots.txt", "/favicon.ico",
     "/terms", "/privacy", "/security", "/sms-privacy", "/sms-consent",
     "/guide", "/postcard", "/late-fee-policy", "/compare/brightwheel",
+    "/tools/late-fee-calculator",
 }
+_NO_SUB_EXACT.update(PUBLIC_PAGES)
+_NO_SUB_EXACT.add("/analytics/event")
+_NO_SUB_EXACT.add("/email-kit")
+_NO_SUB_EXACT.add("/partners/download")
+_NO_SUB_EXACT.add("/setup-help")
 _NO_SUB_PREFIXES = ("/billing/", "/admin", "/webhooks/", "/internal/",
-                    "/static/", "/s/")
+                    "/static/", "/s/", "/email-list/")
+
+
+@app.middleware("http")
+async def email_form_seed(request: Request, call_next):
+    paths = {"/email-kit", "/guides", "/setup-help"}
+    seed = ""
+    if (request.method == "GET" and request.url.path in paths) or (request.method == "POST" and request.url.path in {"/email-list/join", "/setup-help"}):
+        session = request.cookies.get(SESSION_COOKIE, "")
+        seed = request.cookies.get("csrf_seed", "") or _secrets.token_hex(16)
+        request.state.csrf_token = csrf_token_for_session(session) if session else csrf_token_for_seed(seed)
+    response = await call_next(request)
+    if seed:
+        response.set_cookie("csrf_seed", seed, samesite="lax", secure=PUBLIC_BASE_URL.startswith("https://"), max_age=2592000)
+        response.headers["Cache-Control"] = "private, no-store"
+    return response
 
 
 @app.middleware("http")
@@ -215,28 +306,117 @@ async def static_cache(request: Request, call_next):
 # Public marketing pages whose visits are logged (first-party analytics —
 # hashed IP only, no personal identity; see Privacy Policy).
 _TRACKED_PATHS = {"/", "/guide", "/postcard", "/late-fee-policy",
+                  "/tools/late-fee-calculator",
                   "/terms", "/privacy", "/security", "/sms-privacy",
                   "/sms-consent", "/support", "/login", "/signup"}
+_TRACKED_PATHS.update(PUBLIC_PAGES)
+_TRACKED_PATHS.add("/email-kit")
+_TRACKED_PATHS.add("/partners/download")
+_TRACKED_PATHS.add("/setup-help")
 _TRACKED_PREFIXES = ("/compare/",)
+
+# Downloads are recorded only after a successful file response.
+_GROWTH_DOWNLOADS = {"/static/downloads/" + name for name in (
+    "daycare-late-fee-policy.pdf", "daycare-late-fee-policy.docx",
+    "daycare-tuition-reminders.pdf", "daycare-tuition-reminders.docx",
+    "daycare-tuition-payment-tracker.xlsx", "daycare-tuition-collection-kit.zip")}
+
+
+@app.middleware("http")
+async def track_conversions(request: Request, call_next):
+    path = request.url.path
+    public = path in _TRACKED_PATHS or path in _GROWTH_DOWNLOADS
+    visitor = ""
+    if not growth.excluded(request):
+        visitor = growth.visitor_from_cookie(request.cookies.get(growth.COOKIE, ""))
+        if request.method == "GET" and public:
+            visitor = visitor or _secrets.token_hex(16)
+    request.state.growth_visitor = visitor
+    request.state.traffic_visitor = visitor or traffic.identity(request)
+    request.state.growth_token = growth.token(visitor) if visitor and public else ""
+    response = await call_next(request)
+    if visitor and public and request.method == "GET" and response.status_code == 200:
+        try:
+            source, medium, campaign = growth.attribution(request)
+            growth.register(visitor, source, medium, campaign, path, detail=growth.acquisition.describe(request))
+            if path in {"/partners", "/partners/download"}:
+                partner_resources.touch(visitor, request.query_params.get("partner", ""))
+            if path in _GROWTH_DOWNLOADS:
+                growth.record(visitor, "download", path.rsplit("/", 1)[-1], path)
+            else:
+                growth.record(visitor, "page_view", path=path)
+            if not growth.visitor_from_cookie(request.cookies.get(growth.COOKIE, "")):
+                response.set_cookie(growth.COOKIE, growth.cookie_value(visitor), max_age=30*24*3600,
+                                    httponly=True, secure=PUBLIC_BASE_URL.startswith("https://"), samesite="lax")
+            response.headers["Cache-Control"] = "private, no-store"
+        except Exception:
+            pass  # Product access must not depend on acquisition analytics.
+    return response
+
+
+@app.post("/analytics/event")
+async def conversion_event(request: Request):
+    visitor = getattr(request.state, "growth_visitor", "")
+    if (not visitor or growth.excluded(request)
+            or not _hmac.compare_digest(request.headers.get("x-tp-analytics", ""), growth.token(visitor))):
+        return Response(status_code=403)
+    body = await request.body()
+    if len(body) > 1024:
+        return Response(status_code=413)
+    try:
+        data = json.loads(body)
+        if not isinstance(data, dict):
+            raise ValueError()
+        event, detail, path = data.get("event"), data.get("detail", ""), data.get("path", "")
+        if (not isinstance(event, str) or not isinstance(detail, str) or not isinstance(path, str)
+                or event not in growth.CLIENT_EVENTS or detail not in growth.CLIENT_EVENTS[event]
+                or path not in _TRACKED_PATHS
+                or (event.startswith("demo_") and path != "/demo")
+                or (event.startswith("video_") and path != "/")
+                or (event == "document_created" and path != "/tools/daycare-invoice-receipt")):
+            raise ValueError()
+        if event == "browser_verified":
+            if not traffic.verify_browser(visitor, path, webdriver=detail == "webdriver"):
+                return Response(status_code=400)
+        elif event == 'visitor_engaged':
+            if not traffic.confirm_engagement(visitor,path,detail):
+                return Response(status_code=400)
+        else:
+            growth.record(visitor, event, detail, path)
+    except (ValueError, TypeError):
+        return Response(status_code=400)
+    except Exception:
+        return Response(status_code=503)
+    return Response(status_code=204)
 
 
 @app.middleware("http")
 async def track_site_visits(request: Request, call_next):
-    """Log one row per hit on public pages so the admin Visitors view can
-    tell individual visitors apart. Never breaks the request; skips
-    logged-in providers (their own browsing isn't prospect traffic)."""
+    """Retain human/automated hits together, sharing conversion visitor IDs."""
     resp = await call_next(request)
     try:
-        if request.method == "GET" and resp.status_code == 200:
-            path = request.url.path
-            if (path in _TRACKED_PATHS or path.startswith(_TRACKED_PREFIXES)) \
-               and "tuitionping_session" not in request.cookies:
+        path = request.url.path
+        scan_kind, _, _ = traffic.scanner_evidence(path, resp.status_code, request.url.query)
+        scanner_ua = traffic.known_bot(request.headers.get("user-agent", "")) == "Security scanner"
+        if request.method in {"GET", "HEAD"} or scan_kind or scanner_ua:
+            public = path in _TRACKED_PATHS or path in _GROWTH_DOWNLOADS or path.startswith(_TRACKED_PREFIXES)
+            audit = bool(scan_kind or scanner_ua) or path in {"/healthz", "/robots.txt", "/sitemap.xml"} or resp.status_code in {404,405}
+            if (public or audit) and ("tuitionping_session" not in request.cookies or scan_kind or scanner_ua) \
+                    and (not path.startswith(("/admin", "/internal/", "/webhooks/", "/s/")) or scan_kind) \
+                    and (not path.startswith("/static/") or path in _GROWTH_DOWNLOADS or scan_kind):
                 fwd = request.headers.get("x-forwarded-for", "")
                 ip = fwd.split(",")[0].strip() if fwd else \
                     (request.client.host if request.client else "")
-                store.log_site_visit(ip, path,
-                                     request.headers.get("referer", ""),
-                                     request.headers.get("user-agent", ""))
+                source, medium, campaign = growth.attribution(request)
+                visitor = getattr(request.state, "traffic_visitor", "") or traffic.identity(request)
+                kind = "browser" if getattr(request.state, "growth_visitor", "") or growth.visitor_from_cookie(request.cookies.get(growth.COOKIE, "")) else "anonymous"
+                store.log_site_visit(ip, path, request.headers.get("referer", ""),
+                                     request.headers.get("user-agent", ""), visitor_id=visitor,
+                                     source=source, medium=medium, campaign=campaign,
+                                     status_code=resp.status_code, identity_kind=kind,
+                                     request_type="page" if public else "audit",
+                                     method=request.method, scan_query=request.url.query,
+                                     attribution_detail=growth.acquisition.describe(request))
     except Exception:
         pass
     return resp
@@ -245,6 +425,32 @@ async def track_site_visits(request: Request, call_next):
 app.mount("/static", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "static")), name="static")
 templates = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), "templates"))
 templates.env.globals["csrf_input"] = csrf_input
+templates.env.filters["admin_date"] = pacific_date
+templates.env.filters["admin_time"] = pacific_time
+with open(os.path.join(os.path.dirname(__file__), "content", "provider-resources.json"), encoding="utf-8") as resource_file:
+    templates.env.globals["provider_resources"] = json.load(resource_file)
+with open(os.path.join(os.path.dirname(__file__), "content", "audiences.json"), encoding="utf-8") as audience_file:
+    AUDIENCES = json.load(audience_file)
+templates.env.globals["audiences"] = AUDIENCES
+
+
+@app.middleware("http")
+async def public_search_headers(request: Request, call_next):
+    # Canonicalize marketing GET/HEAD pages only. Keep account sessions,
+    # billing, POSTs and machine callbacks on their original host.
+    if (request.method in ("GET", "HEAD")
+            and request.url.hostname == "tuitionping.com"
+            and request.url.path in PUBLIC_PAGES):
+        target = "https://www.tuitionping.com" + request.url.path
+        if request.url.query:
+            target += "?" + request.url.query
+        return RedirectResponse(target, status_code=308)
+    response = await call_next(request)
+    if request.url.path in {"/login", "/signup", "/forgot-password", "/reset-password", "/verify-email"}:
+        response.headers["X-Robots-Tag"] = "noindex"
+    if request.url.path.startswith("/static/downloads/"):
+        response.headers["X-Robots-Tag"] = "noindex"
+    return response
 
 
 @app.exception_handler(404)
@@ -274,6 +480,8 @@ SESSION_COOKIE = "tuitionping_session"
 INTERNAL_CRON_TOKEN = os.getenv("INTERNAL_CRON_TOKEN", "")
 
 init_db()  # create tables on startup if they don't exist yet
+store.ensure_paid_log()  # migrate payment verification before serving statements
+growth.ensure_tables()  # additive analytics migration before deployment health checks
 
 
 # ------------------------------------------------------------------ helpers --
@@ -287,7 +495,7 @@ OWNER_NOTIFY_EMAIL = os.environ.get("OWNER_NOTIFY_EMAIL",
                                     "rob@tuitionping.com").strip()
 
 
-def send_email(to: str, subject: str, html: str) -> bool:
+def send_email(to: str, subject: str, html: str, *, headers=None, idempotency_key=None) -> bool:
     """Send an email via Resend. Dormant without RESEND_API_KEY (logs only)."""
     if not EMAIL_ACTIVE:
         print(f"[email] dormant (no RESEND_API_KEY): to={to} subject={subject}",
@@ -298,16 +506,17 @@ def send_email(to: str, subject: str, html: str) -> bool:
     import urllib.error
     print(f"[email] attempting send to={to} subject={subject}", flush=True)
     try:
+        payload = {"from": EMAIL_FROM, "to": [to], "subject": subject, "html": html}
+        if headers:
+            payload["headers"] = headers
+        request_headers = {"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json", "User-Agent": "TuitionPing/1.0"}
+        if idempotency_key:
+            request_headers["Idempotency-Key"] = idempotency_key
         req = urllib.request.Request(
             "https://api.resend.com/emails",
-            data=json.dumps({"from": EMAIL_FROM, "to": [to],
-                             "subject": subject, "html": html}).encode(),
+            data=json.dumps(payload).encode(),
             method="POST",
-            headers={"Authorization": f"Bearer {RESEND_API_KEY}",
-                     "Content-Type": "application/json",
-                     # Cloudflare in front of api.resend.com 403s the default
-                     # Python-urllib UA ("error code: 1010"); identify ourselves.
-                     "User-Agent": "TuitionPing/1.0"})
+            headers=request_headers)
         with urllib.request.urlopen(req, timeout=15) as resp:
             body = resp.read().decode("utf-8", "replace")[:300]
             print(f"[email] resend responded status={resp.status} body={body}",
@@ -346,22 +555,22 @@ def send_verification_email(provider_id, email, base_url):
 
 def send_welcome_email(provider, plan_name):
     """Thank-you + what-to-expect email sent once at signup."""
-    name = (provider["name"] or "there").strip().split()[0]
+    from html import escape
+    name = escape((provider["name"] or "there").strip().split()[0])
     dashboard = f"{PUBLIC_BASE_URL.rstrip('/')}/dashboard"
     html = f"""<p>Hi {name},</p>
-<p>Thanks for signing up for TuitionPing &mdash; you just bought back your evenings.</p>
-<p>Here&rsquo;s what happens from here:</p>
+<p>Your TuitionPing account has been created. Here are the next setup steps:</p>
 <ol>
-<li><b>Add your children</b> (or import a CSV) &mdash; about 10 minutes, once.</li>
-<li><b>Reminders go out automatically</b> &mdash; 3 days before tuition is due, on the due date, and follow-ups after. English or Spanish, your choice.</li>
-<li><b>Parents just reply PAID</b> by text when they&rsquo;ve paid. No app, no login, nothing new for them to learn.</li>
+<li><b>Verify your email</b> using the separate verification email.</li>
+<li><b>Finish checkout</b> if you have not already. In the real service, your 30-day trial starts only after Stripe confirms checkout. A card is required; $0 is charged today, then your selected plan renews after the trial unless you cancel.</li>
+<li><b>Add a location, classroom and families</b>, or import a CSV. Obtain permission for tuition texts first. Check amounts, due dates and English or Spanish preferences.</li>
+<li><b>Review your reminder wording and schedule.</b> Reminders follow the due date and respect quiet hours and opt-outs.</li>
+<li><b>Verify reported payments.</b> A parent replying PAID is a report. Check your payment records, then use Confirm payment received in the dashboard.</li>
 </ol>
-<p><b>The time savings:</b> no more copying, pasting, and chasing down late payments one family at a time after hours. <b>The money:</b> tuition lands on time instead of trickling in late &mdash; steady cash flow without the awkward &ldquo;just a friendly reminder&hellip;&rdquo; texts.</p>
-<p>You&rsquo;re on the {plan_name} plan with a 30-day free trial. When you&rsquo;re ready:</p>
 <p><a href="{dashboard}" style="display:inline-block;background:#00916e;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;">Open your dashboard</a></p>
-<p>Questions? Just reply to this email &mdash; an actual human reads every message.</p>
+<p><a href="{PUBLIC_BASE_URL}/billing">Review checkout and billing</a> if the dashboard asks you to finish checkout. Questions? Reply to this email.</p>
 <p>&mdash; The TuitionPing team</p>"""
-    send_email(provider["email"].strip(), "Welcome to TuitionPing \u2014 your evenings are yours again", html)
+    send_email(provider["email"].strip(), "Your TuitionPing account: next setup steps", html)
 
 
 # ------------------------------------------------------- owner notifications --
@@ -494,12 +703,15 @@ def require_admin(request: Request):
         return None, redirect
     if not provider.get("is_admin"):
         return None, HTMLResponse("Not found.", status_code=404)
+    # Some Admin pages do not pass provider explicitly to their template.
+    # Keep their signed-in navigation consistent after the permission check.
+    request.state.admin_provider = provider
     return provider, None
 
 
-def login_response(provider_id: int, request: Request = None):
+def login_response(provider_id: int, request: Request = None, *, destination="/dashboard"):
     token = store.create_session(provider_id)
-    resp = RedirectResponse("/dashboard", status_code=303)
+    resp = RedirectResponse(destination, status_code=303)
     # Railway terminates TLS at its router, so the app always sees http —
     # trust X-Forwarded-Proto to decide the Secure flag. Local dev has no
     # header and keeps working over plain http.
@@ -596,40 +808,26 @@ def robots_txt():
 
 @app.get("/sitemap.xml")
 def sitemap_xml(request: Request):
-    urls = ["/", "/signup", "/guide", "/late-fee-policy", "/compare/brightwheel",
-            "/guides", "/guides/tuition-reminder-templates",
-            "/guides/handling-late-paying-parents",
-            "/tools/late-fee-calculator",
-            "/support", "/privacy", "/terms", "/sms-consent", "/sms-privacy",
-            "/security"]
-    template_for = {"/": "landing.html", "/signup": "signup.html",
-                    "/guide": "guide.html",
-                    "/late-fee-policy": "late-fee-policy.html",
-                    "/compare/brightwheel": "compare-brightwheel.html",
-                    "/guides": "guides.html",
-                    "/guides/tuition-reminder-templates": "guide_templates.html",
-                    "/guides/handling-late-paying-parents": "guide_late_parents.html",
-                    "/tools/late-fee-calculator": "tool_late_fee_calc.html",
-                    "/support": "support.html", "/privacy": "privacy.html",
-                    "/terms": "terms.html", "/sms-consent": "sms_consent.html",
-                    "/sms-privacy": "sms_privacy.html",
-                    "/security": "security.html"}
-    tpl_dir = os.path.join(os.path.dirname(__file__), "templates")
-
-    def lastmod(u):
-        try:
-            ts = os.path.getmtime(os.path.join(tpl_dir, template_for[u]))
-            return datetime.fromtimestamp(ts, tz=timezone.utc).date().isoformat()
-        except OSError:
-            return ""
-
+    from xml.sax.saxutils import escape
     items = "\n".join(
-        f'  <url><loc>https://www.tuitionping.com{u}</loc>'
-        f'<lastmod>{lastmod(u)}</lastmod>'
-        f'<changefreq>{"weekly" if u == "/" else "monthly"}</changefreq></url>'
-        for u in urls)
+        '  <url><loc>' + escape("https://www.tuitionping.com" + path) + '</loc>'
+        + (f'<lastmod>{updated}</lastmod>' if updated else '') + '</url>'
+        for path, (_, updated) in PUBLIC_PAGES.items())
     xml = f'<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n{items}\n</urlset>'
     return Response(content=xml, media_type="application/xml")
+
+
+@app.get("/demo", response_class=HTMLResponse)
+def public_demo(request: Request):
+    return templates.TemplateResponse(request, "demo.html", {"request": request, "provider": None})
+
+
+@app.get("/home-daycare-tuition-reminders", response_class=HTMLResponse)
+@app.get("/small-daycare-tuition-reminders", response_class=HTMLResponse)
+@app.get("/bilingual-daycare-tuition-reminders", response_class=HTMLResponse)
+def audience_page(request: Request):
+    return templates.TemplateResponse(request, "audience.html", {"request": request, "provider": None,
+                                                               "page": AUDIENCES[request.url.path]})
 
 
 @app.get("/guide", response_class=HTMLResponse)
@@ -652,7 +850,8 @@ def compare_brightwheel(request: Request):
     """SEO comparison page: honest TuitionPing vs brightwheel breakdown."""
     provider = current_provider(request)
     return templates.TemplateResponse(request, "compare-brightwheel.html",
-                                      {"request": request, "provider": provider})
+                                      {"request": request, "provider": provider,
+                                       "plans": billing.PLANS})
 
 
 @app.get("/guides", response_class=HTMLResponse)
@@ -661,6 +860,16 @@ def guides_hub(request: Request):
     provider = current_provider(request)
     return templates.TemplateResponse(request, "guides.html",
                                       {"request": request, "provider": provider})
+
+
+@app.get("/guides/tuition-collection", response_class=HTMLResponse)
+def collection_hub(request: Request):
+    return templates.TemplateResponse(request, "collection_hub.html", {"request":request, "provider":None})
+
+
+@app.get("/tools/daycare-invoice-receipt", response_class=HTMLResponse)
+def invoice_tool(request: Request):
+    return templates.TemplateResponse(request, "tool_invoice.html", {"request":request, "provider":None})
 
 
 @app.get("/guides/tuition-reminder-templates", response_class=HTMLResponse)
@@ -685,6 +894,18 @@ def tool_late_fee_calc(request: Request):
     provider = current_provider(request)
     return templates.TemplateResponse(request, "tool_late_fee_calc.html",
                                       {"request": request, "provider": provider})
+
+
+@app.get("/tools/tuition-payment-tracker", response_class=HTMLResponse)
+def tool_payment_tracker(request: Request):
+    return templates.TemplateResponse(request, "tool_payment_tracker.html",
+                                      {"request": request, "provider": current_provider(request)})
+
+
+@app.get("/about", response_class=HTMLResponse)
+def about_page(request: Request):
+    return templates.TemplateResponse(request, "about.html",
+                                      {"request": request, "provider": current_provider(request)})
 
 
 @app.get("/suggest", response_class=HTMLResponse)
@@ -772,7 +993,8 @@ def signup(request: Request, name: str = Form(...), email: str = Form(...),
            password: str = Form(...), company: str = Form(""),
            referral_code: str = Form(""), heard_about: str = Form(""),
            plan: str = Form("starter"), cycle: str = Form("monthly"),
-           agree_terms: str = Form(""), attest_consent: str = Form("")):
+           agree_terms: str = Form(""), attest_consent: str = Form(""),
+           marketing_optin: str = Form("")):
     plan = plan if plan in billing.PLANS else "starter"
     cycle = cycle if cycle in billing.CYCLES else "monthly"
     p = billing.PLANS[plan]
@@ -803,6 +1025,10 @@ def signup(request: Request, name: str = Form(...), email: str = Form(...),
     provider_id = store.create_provider(name, email, password, company,
                                        heard_about=heard_about,
                                        signup_source=signup_source)
+    try:
+        growth.bind_account(getattr(request.state, "growth_visitor", ""), provider_id)
+    except Exception:
+        pass
     # Referral: link the new account to whoever referred them (no self-referrals,
     # invalid codes are ignored silently).
     referrer = store.get_provider_by_referral_code(referral_code)
@@ -814,9 +1040,19 @@ def signup(request: Request, name: str = Form(...), email: str = Form(...),
         store.set_email_verified(provider_id, True)
     provider = store.get_provider(provider_id)
     send_welcome_email(provider, p["name"])
-    notify_owner_new_signup(provider, p["name"], cycle,
-                            heard_about=heard_about, source=signup_source,
-                            referrer=referrer)
+    try:
+        notify_owner_new_signup(provider, p["name"], cycle,
+                                heard_about=heard_about, source=signup_source,
+                                referrer=referrer)
+    except Exception:
+        print("[signup] owner notification failed", flush=True)
+    if marketing_optin == "on":
+        try:
+            oid = email_engagement.request_email(email, name, "signup", optin=True, kit=False)
+            if oid:
+                email_engagement.deliver_due(send_email, EMAIL_ACTIVE, limit=1, only_id=oid)
+        except Exception:
+            print("[email-list] signup confirmation could not be queued", flush=True)
     # Demo mode: everyone starts on a 30-day trial instantly.
     if billing.DEMO_MODE:
         billing.activate_demo_subscription(provider_id, plan)
@@ -834,6 +1070,7 @@ def signup(request: Request, name: str = Form(...), email: str = Form(...),
         postcard = request.cookies.get("tp_src", "") == "postcard"
         checkout_url = billing.create_checkout_session(provider, plan, cycle,
                                                        base_url, postcard=postcard)
+        growth.milestone(provider_id, "checkout_started")
     except Exception as e:
         print(f"[stripe] signup-checkout error: {e}", flush=True)
         resp = login_response(provider_id, request)
@@ -872,6 +1109,10 @@ def resend_verification(request: Request):
 
 @app.get("/login", response_class=HTMLResponse)
 def login_form(request: Request):
+    provider = current_provider(request)
+    if provider:
+        return RedirectResponse("/admin" if provider["is_admin"] else "/dashboard",
+                                status_code=303)
     return templates.TemplateResponse(request, "login.html", {"request": request, "error": None})
 
 
@@ -897,7 +1138,8 @@ def login(request: Request, email: str = Form(...), password: str = Form(...)):
              "error": "This account has been suspended. Contact support if you think this is a mistake."},
             status_code=403)
     _clear_login_failures(ip)
-    return login_response(provider["id"], request)
+    return login_response(provider["id"], request,
+                          destination="/admin" if is_admin(provider) else "/dashboard")
 
 
 # ------------------------------------------------------- login throttling --
@@ -1088,26 +1330,12 @@ def dashboard(request: Request, ran: str = ""):
     sending_display = {**sending,
                        "quiet_start_display": display_time(sending["quiet_start"]),
                        "quiet_end_display": display_time(sending["quiet_end"])}
-    has_location = len(locations) > 0
-    has_classroom = any(c for loc in locations for c in loc["classrooms"])
-    has_families = total_families > 0
-    has_pay_link = any((loc.get("payment_url") or "").strip() for loc in locations)
-    has_test_text = store.has_ever_sent_test_text(provider["id"])
-    checklist = [
-        {"done": has_location, "label": "Add your location", "href": "#add-location"},
-        {"done": has_classroom, "label": "Add a classroom", "href": "#add-classroom"},
-        {"done": has_families, "label": "Add your children", "href": "#add-family"},
-        {"done": has_pay_link, "label": "Add your pay-now link", "href": "#add-location"},
-        {"done": has_test_text, "label": "Send yourself a test text", "href": "#test-text"},
-        {"done": has_sent, "label": "Run your first reminder check", "href": "#run-reminders"},
-    ]
-    checklist_done_count = sum(1 for c in checklist if c["done"])
-    checklist_complete = checklist_done_count == len(checklist)
+    setup_state = setup_wizard.snapshot(provider)
     unverified = needs_verification(provider)
     year_stats = store.year_nudged_stats(provider["id"], day.year)
     test_texts_left = (store.TEST_TEXT_DAILY_LIMIT
                        - store.count_test_texts_today(provider["id"],
-                                                      day.isoformat()))
+                                                      datetime.now(timezone.utc).date().isoformat()))
     store.backfill_referral_codes()  # one-time: existing accounts get a code
     ref_stats = store.referral_stats(provider["id"])
     base_url = PUBLIC_BASE_URL
@@ -1156,6 +1384,7 @@ def dashboard(request: Request, ran: str = ""):
         "owner_phone": store.get_owner_phone(provider["id"]),
         "referral_link": f"{base_url}/signup?ref={ref_stats['code']}",
         "referral_earned": ref_stats["earned_months"],
+        "referral_pending": ref_stats["pending"],
         "broadcast_recipients": broadcast_recipients,
         "broadcasts_left": max(broadcasts_left, 0),
         "broadcast_sent": request.query_params.get("broadcast") == "sent",
@@ -1167,8 +1396,7 @@ def dashboard(request: Request, ran: str = ""):
         "statements_n": request.query_params.get("n", "0"),
         "statements_year": request.query_params.get("year", ""),
         "demo": SMS_DEMO_MODE, "ran": ran, "sending": sending_display,
-        "checklist": checklist, "checklist_done_count": checklist_done_count,
-        "checklist_complete": checklist_complete, "unverified": unverified,
+        "setup": setup_state, "unverified": unverified,
         "verified_param": request.query_params.get("verified") == "1",
         "resent": request.query_params.get("resent") == "1",
     })
@@ -1393,7 +1621,7 @@ def add_family(request: Request, classroom_id: int = Form(...),
                phone: str = Form(...), tuition_amount: float = Form(...),
                due_day: int = Form(...), consent: str = Form(""),
                next_due: str = Form(""), phone2: str = Form(""),
-               language: str = Form("en")):
+               language: str = Form("en"), return_to: str = Form("")):
     provider, redirect = require_login(request)
     if redirect:
         return redirect
@@ -1433,7 +1661,7 @@ def add_family(request: Request, classroom_id: int = Form(...),
     family = store.get_family_for_provider(fid, provider["id"])
     if family:
         send_welcome_text(provider, family)
-    return RedirectResponse("/dashboard", status_code=303)
+    return RedirectResponse("/setup?step=families" if return_to == "setup" else "/dashboard", status_code=303)
 
 
 @app.post("/families/delete")
@@ -1566,6 +1794,7 @@ def annual_report(request: Request, year: int = None):
         "request": request, "provider": provider, "year": year,
         "months": list(zip(month_names, months)), "by_location": by_location,
         "total": total, "company": company,
+        "unverified": store.get_provider_unverified_payments_for_year(provider["id"], year),
         "tax_id": store.get_tax_id(provider["id"]),
         "today": date.today().isoformat()})
 
@@ -1661,6 +1890,7 @@ def edit_family_form(request: Request, family_id: int):
     return templates.TemplateResponse(request, "family_edit.html",
                                       {"request": request, "provider": provider,
                                        "family": fam,
+                                       "unverified_payments": store.get_unverified_family_payments(family_id),
                                        "charges": store.list_extra_charges(family_id)})
 
 
@@ -1764,25 +1994,9 @@ def remove_charge(request: Request, family_id: int = Form(...),
     return RedirectResponse(f"/families/edit/{family_id}", status_code=303)
 
 
-@app.post("/test-text")
-def send_test_text(request: Request, phone: str = Form(...)):
-    """Send yourself a sample reminder — 'see exactly what parents get'.
-    Rate-limited to 3/day so nobody can burn SMS budget."""
-    provider, redirect = require_login(request)
-    if redirect:
-        return redirect
-    to = normalize_us_phone(phone)
-    if not to:
-        return HTMLResponse("That doesn't look like a valid 10-digit US number."
-                            " <a href='/dashboard'>Go back</a>", status_code=400)
-    today_iso = date.today().isoformat()
-    used = store.count_test_texts_today(provider["id"], today_iso)
-    if used >= store.TEST_TEXT_DAILY_LIMIT:
-        return HTMLResponse(
-            "You've used your 3 test texts for today — try again tomorrow."
-            " <a href='/dashboard'>Go back</a>", status_code=400)
-    tpl = store.get_templates(provider["id"])
-    locs = store.list_locations(provider["id"])
+def test_text_preview(provider_id):
+    tpl = store.get_templates(provider_id)
+    locs = store.list_locations(provider_id)
     loc_name = locs[0]["name"] if locs else "Sunny Sprouts Daycare"
     pay_url = (locs[0]["payment_url"] or "") if locs else ""
     pay_link = f"Pay online: {pay_url}" if pay_url else ""
@@ -1793,10 +2007,40 @@ def send_test_text(request: Request, phone: str = Form(...)):
         sample = " ".join(sample.split())
     except (KeyError, IndexError, ValueError):
         sample = tpl["tpl_due"]
+    return "[Test] " + sample
+
+
+@app.post("/test-text")
+def send_test_text(request: Request, phone: str = Form(...), return_to: str = Form(""), own_number: str = Form("")):
+    """Send yourself a sample reminder — 'see exactly what parents get'.
+    Rate-limited to 3/day so nobody can burn SMS budget."""
+    provider, redirect = require_login(request)
+    if redirect:
+        return redirect
+    if return_to == "setup" and not setup_wizard.snapshot(provider)["preview_done"]:
+        return RedirectResponse("/setup?step=preview", status_code=303)
+    if return_to == "setup" and own_number != "on":
+        return HTMLResponse("Confirm this is your number and you want the test. <a href='/setup?step=test'>Go back</a>", status_code=400)
+    to = normalize_us_phone(phone)
+    if not to:
+        return HTMLResponse("That doesn't look like a valid 10-digit US number."
+                            " <a href='/dashboard'>Go back</a>", status_code=400)
+    today_iso = datetime.now(timezone.utc).date().isoformat()
+    used = store.count_test_texts_today(provider["id"], today_iso)
+    if used >= store.TEST_TEXT_DAILY_LIMIT:
+        return HTMLResponse(
+            "You've used your 3 test texts for today — try again tomorrow."
+            " <a href='/dashboard'>Go back</a>", status_code=400)
+    sample = test_text_preview(provider["id"])
     from sms import send_sms
-    send_sms(to, "[Test] " + sample, provider["id"], None)
+    try:
+        send_sms(to, sample, provider["id"], None)
+    except Exception:
+        return HTMLResponse("The test could not be sent. Your setup is saved. <a href='/setup?step=test'>Try again</a> or <a href='/support'>contact support</a>.", status_code=502)
     store.log_test_text(provider["id"])
-    return RedirectResponse("/dashboard?test=sent", status_code=303)
+    if return_to == "setup":
+        setup_wizard.mark_test(provider)
+    return RedirectResponse("/setup?step=test&test=sent" if return_to == "setup" else "/dashboard?test=sent", status_code=303)
 
 
 @app.post("/families/unsnooze/{family_id}")
@@ -1896,7 +2140,7 @@ def normalize_us_phone(raw: str) -> str | None:
 @app.post("/families/import")
 async def import_families(request: Request, classroom_id: int = Form(...),
                           consent: str = Form(""),
-                          file: UploadFile = File(...)):
+                          file: UploadFile = File(...), return_to: str = Form("")):
     import csv
     import io
     provider, redirect = require_login(request)
@@ -1995,7 +2239,41 @@ async def import_families(request: Request, classroom_id: int = Form(...),
         imported += 1
     return templates.TemplateResponse(request, "family_import_result.html",
                                       {"request": request, "provider": provider,
-                                       "imported": imported, "errors": errors})
+                                       "imported": imported, "errors": errors, "setup_return": return_to == "setup"})
+
+
+@app.post("/families/confirm-paid")
+def confirm_paid(request: Request, family_id: int = Form(...),
+                 period: str = Form(...)):
+    """Provider verifies the exact period reported by the parent."""
+    provider, redirect = require_login(request)
+    if redirect:
+        return redirect
+    family = store.get_family_for_provider(family_id, provider["id"])
+    if not family:
+        return HTMLResponse("Family not found.", status_code=404)
+    if not store.confirm_family_payment(family_id, period):
+        # A repeated confirmation is safe; a changed report needs a fresh view.
+        family = store.get_family_for_provider(family_id, provider["id"])
+        if not family or family["paid_period"] != period or family["paid_source"] != "manual":
+            return HTMLResponse(
+                'This payment record has changed. <a href="/dashboard">Return to the dashboard</a> and review it again.',
+                status_code=409)
+    return RedirectResponse("/dashboard?payment_confirmed=1", status_code=303)
+
+
+@app.post("/families/confirm-logged-payment")
+def confirm_logged_payment(request: Request, family_id: int = Form(...),
+                           payment_id: int = Form(...)):
+    """Provider reviews an original payment report or a legacy ledger record."""
+    provider, redirect = require_login(request)
+    if redirect:
+        return redirect
+    if not store.get_family_for_provider(family_id, provider["id"]):
+        return HTMLResponse("Family not found.", status_code=404)
+    if not store.confirm_logged_family_payment(family_id, payment_id):
+        return HTMLResponse("Payment record not found.", status_code=404)
+    return RedirectResponse(f"/families/edit/{family_id}?payment_confirmed=1", status_code=303)
 
 
 @app.post("/families/mark-paid")
@@ -2235,6 +2513,7 @@ def billing_page(request: Request):
         "checkout": checkout,
         "stripe_live": billing.stripe_configured(),
         "founding_spots_left": billing.founding_spots_left(),
+        "founding_open": billing.FOUNDING_OPEN,
         "founding_pct": billing.FOUNDING_PCT_OFF,
         "founding_months": billing.FOUNDING_MONTHS,
         "founding_price": billing.founding_price,
@@ -2256,7 +2535,8 @@ def subscribe(request: Request, plan: str = Form(...), cycle: str = Form("monthl
         base_url = PUBLIC_BASE_URL
         postcard = request.cookies.get("tp_src", "") == "postcard"
         checkout_url = billing.create_checkout_session(provider, plan, cycle, base_url,
-                                                     postcard=postcard)
+                                                       postcard=postcard)
+        growth.milestone(provider["id"], "checkout_started")
     except Exception as e:
         print(f"[stripe] checkout error: {e}", flush=True)
         return HTMLResponse("Couldn't start checkout. Please try again.", status_code=502)
@@ -2283,14 +2563,28 @@ def billing_portal(request: Request):
 @app.get("/internal/run-reminders")
 def internal_run_reminders_get(request: Request, token: str = ""):
     """The daily cron hits this (GET -> JSON)."""
-    if INTERNAL_CRON_TOKEN and token != INTERNAL_CRON_TOKEN:
+    if not INTERNAL_CRON_TOKEN or token != INTERNAL_CRON_TOKEN:
         return JSONResponse({"error": "unauthorized"}, status_code=401)
     sent = run_reminders()
     n = sum(1 for s in sent if "error" not in s and not s.get("deferred"))
     deferred = sum(1 for s in sent if s.get("deferred"))
     store.record_reminder_run(n)
+    try:
+        email_result = email_engagement.run(send_email, EMAIL_ACTIVE)
+    except Exception:
+        email_result = {"error": "Email guidance processing failed; check Admin Email."}
+    try:
+        setup_result = setup_help.notify(send_email, EMAIL_ACTIVE)
+    except Exception:
+        setup_result = {"error": "Setup notifications could not be processed; check Admin Setup requests."}
+    try:
+        import referrals
+        referral_result = referrals.run()
+    except Exception:
+        referral_result = {"error": "Referral credits could not be processed; check service logs."}
     return {"date": today().isoformat(), "sent": n, "deferred": deferred,
-            "details": sent}
+            "details": sent, "email": email_result, "setup_help": setup_result,
+            "referrals": referral_result}
 
 
 @app.post("/internal/run-reminders")
@@ -2600,9 +2894,8 @@ async def stripe_webhook(request: Request):
     except Exception as e:
         print(f"[stripe webhook] handler error: {e}", flush=True)
         return JSONResponse({"error": "handler failed"}, status_code=500)
-    # Owner notification: a completed checkout = a real new customer with a
-    # card on file. Never let a notify failure fail the webhook (Stripe
-    # would retry the whole event).
+    # Retain checkout notifications without letting an email failure make
+    # Stripe retry an otherwise successfully processed webhook.
     try:
         ev = billing._as_dict(event)
         if ev.get("type") == "checkout.session.completed":
@@ -2612,8 +2905,8 @@ async def stripe_webhook(request: Request):
                         if customer_id else None)
             if provider:
                 notify_owner_new_customer(provider)
-    except Exception as e:
-        print(f"[stripe webhook] owner notify failed: {e}", flush=True)
+    except Exception:
+        print("[stripe webhook] owner notification failed", flush=True)
     return result
 
 
@@ -2655,8 +2948,7 @@ def admin_customers(request: Request):
         s["plan_display"] = billing.PLANS.get(plan, {}).get("name", (plan or "—").title()) \
             if plan else "—"
         s["sub_status"] = sub.get("status") or "—"
-        trial = (sub.get("trial_ends_at") or "")[:10]
-        s["trial_ends"] = trial
+        s["trial_ends"] = pacific_date(sub.get("trial_ends_at")) if sub.get("trial_ends_at") else ""
     return templates.TemplateResponse(
         request, "admin.html",
         {"request": request, "stats": stats, "new_count": new_count,
@@ -2680,51 +2972,74 @@ def admin_attribution(request: Request):
     if redirect:
         return redirect
     rows = store.admin_attribution_list()
-    visits = store.count_postcard_visits()
-    attributed = [r for r in rows if (r["signup_source"] or "") == "postcard"]
-    customers = [r for r in attributed
-                 if (r["sub_status"] or "") in ("trialing", "active")]
+    summary = traffic.postcard_summary(rows)
     for r in rows:
         r["heard_label"] = HEARD_ABOUT_LABELS.get(r["heard_about"] or "", r["heard_about"] or "—")
         r["src_label"] = "Postcard QR" if (r["signup_source"] or "") == "postcard" else "—"
-        r["signed_up"] = (r["created_at"] or "")[:10]
+        r["signed_up"] = pacific_date(r["created_at"])
         st = r["sub_status"] or ""
         r["customer_label"] = {"trialing": "Trial", "active": "Active"}.get(st, "—")
     pct = lambda a, b: f"{(100.0 * a / b):.1f}%" if b else "—"
     return templates.TemplateResponse(
         request, "admin_attribution.html",
-        {"request": request, "rows": rows, "visits": visits,
-         "attributed": len(attributed), "customers": len(customers),
-         "signup_rate": pct(len(attributed), visits),
-         "customer_rate": pct(len(customers), len(attributed))})
+        {"request": request, "rows": rows, **summary, "raw_hits": store.count_postcard_visits(),
+         "signup_rate": pct(summary["converting_visitors"], summary["visits"]),
+         "customer_rate": pct(summary["customers"], summary["attributed"])},
+        headers={"Cache-Control": "private, no-store", "X-Robots-Tag": "noindex"})
+
+
+@app.get("/admin/conversions", response_class=HTMLResponse)
+def admin_conversions(request: Request, days: int = 28, kind: str = "engaged"):
+    provider, redirect = require_admin(request)
+    if redirect:
+        return redirect
+    import search_reporting
+    response = templates.TemplateResponse(request, "admin_conversions.html", {
+        "request": request, "provider": provider, "report": growth.report(90 if days == 90 else 28, kind),
+        "keywords": search_reporting.report()})
+    response.headers["Cache-Control"] = "private, no-store"
+    response.headers["X-Robots-Tag"] = "noindex"
+    return response
+
+
+@app.post('/admin/conversions/search-keywords')
+async def admin_search_keywords(request: Request, file: UploadFile = File(...),
+                                start_date: str = Form(''), end_date: str = Form('')):
+    provider, redirect = require_admin(request)
+    if redirect:
+        return redirect
+    import search_reporting
+    try:
+        raw = await file.read(524289)
+        search_reporting.save(raw,start_date,end_date,provider['id'])
+    except ValueError as exc:
+        return Response(str(exc),status_code=400,media_type='text/plain',headers={'Cache-Control':'private, no-store'})
+    finally:
+        await file.close()
+    return RedirectResponse('/admin/conversions?keywords=updated#search-keywords',status_code=303,
+                            headers={'Cache-Control':'private, no-store'})
+
+
+@app.post("/admin/conversions/reset")
+def admin_reset_conversions(request: Request, days: int = Form(28)):
+    provider, redirect = require_admin(request)
+    if redirect:
+        return redirect
+    growth.reset_report(provider["id"])
+    response = RedirectResponse(f"/admin/conversions?days={90 if days == 90 else 28}&reset=1", status_code=303)
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
 
 
 @app.get("/admin/visitors", response_class=HTMLResponse)
-def admin_visitors(request: Request):
-    """First-party site analytics: individual visitors (hashed IPs) and their
-    page timelines. No personal identity is stored."""
+def admin_visitors(request: Request, kind: str = "engaged", offset: int = 0,
+                   sort: str = "last_seen", direction: str = "desc", hit_offset: int = 0):
     _, redirect = require_admin(request)
     if redirect:
         return redirect
-    visits, rollup = store.site_visit_stats()
-    for v in visits:
-        v["when"] = (v["ts"] or "")[:16].replace("T", " ")
-        v["short_id"] = (v["ip_hash"] or "")[:8]
-        ua = v["ua"] or ""
-        v["device"] = "📱" if ("Mobile" in ua or "Android" in ua or "iPhone" in ua) else "🖥"
-        ref = v["referrer"] or ""
-        v["ref_label"] = ref.replace("https://", "").replace("http://", "").split("/")[0][:28] or "direct"
-    for r in rollup:
-        r["short_id"] = (r["ip_hash"] or "")[:8]
-        r["first"] = (r["first_ts"] or "")[:16].replace("T", " ")
-        r["last"] = (r["last_ts"] or "")[:16].replace("T", " ")
-    today = datetime.now().date().isoformat()
-    today_visitors = {r["short_id"] for r in rollup if (r["last"] or "")[:10] == today}
-    return templates.TemplateResponse(
-        request, "admin_visitors.html",
-        {"request": request, "visits": visits, "rollup": rollup,
-         "total_visits": len(visits), "total_visitors": len(rollup),
-         "today_visitors": len(today_visitors)})
+    return templates.TemplateResponse(request, "admin_visitors.html", {
+        "request": request, "report": traffic.report(kind, offset, sort, direction, hit_offset), "traffic_labels": traffic.LABELS},
+        headers={"Cache-Control": "private, no-store", "X-Robots-Tag": "noindex"})
 
 
 @app.get("/admin/abuse", response_class=HTMLResponse)
@@ -2915,3 +3230,20 @@ def internal_fake_sub(request: Request, token: str = "", action: str = ""):
             " updated_at=excluded.updated_at",
             (p["id"], "micro", "trialing", trial_ends, now))
     return {"ok": True, "added": True, "plan": "micro", "status": "trialing"}
+
+
+# Callbacks stay dynamic so tests and runtime configuration use the same sender.
+import email_routes
+email_engagement.BASE = PUBLIC_BASE_URL
+email_routes.register(app, templates, require_admin,
+                      lambda *args, **kwargs: send_email(*args, **kwargs),
+                      lambda: EMAIL_ACTIVE)
+
+setup_wizard.register(app, templates, require_login=require_login, location_limit=_location_limit_response,
+                      timezones=TIMEZONES, hours=hour_options, preview_texts=template_previews,
+                      test_preview=test_text_preview, sms_demo=SMS_DEMO_MODE, needs_verification=needs_verification)
+
+partner_resources.register(app, templates, require_admin)
+
+setup_help.register(app, templates, require_admin,
+                    lambda *args, **kwargs: send_email(*args, **kwargs), lambda: EMAIL_ACTIVE)

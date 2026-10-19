@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Email Preferences | TuitionPing{% endblock %}
+{% block content %}
+<section class="card" style="max-width:650px;margin:auto">
+{% if mode == 'confirm' %}<h1>Confirm tips and product updates</h1><p>Join the TuitionPing email list for occasional tuition tips, product improvements and offers. You can unsubscribe anytime.</p><form method="post" action="/email-list/confirm"><input type="hidden" name="token" value="{{ token }}"><button class="btn">Confirm my subscription</button></form>
+{% elif mode == 'confirmed' %}<h1>You're subscribed</h1><p>Your email is confirmed for TuitionPing tips, product improvements and offers. Every optional email includes an unsubscribe link.</p>
+{% elif mode == 'preferences' %}<h1>Stop optional TuitionPing emails</h1><p>Unsubscribe from marketing tips, offers, product updates and optional account setup guidance. Account security and billing notices continue. This does not cancel a TuitionPing subscription or change parent SMS reminders.</p><form method="post" action="/email-list/preferences?token={{ token }}"><button class="btn">Unsubscribe from optional emails</button></form>
+{% elif mode == 'unsubscribed' %}<h1>You're unsubscribed</h1><p>Optional marketing and setup guidance emails are stopped. Account security and billing notices continue. Your TuitionPing subscription and parent SMS settings are unchanged.</p>
+{% else %}<h1>This link is invalid or expired</h1><p>For a fresh marketing confirmation link, <a href="/email-kit">request the free kit and select tips and updates</a>. For help stopping emails, <a href="/support">contact support</a>.</p>{% endif %}
+</section>
+{% endblock %}

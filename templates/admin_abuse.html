@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="tabs"><a href="/admin">Customers</a><a href="/admin/abuse" class="active">Abuse monitor</a><a href="/admin/suggestions">Suggestions</a><a href="/admin/attribution">Attribution</a><a href="/admin/visitors">Visitors</a></div>
+<div class="tabs"><a href="/admin">Customers</a><a href="/admin/abuse" class="active">Abuse monitor</a><a href="/admin/suggestions">Suggestions</a><a href="/admin/attribution">Attribution</a><a href="/admin/visitors">Visitors</a><a href="/admin/conversions">Conversions</a><a href="/admin/email">Email</a><a href="/admin/partners">Partners</a><a href="/admin/setup-help">Setup requests</a></div>
 <h2>Abuse monitor</h2>
 <p class="muted">Every provider's sending activity at a glance. Flags are heuristics — investigate before suspending.</p>
 {% if not admin_configured %}
@@ -12,7 +12,7 @@
   {% for s in stats %}
   <tr>
     <td>{{ s["name"] }}<br><span class="family-phone">{{ s["email"] }}</span></td>
-    <td>{{ s["created_at"][:10] }}</td>
+    <td>{{ s["created_at"]|admin_date }}</td>
     <td>{{ s["families"] }}</td>
     <td>{{ s["sent_24h"] }}</td>
     <td>{{ s["sent_30d"] }}</td>
