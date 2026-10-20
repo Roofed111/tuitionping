@@ -1,5 +1,20 @@
 # Late-fee calculator checks
 
+## Payment reminder generator
+
+`reminder-generator.test.cjs` exercises English and Spanish drafts, all three
+reminder types, strict cents validation, leap days and DST dates across time
+zones, stale-result clearing, inert user text, clipboard fallback and races,
+privacy and analytics failures. `test_reminder_generator.py` checks anonymous
+access, crawlable examples and downloads, event deduplication and attribution,
+and rejection of private event details, wrong paths and fabricated sales.
+Draft generation records only a fixed event and reminder type. It sends no SMS
+and stores no form values, account numbers, names or message contents.
+
+The comparison screenshots come from the working public `/demo` with fictional
+families, captured October 20, 2026. The brightwheel comparison is based on the
+official documentation linked on the page, not a hands-on brightwheel test.
+
 ## Admin access and release recovery
 
 `test_admin_access.py` checks admin login and return visits, signed-in navigation

@@ -56,7 +56,7 @@ class PublicResourcesTest(unittest.TestCase):
 
     def test_internal_resource_links_and_assets_resolve(self):
         with TestClient(app.app) as client:
-            for path in ['/','/guides','/guide','/late-fee-policy','/guides/tuition-reminder-templates','/guides/handling-late-paying-parents','/tools/tuition-payment-tracker','/about']:
+            for path in ['/','/guides','/guide','/late-fee-policy','/guides/tuition-reminder-templates','/guides/handling-late-paying-parents','/tools/tuition-payment-tracker','/compare/brightwheel','/about']:
                 r=client.get(path);self.assertEqual(r.status_code,200)
                 self.assertEqual(len(re.findall(r'<h1[ >]',r.text)),1)
                 for link in set(re.findall(r'(?:href|src)="(/[^"#?]*)',r.text)):

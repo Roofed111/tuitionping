@@ -1,0 +1,8 @@
+.comparison-shot { margin:20px 0; }
+.comparison-shot img { display:block; width:100%; height:auto; border:1px solid var(--line); border-radius:10px; }
+.comparison-shot figcaption,.comparison-sources { font-size:.85rem; color:var(--ink-soft); }
+.comparison-shot figcaption { margin-top:10px; }
+.comparison-confirmed summary { cursor:pointer; font-weight:650; padding:12px 0; }
+.comparison-confirmed summary:focus-visible,.resource-table:focus-visible { outline:3px solid var(--brand); outline-offset:3px; }
+.comparison-sources ul { padding-left:20px; }
+.comparison-sources a { overflow-wrap:anywhere; }
