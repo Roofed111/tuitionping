@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 {% block title %}Daycare Tuition Reminder Software by Text | TuitionPing{% endblock %}
-{% block meta_description %}<meta name="description" content="TuitionPing automatically texts your daycare families tuition reminders — 3 days before, on the due date, and late nudges after. Parents reply PAID. 30-day free trial, no awkward pickup conversations.">{% endblock %}
+{% block meta_description %}<meta name="description" content="Daycare tuition reminder software from ${{ plans.micro.price }}/month. Schedule texts, let parents reply PAID and verify payments in your existing records. Try the demo.">{% endblock %}
+{% block og_title %}Daycare Tuition Reminder Software by Text | TuitionPing{% endblock %}
+{% block og_description %}Schedule monthly tuition reminders without a parent app. Keep your payment method, review PAID replies and confirm receipt. Plans from ${{ plans.micro.price }}/month.{% endblock %}
 {% block content %}
 {% if postcard_offer %}
 <div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:12px;padding:14px 18px;margin:16px 0;font-size:1.02em">
@@ -115,12 +117,12 @@
 <div class="hero">
   <div>
     <span class="eyebrow">For daycare &amp; childcare providers</span>
-    <h1>Automatic daycare tuition reminders <span class="accent">by text.</span></h1>
+    <h1>Daycare tuition reminder software <span class="accent">that texts for you.</span></h1>
     <p class="resource-kicker">Spend less time chasing tuition.</p>
-    <p class="lede">TuitionPing automatically texts your families tuition reminders —
-    3 days before it's due, on the due date, and with polite late nudges after.
-    Parents reply <strong>PAID</strong>; you verify the payment in the system you already use. No awkward
-    pickup conversations, no spreadsheets, no "I forgot the checkbook."</p>
+    <p class="lede">Schedule monthly tuition reminders for your home daycare or small childcare center —
+    before the due date, on the day, and when a balance is overdue. Parents receive ordinary texts
+    and can reply <strong>PAID</strong>. You check the money arrived and confirm receipt in the dashboard.
+    Keep your existing payment method; parents need no new app or login.</p>
     <div class="hero-ctas">
       <a class="btn" href="/signup?plan=growth" style="font-size:1.08em;padding:14px 28px">Start 30-day free trial</a>
       <a class="btn btn-ghost" href="#walkthrough" style="font-size:1.08em;padding:14px 28px">Watch the 48-second video</a>
@@ -128,6 +130,7 @@
     </div>
     <p class="fine">Card on file at signup · no charge for 30 days · set up in about 10 minutes · cancel anytime</p>
     <p class="fine">Want a hand with your CSV or reminders? Ask TuitionPing support for setup help; no account needed.</p>
+    <p class="fine">Plans from ${{ plans.micro.price }}/month for up to {{ plans.micro.families }} families. <a href="/pricing">Compare prices, limits and trial terms</a>.</p>
   </div>
   <div>
     <div class="phone">
@@ -197,8 +200,8 @@
   <h2>Four perfectly-timed touches, zero effort</h2>
   <p class="sub">Each family gets exactly the reminders they need — never more, never while they're already paid.</p>
   <div class="timeline">
-    <div class="t-row"><div class="t-when">−3 days</div><p class="t-what"><b>Heads-up:</b> "Tuition of $1,200 is due on Oct 1." The reminder that prevents most late payments.</p></div>
-    <div class="t-row"><div class="t-when">Due date</div><p class="t-what"><b>Due today:</b> "Just a reminder — tuition is due today." Short, friendly, impossible to miss.</p></div>
+    <div class="t-row"><div class="t-when">−3 days</div><p class="t-what"><b>Heads-up:</b> "Tuition of $1,200 is due on Oct 1." Give the family the amount and date before tuition is due.</p></div>
+    <div class="t-row"><div class="t-when">Due date</div><p class="t-what"><b>Due today:</b> "Just a reminder — tuition is due today." Keep the message short and the next step clear.</p></div>
     <div class="t-row"><div class="t-when">+3 days</div><p class="t-what"><b>Gentle nudge</b> <i>(unpaid only)</i><b>:</b> "We haven't received tuition yet — reply PAID once sent."</p></div>
     <div class="t-row"><div class="t-when">+7 days</div><p class="t-what"><b>Firm follow-up</b> <i>(unpaid only)</i><b>:</b> "Tuition is now 7 days overdue — please remit right away to avoid a late fee."</p></div>
   </div>
@@ -255,12 +258,12 @@
     </div>
     {% endfor %}
   </div>
-  <p class="pricing-note">Card on file at signup, never charged during your 30-day trial. Cancel anytime from your Billing page — effective at the end of your billing period.</p>
+  <p class="pricing-note">Card on file at signup, never charged during your 30-day trial. Cancel anytime from your Billing page — effective at the end of your billing period. <a href="/pricing">See the full pricing guide and plan examples</a>.</p>
 </div>
 
 <div class="section">
-  <h2>Why not just…</h2>
-  <p class="sub">TuitionPing does one job. Here's how that compares.</p>
+  <h2>Choosing daycare payment reminder software</h2>
+  <p class="sub">Decide whether you need scheduled text follow-up or a complete billing platform. <a href="/compare/brightwheel">Read the sourced TuitionPing and brightwheel comparison</a>.</p>
   <div class="compare">
   <p class="swipe-hint" aria-hidden="true">← swipe to see all columns →</p>
   <table>
@@ -269,13 +272,13 @@
     <tbody>
       <tr><td>Automatic text reminders</td><td class="yes">✓</td><td class="no">✗</td><td class="yes">✓*</td></tr>
       <tr><td>Parents reply PAID by text</td><td class="yes">✓</td><td class="no">✗</td><td>Varies</td></tr>
-      <tr><td>Setup time</td><td>~10 minutes</td><td>Ongoing</td><td>Days–weeks</td></tr>
-      <tr><td>Pricing</td><td>From ${{ plans.micro.price }}/mo</td><td>Free, plus your evenings</td><td>Quote-based</td></tr>
-      <tr><td>Built for small providers</td><td class="yes">✓</td><td class="no">—</td><td class="no">✗</td></tr>
+      <tr><td>Tuition payment processing</td><td>Use your existing method</td><td>Use your existing method</td><td>Often included; check the provider</td></tr>
+      <tr><td>Pricing</td><td>From ${{ plans.micro.price }}/mo</td><td>Depends on your spreadsheet tool</td><td>Varies by provider and scope</td></tr>
+      <tr><td>Fit for a small program</td><td>Focused reminder workflow</td><td>Manual records and follow-up</td><td>Compare the features you need</td></tr>
     </tbody>
   </table>
   </div>
-  <p class="pricing-note">*Full management suites include billing modules, but they're built — and priced — for centers with billing departments.</p>
+  <p class="pricing-note">*Features vary across childcare management platforms. TuitionPing sends reminders and records payment reports; you verify receipt using your payment records.</p>
 </div>
 
 <div class="section" id="roi">

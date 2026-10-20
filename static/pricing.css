@@ -1,0 +1,10 @@
+.pricing-plans{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;scroll-margin-top:120px}
+.pricing-plan{display:flex;flex-direction:column;min-width:0;margin:0}
+.pricing-plan h2{font-size:2.5rem;line-height:1.15;margin:0 0 16px;letter-spacing:-.03em}
+.pricing-plan h2 span{font-size:1rem;letter-spacing:0;font-weight:500;color:var(--muted)}
+.pricing-plan .pricing-capacity{font-weight:650;min-height:3.1em}
+.pricing-plan ul{padding-left:20px;margin-bottom:24px;flex:1}
+.pricing-plan li{margin-bottom:9px}
+.pricing-plan .btn{text-align:center}
+@media(max-width:1000px){.pricing-plans{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.pricing-plans{grid-template-columns:minmax(0,1fr)}.pricing-plan .pricing-capacity{min-height:0}}

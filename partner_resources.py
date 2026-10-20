@@ -75,12 +75,13 @@ def report(days=28):
 def package(code=''):
     url = link(code)
     resources = [('Collection workflow', '/guides/tuition-collection'), ('Invoice and receipt generator', '/tools/daycare-invoice-receipt'),
-                 ('Payment tracker', '/tools/tuition-payment-tracker'), ('Reminder templates', '/guides/tuition-reminder-templates'),
+                 ('Payment tracker', '/tools/tuition-payment-tracker'), ('Payment reminder generator and templates', '/guides/tuition-reminder-templates'),
                  ('Interactive demo', '/demo')]
     # All distributed resource links return to the partner landing first, so a
     # new browser establishes attribution before following the chosen tool.
     links = [(label, resource_link(code, path.rsplit('/', 1)[-1])) for label, path in resources]
     tracker_link = resource_link(code, 'tuition-payment-tracker')
+    reminder_link = resource_link(code, 'tuition-reminder-templates')
     tutorial_link = resource_link(code, 'invoice-tutorial')
     links.append(('Two-minute invoice and receipt video tutorial', tutorial_link))
     readme = f'''TUITIONPING - PARTNER RESOURCE PACKAGE
@@ -96,6 +97,7 @@ WHAT PROVIDERS GET
 - A browser-only invoice / verified-payment receipt generator (print to PDF)
 - A two-minute video showing a fictional invoice and partial-payment receipt
 - Editable Word and PDF reminder messages in English and Spanish
+- A browser-only payment reminder generator with a copyable draft
 - An Excel payment tracker and an editable late-fee policy
 - A fictional interactive TuitionPing demo; it sends no texts
 
@@ -182,6 +184,25 @@ Use the two-minute video as a walkthrough: {tutorial_link}
 12-15 min: Walk through the fictional demo; show PAID versus confirmed.
 Do not screen-share real family records or text actual parents in a workshop.
 '''
+    copy += f'''
+
+RESOURCE DIRECTORY LISTING
+Free daycare payment reminder generator and tuition tracking tools
+
+Draft a before-due, due-date or overdue reminder in English or Spanish,
+then review and copy the message. The generator keeps entries in the
+current browser page and sends no texts. No signup is required.
+Open the reminder generator: {reminder_link}
+
+The free Excel and Google Sheets tracker records bills, credits, verified
+payments and remaining balances. Preview and download: {tracker_link}
+
+These resources are published by TuitionPing, which also sells a separate
+scheduled-reminder service. No purchase is needed for the free tools.
+You may edit this description to fit your directory's style. Keep the
+assigned links when using a registered partner toolkit. Listing a resource
+does not imply endorsement; disclose any paid or commission relationship.
+'''
     checklist = '''MONTHLY TUITION COLLECTION CHECKLIST
 Before billing: Confirm period, due date, agreed tuition and payment method.
 Prepare bill: List assessed charges and approved credits; give it a number.
@@ -220,6 +241,7 @@ def register(app, templates, require_admin):
         return templates.TemplateResponse(request, 'partners.html', {'request':request,'provider':None,'partner':selected,
             'share_url':link(selected['code'] if selected else ''), 'kit_url':link(selected['code'] if selected else '', '/partners/download'),
             'tracker_share_url':resource_link(selected['code'] if selected else '', 'tuition-payment-tracker'),
+            'reminder_share_url':resource_link(selected['code'] if selected else '', 'tuition-reminder-templates'),
             'suggested_path':paths.get(resource),'suggested_label':resource.replace('-',' ') if resource in paths else ''})
 
     @app.get('/partners/download')

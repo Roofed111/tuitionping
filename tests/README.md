@@ -1,5 +1,13 @@
 # Late-fee calculator checks
 
+## Pricing and search landing pages
+
+`test_pricing_seo.py` checks anonymous/expired-account access, canonical host
+redirects, sitemap inclusion, current catalog prices and limits, yearly charge
+disclosure, valid plan signup links, buyer-page payment-review copy and partner
+directory descriptions. The kit retains assigned partner links. Tests use the
+existing disposable test database and do not submit outreach or live checkout.
+
 ## Payment reminder generator
 
 `reminder-generator.test.cjs` exercises English and Spanish drafts, all three

@@ -101,7 +101,13 @@
     "workflow_heading": "Keep the meaning consistent in both languages"
   },
   "/home-daycare-tuition-reminders": {
-    "description": "Schedule tuition reminder texts for your home daycare. Keep your payment method, use your own wording, and verify parent-reported payments. Try the public demo.",
+    "description": "Home daycare payment reminder software with scheduled texts and no parent app. Keep your payment method, review PAID replies and compare TuitionPing plans.",
+    "buying_heading": "Choosing a payment reminder app for your home daycare",
+    "buying_points": [
+      ["No new app for parents", "You use the TuitionPing dashboard; families use their normal text-message app. A parent can reply PAID, and you check your records before confirming receipt. The reply reports a payment; it is not a bank confirmation."],
+      ["Keep the way families already pay", "Accept the checks, cash or payment service covered by your agreement. Include clear payment instructions in your reminder wording. TuitionPing does not move money or provide an automatic connection to those services."],
+      ["Check your billing schedule first", "The paid reminder service follows monthly due-day schedules. If you bill weekly, use the free reminder generator or payment tracker for that workflow, and check the service's supported settings before subscribing."]
+    ],
     "example": "One family's monthly tuition is due on the 5th and another's on the 10th. A part-time family owes a smaller amount on the 15th. Put their own dates and amounts on their records, and each family gets its own schedule — no group text, no crossed wires. A due-day text can say: ‘Hi Alex, tuition of $800 for Little Oak Daycare is due today. Please use our usual payment method and reply PAID once sent.’ You still check your records before verifying payment. If the family on the 10th pays by check at pickup on the 9th, you mark it verified and that family's follow-ups stop — the other family's schedule is untouched. Nothing about one family's payment changes what anyone else receives.",
     "example_heading": "Example: six families with different due dates",
     "example_note": "Illustrative program and amount. Your enrollment agreement determines the actual amount and timing.",
@@ -135,10 +141,10 @@
         "Any phone that can receive text messages works, including a basic flip phone. Parents do not need internet access, an app, or a data plan to get a reminder or reply PAID."
       ]
     ],
-    "fit": "This can fit an owner who needs tuition follow-up without moving enrollment, attendance and payments to a full management platform. It does not process tuition or replace your bookkeeping. Most home daycares fit on the Micro plan — $9/month for up to 10 families at one location, with a 30-day free trial. If your roster grows past that, Starter covers up to 30 families. If you need an integrated billing and payment platform instead, compare that broader requirement before choosing. There is no per-text charge on top of your plan price, and no setup fee.",
+    "fit": "Choose a focused reminder tool when your payment method and bookkeeping already work, and you want a consistent monthly text schedule. You still check payments and resolve discrepancies with each family. Match your family count and location count to the current pricing guide before starting the trial. If you need integrated payment collection, attendance or enrollment, evaluate a broader childcare management platform.",
     "fit_heading": "Keep the system you already trust",
-    "heading": "Tuition reminders for the home daycare you run yourself.",
-    "intro": "When you're caring for children, preparing meals and talking with families, tuition follow-up can become an evening job. In a home daycare there is no office, no billing department and no front desk — there is you, after the last pickup, with a phone and a list of who still owes what. TuitionPing gives each family an automatic reminder schedule by text, while you keep control of the payment policy and verify what actually arrived.",
+    "heading": "Home daycare tuition reminders, sent automatically by text.",
+    "intro": "TuitionPing is payment reminder software for family child care providers who want a monthly follow-up schedule without giving parents another app. Add each family's amount and due day, review your wording, and let the schedule handle the texts. Keep your existing payment method and verify the money arrived before confirming receipt.",
     "kicker": "For family child care and home daycare owners",
     "pains": [
       [
@@ -192,11 +198,17 @@
         "Review checks, transfers or the payment platform you already use. A parent replying PAID records a report for review. Mark the tuition paid after you confirm receipt — the reply starts the check, it does not replace it."
       ]
     ],
-    "title": "Home Daycare Tuition Reminders by Text | TuitionPing",
+    "title": "Home Daycare Payment Reminder Software | TuitionPing",
     "workflow_heading": "A simple routine for a small roster"
   },
   "/small-daycare-tuition-reminders": {
-    "description": "Organize tuition reminders across classrooms at a small daycare center. Import families, review message history and verify payments using your existing records.",
+    "description": "Daycare tuition reminder software for small centers. Import families, schedule texts, review PAID replies and confirm receipts using your existing payment records.",
+    "buying_heading": "What to check before choosing tuition reminder software",
+    "buying_points": [
+      ["A roster your office can maintain", "Import families from CSV and organize them by classroom and location. Check amounts, monthly due days and phone numbers before sending. You manage the account through one owner login; the service does not provide separate staff roles."],
+      ["A clear payment-review routine", "Review parent PAID replies alongside your payment records, then confirm receipt. Message history records sending activity and replies; it does not establish that a parent read a message or that funds reached your bank."],
+      ["The right scope for your center", "Choose scheduled SMS follow-up when your billing and payment process already works. If you need weekly automated billing, attendance, enrollment or integrated payment processing, check a broader platform against those requirements."]
+    ],
     "example": "A center has an infant room and a preschool room, 24 families in all. Most pay on the 1st; a few mid-month starters pay on the 15th. Organize both rosters by classroom, while preserving each family's own tuition amount and due date. At the office check, review parent payment reports against your payment platform, verify the receipts that match, and privately follow up on unresolved balances. When a parent says they never got a reminder, the message log shows the dates and times each text went out. Over a month, the daily check replaces the end-of-month scramble — open balances get seen every day instead of once, while they are still small and easy to resolve.",
     "example_heading": "Example: two classrooms, one tuition process",
     "example_note": "Illustrative workflow. This does not imply separate staff permissions, bank reconciliation or an accounting integration.",
@@ -230,10 +242,10 @@
         "Yes. The late-fee amount and timing are set per location, and each location keeps its own payment link, so a second site's families see that site's terms."
       ]
     ],
-    "fit": "Choose a focused reminder tool when your enrollment and payment systems already work, but tuition follow-up is inconsistent. Most small centers fit Starter — $19/month for up to 30 families — and multi-room or multi-site programs step up to Growth at $39/month for up to 75 families and unlimited locations. If your center needs attendance, staff management, parent portfolios and integrated payment processing, a broader childcare management suite may be a better fit. Compare the entire workflow, not just the reminder feature. Every plan starts with a 30-day free trial, so a center can run a full billing cycle before paying anything.",
+    "fit": "Choose a focused reminder tool when your enrollment and payment systems already work, but monthly tuition follow-up needs a consistent routine. Count families across the account and check location limits before choosing a plan. The real 30-day trial requires a card at checkout; cancel before the trial ends to avoid the subscription charge. You can explore the fictional demo without an account or card.",
     "fit_heading": "Focused reminders alongside your existing tools",
-    "heading": "A repeatable tuition follow-up process for your small center.",
-    "intro": "A director needs to know which family was reminded, which payment was reported, and which receipt has been checked — without excavating three inboxes to find out. At a small center, tuition follow-up usually lives in one person's head and one person's phone, and it frays the moment that person is sick, on vacation, or gone. TuitionPing organizes families by location and classroom and records every tuition message, so follow-up becomes a process the center owns instead of a habit one employee carries. TuitionPing is built to be that process: one roster, one schedule, one log.",
+    "heading": "Tuition reminder software for small daycare centers.",
+    "intro": "Give your center a repeatable monthly tuition reminder schedule. TuitionPing imports your family roster, sends scheduled texts and brings parent payment reports into one dashboard for review. Parents use ordinary SMS; your office keeps its existing payment method and checks receipts before confirming payment.",
     "kicker": "For directors of small daycare centers",
     "pains": [
       [
