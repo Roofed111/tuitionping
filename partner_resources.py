@@ -48,6 +48,10 @@ def link(code='', path='/partners'):
         return base
     return base + '?' + urlencode({'partner': code, 'utm_source': code, 'utm_medium': 'partner', 'utm_campaign': 'collection-kit'})
 
+def resource_link(code, resource):
+    """Land on the toolkit first so shared resources retain partner attribution."""
+    return link(code) + ('&' if code else '?') + urlencode({'resource': resource})
+
 def report(days=28):
     ensure_tables()
     traffic.refresh_candidates()
@@ -75,8 +79,9 @@ def package(code=''):
                  ('Interactive demo', '/demo')]
     # All distributed resource links return to the partner landing first, so a
     # new browser establishes attribution before following the chosen tool.
-    links = [(label, url + ('&' if code else '?') + 'resource=' + path.rsplit('/', 1)[-1]) for label, path in resources]
-    tutorial_link = url + ('&' if code else '?') + 'resource=invoice-tutorial'
+    links = [(label, resource_link(code, path.rsplit('/', 1)[-1])) for label, path in resources]
+    tracker_link = resource_link(code, 'tuition-payment-tracker')
+    tutorial_link = resource_link(code, 'invoice-tutorial')
     links.append(('Two-minute invoice and receipt video tutorial', tutorial_link))
     readme = f'''TUITIONPING - PARTNER RESOURCE PACKAGE
 
@@ -95,6 +100,8 @@ WHAT PROVIDERS GET
 - A fictional interactive TuitionPing demo; it sends no texts
 
 HOW TO SHARE
+Payment tracker and preview: {tracker_link}
+Use the payment-tracker resource listing below for your directory or newsletter.
 Video tutorial and free tool: {tutorial_link}
 YouTube viewing link: https://youtu.be/B17VIKwHMJI
 Share the assigned tutorial link first to preserve partner attribution.
@@ -130,7 +137,21 @@ Reports use a 28- or 90-day window; audit history is retained. Human and likely
 human traffic counts in customer reports. First-touch Conversions remains
 separate. Never promise a result or invent provider success statistics.
 '''
-    copy = f'''NEWSLETTER PARAGRAPH
+    copy = f'''PAYMENT TRACKER RESOURCE LISTING
+Name: Free Daycare Tuition Payment Tracker (Excel and Google Sheets)
+Description: Organize weekly or monthly tuition bills, approved credits,
+assessed fees, verified payments and overdue balances in a free spreadsheet.
+Includes a blank 200-bill tracker, a worked example and setup instructions.
+No signup required. Parent-reported PAID notes stay separate from verified
+payments. This standalone workbook does not send reminders or connect to
+TuitionPing. Preview and download: {tracker_link}
+
+PAYMENT TRACKER GROUP POST
+Need a clearer record of who paid and what is still owed? This free daycare
+payment tracker works in Excel or Google Sheets and includes a worked example.
+No signup needed. Preview the spreadsheet and get your copy: {tracker_link}
+
+NEWSLETTER PARAGRAPH
 Make tuition collection easier to follow. This free TuitionPing resource
 package includes editable payment policies, reminder texts, an Excel payment
 tracker, and a tool to create tuition invoices or verified-payment receipts.
@@ -198,6 +219,7 @@ def register(app, templates, require_admin):
                  'invoice-tutorial':'/tools/daycare-invoice-receipt#invoice-tutorial'}
         return templates.TemplateResponse(request, 'partners.html', {'request':request,'provider':None,'partner':selected,
             'share_url':link(selected['code'] if selected else ''), 'kit_url':link(selected['code'] if selected else '', '/partners/download'),
+            'tracker_share_url':resource_link(selected['code'] if selected else '', 'tuition-payment-tracker'),
             'suggested_path':paths.get(resource),'suggested_label':resource.replace('-',' ') if resource in paths else ''})
 
     @app.get('/partners/download')

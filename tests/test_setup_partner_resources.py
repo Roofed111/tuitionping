@@ -6,6 +6,8 @@ import re
 import secrets
 import unittest
 import zipfile
+from html import unescape
+from urllib.parse import urlsplit, parse_qs
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 from fastapi.testclient import TestClient
@@ -134,6 +136,37 @@ class PartnerResourcesTest(unittest.TestCase):
             for code in ['group-one','group-two']:conn.execute('INSERT INTO growth_partners (code,name,kind,created_at) VALUES (?,?,?,?)',(code,code,'provider_group',store.now_iso()))
         self.client=TestClient(app.app,base_url='https://www.tuitionping.com',headers={'user-agent':'Mozilla/5.0 Test browser'})
         self.addCleanup(self.client.close)
+    def test_shared_tracker_description_keeps_only_a_registered_partner(self):
+        for supplied, expected in [('group-one','group-one'),('unknown-code',''),('','')]:
+            with self.subTest(partner=supplied):
+                response=self.client.get('/partners',params={'partner':supplied})
+                description=unescape(re.search(r'<textarea id="tracker-listing"[^>]*>(.*?)</textarea>',response.text,re.S).group(1))
+                shared_url=description.split('Preview and download: ',1)[1].strip()
+                query=parse_qs(urlsplit(shared_url).query)
+                self.assertEqual(query['resource'],['tuition-payment-tracker'])
+                self.assertEqual(query.get('partner',[''])[0],expected)
+                package=zipfile.ZipFile(io.BytesIO(partners.package(expected)))
+                self.assertIn(shared_url,package.read('Ready-to-share-copy.txt').decode())
+    def test_shared_tracker_download_and_demo_preserve_attribution_without_paid_conversion(self):
+        landing=self.client.get(partners.resource_link('group-one','tuition-payment-tracker'))
+        self.assertIn('href="/tools/tuition-payment-tracker"',landing.text)
+        tracker=self.client.get('/tools/tuition-payment-tracker')
+        self.assertEqual(tracker.status_code,200)
+        self.client.get('/static/downloads/daycare-tuition-payment-tracker.xlsx')
+        demo=self.client.get('/demo')
+        token=re.search('name="tp-analytics-token" content="([a-f0-9]+)"',demo.text).group(1)
+        # Page loads alone must not count as demo use or a customer conversion.
+        row=next(p for p in partners.report() if p['code']=='group-one')
+        self.assertEqual(row['demo'],0)
+        for event, detail in [('demo_started',''),('demo_started',''),('demo_step','reported'),('demo_step','verified')]:
+            response=self.client.post('/analytics/event',json={'event':event,'detail':detail,'path':'/demo'},headers={'x-tp-analytics':token})
+            self.assertEqual(response.status_code,204)
+        row=next(p for p in partners.report() if p['code']=='group-one')
+        self.assertEqual(row['visitors'],1)
+        self.assertEqual(row['downloads'],1)
+        self.assertEqual(row['demo'],1)
+        self.assertEqual(row['trials'],0)
+        self.assertEqual(row['paid'],0)
     def test_public_resources_metadata_and_expired_accounts(self):
         for path in ['/tools/daycare-invoice-receipt','/guides/tuition-collection','/partners']:
             r=self.client.get(path);self.assertEqual(r.status_code,200);self.assertEqual(len(re.findall('<h1[ >]',r.text)),1)
