@@ -23,8 +23,9 @@ _ready = None
 _lock = threading.Lock()
 CLIENT_EVENTS = {'browser_verified': {'', 'webdriver'}, 'demo_started': {''}, 'demo_step': {'before', 'due', 'late', 'reported', 'verified', 'spanish'}, 'trial_click': {''}, 'document_created': {'invoice','receipt'}, 'video_started': {''}, 'video_completed': {''}}
 CLIENT_EVENTS['visitor_engaged'] = {'interaction','active_reading'}
+CLIENT_EVENTS['reminder_generated'] = {'before','due','late'}
 STAGES = [('page_view', 'Visitors'), ('video_started', 'Walkthrough played'), ('video_completed', 'Walkthrough completed'), ('demo_started', 'Demo used'), ('download', 'Resource downloaded'),
-          ('document_created', 'Document generated'), ('setup_help_requested', 'Setup help requested'), ('trial_click', 'Trial clicked'), ('signup', 'Account created'), ('checkout_started', 'Checkout opened'),
+          ('document_created', 'Document generated'), ('reminder_generated', 'Reminder drafted'), ('setup_help_requested', 'Setup help requested'), ('trial_click', 'Trial clicked'), ('signup', 'Account created'), ('checkout_started', 'Checkout opened'),
           ('checkout_completed', 'Checkout completed'), ('trial_started', 'Trial started'),
           ('first_reminder', 'First tuition reminder accepted'), ('paid_customer', 'Paid customer')]
 

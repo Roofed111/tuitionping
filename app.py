@@ -82,8 +82,8 @@ PUBLIC_PAGES = {
     "/": ("landing.html", "2026-10-08"),
     "/guide": ("guide.html", "2026-10-20"),
     "/late-fee-policy": ("late-fee-policy.html", "2026-10-06"),
-    "/compare/brightwheel": ("compare-brightwheel.html", "2026-10-08"),
-    "/guides": ("guides.html", "2026-10-06"),
+    "/compare/brightwheel": ("compare-brightwheel.html", "2026-10-20"),
+    "/guides": ("guides.html", "2026-10-20"),
     "/guides/tuition-collection": ("collection_hub.html", "2026-10-20"),
     "/tools/daycare-invoice-receipt": ("tool_invoice.html", "2026-10-06"),
     "/partners": ("partners.html", "2026-10-20"),
@@ -374,7 +374,8 @@ async def conversion_event(request: Request):
                 or path not in _TRACKED_PATHS
                 or (event.startswith("demo_") and path != "/demo")
                 or (event.startswith("video_") and path != "/")
-                or (event == "document_created" and path != "/tools/daycare-invoice-receipt")):
+                or (event == "document_created" and path != "/tools/daycare-invoice-receipt")
+                or (event == "reminder_generated" and path != "/guides/tuition-reminder-templates")):
             raise ValueError()
         if event == "browser_verified":
             if not traffic.verify_browser(visitor, path, webdriver=detail == "webdriver"):
