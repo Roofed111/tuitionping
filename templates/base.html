@@ -226,7 +226,7 @@
         <a href="/support"{% if request.url.path == '/support' %} class="active" aria-current="page"{% endif %}>Support</a>
         <form class="inline" method="post" action="/logout">{{ csrf_input(request) }}<button class="btn btn-ghost btn-sm" style="margin-left:8px">Log out</button></form>
       {% else %}
-        <a href="/demo"{% if request.url.path == "/demo" %} aria-current="page"{% endif %}>Try the demo</a><a href="/guides"{% if request.url.path == "/guides" %} aria-current="page"{% endif %}>Free tools &amp; templates</a><a href="/login">Log in</a><a class="btn btn-sm" href="/signup?plan=growth" style="margin-left:8px">Start free trial</a>
+        <a href="/demo"{% if request.url.path == "/demo" %} aria-current="page"{% endif %}>Try the demo</a><a href="/pricing"{% if request.url.path == "/pricing" %} aria-current="page"{% endif %}>Pricing</a><a href="/guides"{% if request.url.path == "/guides" %} aria-current="page"{% endif %}>Free tools &amp; templates</a><a href="/login">Log in</a><a class="btn btn-sm" href="/signup?plan=growth" style="margin-left:8px">Start free trial</a>
       {% endif %}
     </nav>
   </div>
@@ -236,6 +236,6 @@
 {% block content %}{% endblock %}
 </div>
 <footer>TuitionPing · automated tuition reminders by text message<br>A product of Hirsch Commerce LLC · Concord, California{% if demo %} · demo mode: texts are simulated{% endif %}<br>
-<a href="/guides">Free tools &amp; templates</a> · <a href="/partners">Partner resources</a> · <a href="/about">About</a> · <a href="/support">Support</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="/security">Security</a>{% if provider %} · <a href="/suggest">Suggest a feature</a>{% endif %}{% if provider and provider["is_admin"] %} · <a href="/admin">Admin</a>{% endif %}</footer>
+<a href="/pricing">Pricing</a> · <a href="/guides">Free tools &amp; templates</a> · <a href="/partners">Partner resources</a> · <a href="/about">About</a> · <a href="/support">Support</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="/security">Security</a>{% if provider %} · <a href="/suggest">Suggest a feature</a>{% endif %}{% if provider and provider["is_admin"] %} · <a href="/admin">Admin</a>{% endif %}</footer>
 </body>
 </html>

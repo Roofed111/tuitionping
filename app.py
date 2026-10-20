@@ -79,7 +79,8 @@ app = FastAPI(title="TuitionPing", lifespan=analytics_lifespan)
 
 # Dates describe substantive page edits, not filesystem timestamps at deployment.
 PUBLIC_PAGES = {
-    "/": ("landing.html", "2026-10-08"),
+    "/": ("landing.html", "2026-10-20"),
+    "/pricing": ("pricing.html", "2026-10-20"),
     "/guide": ("guide.html", "2026-10-20"),
     "/late-fee-policy": ("late-fee-policy.html", "2026-10-06"),
     "/compare/brightwheel": ("compare-brightwheel.html", "2026-10-20"),
@@ -824,12 +825,21 @@ def public_demo(request: Request):
     return templates.TemplateResponse(request, "demo.html", {"request": request, "provider": None})
 
 
+@app.get("/pricing", response_class=HTMLResponse)
+def public_pricing(request: Request):
+    return templates.TemplateResponse(request, "pricing.html", {
+        "request": request, "provider": current_provider(request),
+        "plans": billing.PLANS, "trial_days": billing.TRIAL_DAYS,
+    })
+
+
 @app.get("/home-daycare-tuition-reminders", response_class=HTMLResponse)
 @app.get("/small-daycare-tuition-reminders", response_class=HTMLResponse)
 @app.get("/bilingual-daycare-tuition-reminders", response_class=HTMLResponse)
 def audience_page(request: Request):
     return templates.TemplateResponse(request, "audience.html", {"request": request, "provider": None,
-                                                               "page": AUDIENCES[request.url.path]})
+                                                               "page": AUDIENCES[request.url.path],
+                                                               "plans": billing.PLANS})
 
 
 @app.get("/es/recordatorios-de-pago-guarderia", response_class=HTMLResponse)
