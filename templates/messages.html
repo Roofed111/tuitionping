@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Message log — TuitionPing{% endblock %}
+{% block content %}
+<div class="prop-head" style="align-items:center">
+  <h1 style="margin:0">💬 Message log</h1>
+  <a class="btn" href="/messages/export">⬇ Export to Excel</a>
+</div>
+<p style="color:var(--muted);margin-top:0">
+  Every text sent and received, newest first.
+  {% if total > messages|length %}Showing the latest {{ messages|length }} of {{ total }} — the Excel export includes all {{ total }}.{% endif %}
+</p>
+<div class="card" style="padding:0;overflow-x:auto">
+  <table style="margin:0">
+    <caption class="visually-hidden">All text messages sent and received</caption>
+    <thead><tr><th scope="col">When</th><th scope="col"></th><th scope="col">Child</th><th scope="col">Message</th><th scope="col">Status</th></tr></thead>
+    <tbody>
+    {% for m in messages %}
+    <tr>
+      <td style="white-space:nowrap" class="family-phone">{{ m["created_at"][:16].replace("T"," ") }}</td>
+      <td class="dir {{ "dir-out" if m["direction"]=="out" else "dir-in" }}">{{ "→" if m["direction"]=="out" else "←" }}</td>
+      <td>{{ m["family_name"] or "—" }}</td>
+      <td class="msg-body">{{ m["body"] }}</td>
+      <td><span class="family-phone">{{ m["status"] }}</span></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5"><div class="empty"><span class="big">💬</span>No messages yet — reminders you send will appear here.</div></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+<p><a class="btn btn-ghost" href="/dashboard">← Back to dashboard</a></p>
+{% endblock %}

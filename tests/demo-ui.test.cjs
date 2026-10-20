@@ -1,0 +1,28 @@
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const {JSDOM}=require('jsdom');
+test('sample workflow distinguishes a parent report from verified receipt and resets without sends',()=>{
+  const html=fs.readFileSync('templates/demo.html','utf8');
+  const dom=new JSDOM(html,{runScripts:'outside-only',url:'https://www.tuitionping.com/demo'});
+  const events=[];dom.window.tpTrack=(...args)=>events.push(args);
+  dom.window.eval(fs.readFileSync('static/demo.js','utf8'));
+  const d=dom.window.document,click=id=>d.getElementById(id).click();
+  assert.equal(d.getElementById('demo-reply').disabled,true);
+  click('demo-send');assert.equal(d.getElementById('demo-reply').disabled,false);
+  click('demo-reply');assert.match(d.getElementById('demo-roster').textContent,/Reported paid — review/);
+  assert.equal(d.getElementById('demo-verified').textContent,'1');
+  assert.equal(d.getElementById('demo-review').textContent,'1');
+  click('demo-verify');assert.equal(d.getElementById('demo-verified').textContent,'2');
+  assert.equal(d.getElementById('demo-review').textContent,'0');
+  assert.equal(d.getElementById('demo-send').disabled,true);
+  click('demo-reset');assert.equal(d.getElementById('demo-verified').textContent,'1');
+  assert.equal(d.getElementById('demo-log').children.length,0);
+  d.getElementById('demo-family').value='morales';
+  d.getElementById('demo-family').dispatchEvent(new dom.window.Event('change'));
+  assert.equal(d.getElementById('demo-language').value,'es');
+  assert.match(d.getElementById('demo-preview').textContent,/vence hoy/);
+  assert.equal(events.filter(e=>e[0]==='demo_started').length,1);
+  assert.ok(events.some(e=>e[1]==='verified'));
+  dom.window.close();
+});
