@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Daycare Tuition Late-Fee Calculator | TuitionPing</title><link rel="canonical" href="https://www.tuitionping.com/tools/late-fee-calculator"><link rel="stylesheet" href="/static/embedded-calculator.css?v=1"></head>
+<body><main class="widget"><header><p class="brand">TuitionPing · Free tool</p><h1>Tuition late-fee calculator</h1><p>Enter your bill and the fee terms you already use. USD · calendar days · no compounding.</p></header>
+<form id="embed-calc-form" novalidate autocomplete="off"><div class="fields">
+<label>Tuition due ($)<input id="embed-tuition" type="text" inputmode="decimal" value="1000.00" required maxlength="12"></label>
+<label>Payment / credit before fees ($)<input id="embed-credit" type="text" inputmode="decimal" value="0.00" required maxlength="12"></label>
+<label>Days overdue<input id="embed-days" type="text" inputmode="numeric" value="7" required maxlength="4"></label>
+<label>Grace days<input id="embed-grace" type="text" inputmode="numeric" value="0" required maxlength="3"></label>
+<label>Fee model<select id="embed-type"><option value="flat">One-time flat fee</option><option value="daily">Daily fee</option><option value="weekly">Fee per started week</option><option value="percent">One-time percentage</option><option value="flat_daily">Flat fee plus daily fee</option></select></label>
+<label><span id="embed-rate-label">One-time fee ($)</span><input id="embed-amount" type="text" inputmode="decimal" value="25.00" required maxlength="12"></label>
+<label id="embed-daily-field" hidden>Additional daily fee ($)<input id="embed-dailyRate" type="text" inputmode="decimal" value="5.00" maxlength="12"></label>
+<label>Maximum late fee ($, optional)<input id="embed-cap" type="text" inputmode="decimal" maxlength="12" placeholder="No cap"></label>
+</div><button type="submit">Calculate estimate</button><p class="hint">Starts with example values. Replace them with your bill and policy.</p></form>
+<p id="embed-error" role="alert" hidden></p>
+<section id="embed-result" aria-labelledby="embed-result-title" hidden><h2 id="embed-result-title">Total remaining due</h2><p id="embed-total" class="total"></p><dl><div><dt>Unpaid tuition</dt><dd id="embed-balance"></dd></div><div><dt>Late fee</dt><dd id="embed-fee"></dd></div></dl><p id="embed-explanation"></p><p id="embed-announcement" role="status" aria-live="polite"></p></section>
+<p class="hint">Estimate only. Apply your written agreement and check applicable requirements before assessing a fee. Your entries stay in this calculator; no names, payment details or amounts are sent to TuitionPing.</p>
+<footer><a href="{{ calculator_url }}" target="_blank" rel="noopener noreferrer">Open the full calculator</a><a href="{{ finder_url }}" target="_blank" rel="noopener noreferrer">Find the right tuition tool</a></footer>
+<noscript><p>JavaScript is needed for this calculator. Open the full calculator for formulas and a worked example.</p></noscript>
+</main><script src="/static/late-fee-math.js?v=2" defer></script><script src="/static/embedded-calculator.js?v=1" defer></script></body></html>
