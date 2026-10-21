@@ -1,6 +1,8 @@
 <aside class="resource-related" aria-label="Related free resources">
   <h2>Keep your tuition process moving</h2>
   <ul>
+    {% if request.url.path != '/tools/daycare-past-due-letter' %}<li><a href="/tools/daycare-past-due-letter">Printable past-due tuition letter generator</a></li>{% endif %}
+    <li><a href="/how-it-works">Watch the 48-second TuitionPing walkthrough</a></li>
     {% for path, label in [('/guides/tuition-collection', 'Bill-to-receipt collection workflow'), ('/tools/daycare-invoice-receipt', 'Free invoice and receipt generator'), ('/guide', 'Tuition collection checklist'), ('/late-fee-policy', 'Late-fee policy template'), ('/guides/tuition-reminder-templates', 'Payment reminder generator & templates'), ('/guides/daycare-payment-policy-template', 'Daycare payment policy template'), ('/guides/tuition-increase-letter', 'Tuition increase letter templates'), ('/tools/late-fee-calculator', 'Calculate a tuition late fee'), ('/tools/tuition-payment-tracker', 'Free tuition payment spreadsheet'), ('/guides/handling-late-paying-parents', 'Following up on overdue tuition')] %}
     {% if request.url.path != path %}<li><a href="{{ path }}">{{ label }}</a></li>{% endif %}
     {% endfor %}

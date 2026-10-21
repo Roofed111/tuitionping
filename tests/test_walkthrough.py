@@ -45,7 +45,7 @@ class WalkthroughTest(unittest.TestCase):
         self.assertEqual(poster.status_code, 200)
         self.assertIn('image/webp', poster.headers['content-type'])
 
-    def test_video_events_are_deduplicated_and_only_accepted_on_homepage(self):
+    def test_homepage_video_events_are_deduplicated_and_rejected_off_video_pages(self):
         page = self.client.get('/')
         token = re.search('name="tp-analytics-token" content="([a-f0-9]+)"', page.text).group(1)
         def record(event, path='/', detail=''):

@@ -5,7 +5,8 @@
   const kinds = {
     '/guides/tuition-reminder-templates': ['reminder'],
     '/tools/tuition-payment-tracker': ['tracker'],
-    '/tools/daycare-invoice-receipt': ['invoice', 'receipt']
+    '/tools/daycare-invoice-receipt': ['invoice', 'receipt'],
+    '/tools/daycare-past-due-letter': ['notice']
   }[location.pathname];
   if (!kinds) return;
   const shown = new Set(), clicked = new Set();
@@ -23,7 +24,8 @@
       reminder: 'Next: preview scheduled monthly reminders',
       tracker: 'Next: see how reminders fit your records',
       invoice: 'Next: follow up on an unpaid bill',
-      receipt: 'Next: explore provider payment review'
+      receipt: 'Next: explore provider payment review',
+      notice: 'Next: preview scheduled follow-up'
     }[kind];
     const invoice = panel.querySelector('[data-next-invoice]');
     const receipt = panel.querySelector('[data-next-receipt]');

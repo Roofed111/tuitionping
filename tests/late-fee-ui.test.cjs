@@ -68,7 +68,10 @@ test('shared URL hydrates cents, cap, credit, timing and projection',()=>{
 });
 test('hostile or malformed query input is not HTML and cannot produce NaN',()=>{
   const {dom,w,$}=setup('?tuition=%3Cscript%3Ealert(1)%3C%2Fscript%3E&timing=evil&type=evil');
-  assert.equal($('total').textContent,'—'); assert.equal(w.document.querySelectorAll('script').length,3);
+  const baseline=setup();
+  assert.equal($('total').textContent,'—');
+  assert.deepEqual([...w.document.querySelectorAll('script')].map(s=>s.outerHTML), [...baseline.w.document.querySelectorAll('script')].map(s=>s.outerHTML));
+  baseline.w.close();
   assert.doesNotMatch(w.document.body.textContent,/NaN|Infinity/);
   dom.window.close();
 });

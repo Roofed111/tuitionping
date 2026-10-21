@@ -1,5 +1,15 @@
 # Late-fee calculator checks
 
+## Video watch page and past-due letter
+
+`test_video_notice.py` checks public discovery, canonical URLs, unique IDs,
+VideoObject/player consistency, opt-outs, path-bound events, deduplication and
+automated-traffic exclusion. `past-due-ui.test.cjs` exercises integer-cent
+balances, paid-bill rejection, dates across DST, stale-output removal, printing,
+copy fallback and races, inert hostile input, fictional sample labels, and
+no network requests or storage of private entries. No customer messages are sent.
+The letter records a fixed resource-use event, never a paid conversion.
+
 ## Pricing and search landing pages
 
 `test_pricing_seo.py` checks anonymous/expired-account access, canonical host

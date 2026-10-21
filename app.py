@@ -100,6 +100,8 @@ PUBLIC_PAGES = {
     "/tools/tuition-payment-tracker": ("tool_payment_tracker.html", "2026-10-20"),
     "/about": ("about.html", "2026-10-06"),
     "/demo": ("demo.html", "2026-10-20"),
+    "/how-it-works": ("walkthrough.html", "2026-10-20"),
+    "/tools/daycare-past-due-letter": ("tool_past_due.html", "2026-10-20"),
     "/home-daycare-tuition-reminders": ("audience.html", "2026-10-20"),
     "/small-daycare-tuition-reminders": ("audience.html", "2026-10-20"),
     "/preschool-tuition-reminders": ("audience.html", "2026-10-20"),
@@ -381,7 +383,8 @@ async def conversion_event(request: Request):
                 or event not in growth.CLIENT_EVENTS or detail not in growth.CLIENT_EVENTS[event]
                 or path not in _TRACKED_PATHS
                 or (event.startswith("demo_") and path != "/demo")
-                or (event.startswith("video_") and path != "/")
+                or (event.startswith("video_") and path not in {"/", "/how-it-works"})
+                or (event == "notice_created" and path != "/tools/daycare-past-due-letter")
                 or (event == "document_created" and path != "/tools/daycare-invoice-receipt")
                 or (event == "reminder_generated" and path != "/guides/tuition-reminder-templates")
                 or (event in {"resource_next_step", "resource_demo_click"}
@@ -832,6 +835,18 @@ def sitemap_xml(request: Request):
 @app.get("/demo", response_class=HTMLResponse)
 def public_demo(request: Request):
     return templates.TemplateResponse(request, "demo.html", {"request": request, "provider": None})
+
+
+@app.get("/how-it-works", response_class=HTMLResponse)
+def public_walkthrough(request: Request):
+    return templates.TemplateResponse(request, "walkthrough.html", {"request": request, "provider": None})
+
+
+@app.get("/tools/daycare-past-due-letter", response_class=HTMLResponse)
+def past_due_letter_tool(request: Request):
+    return templates.TemplateResponse(request, "tool_past_due.html", {
+        "request": request, "provider": None, "plans": billing.PLANS, "trial_days": billing.TRIAL_DAYS,
+    })
 
 
 @app.get("/pricing", response_class=HTMLResponse)

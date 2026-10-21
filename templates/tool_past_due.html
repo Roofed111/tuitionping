@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Free Daycare Past-Due Letter Generator for Parents | TuitionPing{% endblock %}
+{% block meta_description %}<meta name="description" content="Create a daycare past-due tuition letter with the billing period, outstanding balance and payment instructions. Print, save as PDF or copy. Free, no signup.">{% endblock %}
+{% block og_title %}Free Daycare Past-Due Tuition Letter Generator{% endblock %}
+{% block og_description %}Write a clear overdue tuition notice to parents. Include credits and verified payments, then print or copy your letter. No signup.{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="/static/past-due.css?v=1">
+<header class="resource-intro"><p class="resource-kicker">Free printable tool · No signup · USD</p><h1>Daycare past-due letter generator</h1><p>Turn an overdue tuition balance into a clear, respectful letter to parents. Include the billing period, original due date, verified payments and a specific follow-up date.</p><p>Your entries stay in this tab, are not stored by TuitionPing and are not copied into the demo. Review the letter against your records and written policy before sending it privately.</p></header>
+<div class="notice-workspace">
+<section class="card notice-inputs" aria-labelledby="notice-form-heading"><h2 id="notice-form-heading">Build your past-due notice</h2>
+<form id="notice-form" class="form-stack" autocomplete="off">
+<label>Program name<input id="notice-program" required maxlength="120" placeholder="Your daycare or preschool"></label>
+<label>Family or account label<input id="notice-family" required maxlength="120" placeholder="Family / account name"></label>
+<label>Contact for questions<input id="notice-contact" required maxlength="200" placeholder="Program email or phone"></label>
+<div class="notice-fields"><label>Letter date<input id="notice-issued" type="date" required></label><label>Original tuition due date<input id="notice-due" type="date" required></label><label>Billing period starts<input id="notice-start" type="date" required></label><label>Billing period ends<input id="notice-end" type="date" required></label></div>
+<div class="notice-fields"><label>Tuition charges ($)<input id="notice-tuition" inputmode="decimal" required placeholder="800.00"></label><label>Fees already assessed ($)<input id="notice-fees" inputmode="decimal" required value="0.00"></label><label>Approved credits ($)<input id="notice-credits" inputmode="decimal" required value="0.00"></label><label>Verified payments received ($)<input id="notice-payments" inputmode="decimal" required value="0.00"></label></div>
+<p><small>Enter only fees already assessed under your policy and payments you have checked. A parent's PAID reply alone is not a verified payment. No late fee is calculated or added automatically.</small></p>
+<label>Please pay or contact us by<input id="notice-response" type="date" required></label>
+<label>Payment instructions<textarea id="notice-instructions" required rows="3" maxlength="600" placeholder="Use your usual payment method. Include the account reference or instructions families need; do not enter passwords or card details."></textarea></label>
+<label>Letter tone<select id="notice-tone"><option value="friendly">Friendly reminder</option><option value="firm">Firm follow-up</option></select></label>
+<div class="download-actions"><button class="btn" type="submit">Create letter</button><button class="btn btn-ghost" type="button" id="notice-example">Load fictional example</button><button class="btn btn-ghost" type="button" id="notice-reset">Clear entries</button></div>
+<p id="notice-error" role="alert" hidden></p>
+</form></section>
+<div class="notice-output"><div class="notice-toolbar"><button class="btn" id="notice-print" disabled>Print / save as PDF</button><button class="btn btn-ghost" id="notice-copy" disabled>Copy letter</button></div><p id="notice-status" role="status" aria-live="polite">Complete the form to preview your letter.</p>
+<article id="notice-document" aria-label="Generated past-due tuition letter" hidden></article>
+<div class="card" id="notice-empty"><h2>A useful written follow-up</h2><p>Explain what is overdue, what you have already credited or verified, how to pay, and when the family should respond. The preview is a request for payment, never a receipt.</p><p>Need a short text instead? Use the <a href="/guides/tuition-reminder-templates#reminder-generator">payment reminder generator</a>.</p></div>
+{% with next_step='notice' %}{% include "resource_next_step.html" %}{% endwith %}
+</div></div>
+<noscript><p class="resource-note">JavaScript is needed to create the letter privately in your browser. Use the written guidance below or our <a href="/guides/handling-late-paying-parents">late-payment follow-up guide</a>.</p></noscript>
+<section class="card notice-info"><h2>What should a daycare late payment letter include?</h2><p>Use the program and family name, service period, original due date, itemized balance, verified payments, payment instructions and a clear date to pay or contact you. Check for a payment in transit before sending the notice, and share it privately with the responsible adult.</p><h3>A partial-payment example</h3><p>An $800 tuition charge plus a $25 fee already assessed, less a $25 credit and $200 in verified payments, leaves $600 outstanding. The letter requests that remaining $600; it does not claim the full $800 is unpaid.</p><h3>Can I print or save a PDF?</h3><p>Yes. Create the letter, then choose Print / save as PDF. Your browser's print dialog offers the available printer and PDF options. Only the letter prints. Keep a copy with your records; closing or reloading the tab clears the form.</p><h3>Does this send the letter or add late fees?</h3><p>No. This is a manual writing tool. It does not email or text families, assess fees, update your account, or process payments. Review any fee against your existing written agreement and applicable requirements. The letter is not legal advice, a collection demand, or a suspension or termination notice.</p><h3>When is a reminder enough?</h3><p>A short text can be useful for an upcoming due date. A written letter is useful when an overdue balance needs an itemized explanation or a documented follow-up. See <a href="/guides/handling-late-paying-parents">how to handle late-paying parents</a> for a private, practical approach.</p></section>
+<section class="card notice-info"><h2>Fewer reminders to write by hand</h2><p>Keep your own payment method and records. TuitionPing schedules monthly tuition reminder texts, records a parent's PAID reply, and lets you confirm receipt after checking the payment. <a href="/how-it-works">Watch the 48-second walkthrough</a> or <a href="/demo">try the interactive demo</a> without an account.</p></section>
+{% include "resource_related.html" %}
+<script src="/static/past-due.js?v=1" defer></script>
+{% endblock %}

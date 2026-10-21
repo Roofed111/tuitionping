@@ -25,16 +25,18 @@ CLIENT_EVENTS = {'browser_verified': {'', 'webdriver'}, 'demo_started': {''}, 'd
 CLIENT_EVENTS['visitor_engaged'] = {'interaction','active_reading'}
 CLIENT_EVENTS['reminder_generated'] = {'before','due','late'}
 CLIENT_EVENTS['demo_completed'] = {''}
+CLIENT_EVENTS['notice_created'] = {''}
 RESOURCE_EVENT_PATHS = {
     'reminder': '/guides/tuition-reminder-templates',
     'tracker': '/tools/tuition-payment-tracker',
     'invoice': '/tools/daycare-invoice-receipt',
     'receipt': '/tools/daycare-invoice-receipt',
+    'notice': '/tools/daycare-past-due-letter',
 }
 CLIENT_EVENTS['resource_next_step'] = set(RESOURCE_EVENT_PATHS)
 CLIENT_EVENTS['resource_demo_click'] = set(RESOURCE_EVENT_PATHS)
 STAGES = [('page_view', 'Visitors'), ('video_started', 'Walkthrough played'), ('video_completed', 'Walkthrough completed'), ('demo_started', 'Demo used'), ('demo_completed', 'Demo completed'), ('download', 'Resource downloaded'),
-          ('document_created', 'Document generated'), ('reminder_generated', 'Reminder drafted'), ('resource_next_step', 'Next-step prompt shown'), ('resource_demo_click', 'Resource → demo clicked'), ('setup_help_requested', 'Setup help requested'), ('trial_click', 'Trial clicked'), ('signup', 'Account created'), ('checkout_started', 'Checkout opened'),
+          ('document_created', 'Document generated'), ('reminder_generated', 'Reminder drafted'), ('notice_created', 'Past-due letter created'), ('resource_next_step', 'Next-step prompt shown'), ('resource_demo_click', 'Resource → demo clicked'), ('setup_help_requested', 'Setup help requested'), ('trial_click', 'Trial clicked'), ('signup', 'Account created'), ('checkout_started', 'Checkout opened'),
           ('checkout_completed', 'Checkout completed'), ('trial_started', 'Trial started'),
           ('first_reminder', 'First tuition reminder accepted'), ('paid_customer', 'Paid customer')]
 
@@ -201,7 +203,7 @@ def report(days=28, kind='human'):
             buckets.setdefault(k, set()).add(v['visitor_id'])
         def accounts(ids, event):
             return len({e['provider_id'] for e in events if e['event'] == event and e['visitor_id'] in ids and e['provider_id'] is not None})
-        resource_ids = set().union(*(event_sets.get(event, set()) for event in ('download', 'reminder_generated', 'document_created')))
+        resource_ids = set().union(*(event_sets.get(event, set()) for event in ('download', 'reminder_generated', 'document_created', 'notice_created')))
         return [{'key': k, 'label':acquisition.source_label(k[0],k[1]) if len(k)==3 else '', 'details': sorted({acquisition.display(v)['term'] for v in visitors if v['visitor_id'] in ids and acquisition.display(v)['term']}), 'visitors': len({identities[vid] for vid in ids}), 'demo': len(ids & event_sets.get('demo_started', set())),
                  'resources': len(ids & resource_ids), 'demo_completed': len(ids & event_sets.get('demo_completed', set())),
                  'help': len(ids & event_sets.get('setup_help_requested', set())), 'signups': accounts(ids, 'signup'), 'trials': accounts(ids, 'trial_started'),
