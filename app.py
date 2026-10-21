@@ -84,18 +84,20 @@ PUBLIC_PAGES = {
     "/guide": ("guide.html", "2026-10-20"),
     "/late-fee-policy": ("late-fee-policy.html", "2026-10-06"),
     "/compare/brightwheel": ("compare-brightwheel.html", "2026-10-20"),
+    "/compare/spreadsheets": ("compare-spreadsheets.html", "2026-10-20"),
     "/guides": ("guides.html", "2026-10-20"),
     "/guides/tuition-collection": ("collection_hub.html", "2026-10-20"),
-    "/tools/daycare-invoice-receipt": ("tool_invoice.html", "2026-10-06"),
+    "/tools/daycare-invoice-receipt": ("tool_invoice.html", "2026-10-20"),
     "/partners": ("partners.html", "2026-10-20"),
     "/guides/tuition-reminder-templates": ("guide_templates.html", "2026-10-20"),
     "/guides/handling-late-paying-parents": ("guide_late_parents.html", "2026-10-20"),
     "/tools/late-fee-calculator": ("tool_late_fee_calc.html", "2026-10-06"),
     "/tools/tuition-payment-tracker": ("tool_payment_tracker.html", "2026-10-20"),
     "/about": ("about.html", "2026-10-06"),
-    "/demo": ("demo.html", "2026-10-06"),
+    "/demo": ("demo.html", "2026-10-20"),
     "/home-daycare-tuition-reminders": ("audience.html", "2026-10-20"),
     "/small-daycare-tuition-reminders": ("audience.html", "2026-10-20"),
+    "/preschool-tuition-reminders": ("audience.html", "2026-10-20"),
     "/bilingual-daycare-tuition-reminders": ("audience.html", "2026-10-20"),
     "/es/recordatorios-de-pago-guarderia": ("guarderia_es.html", "2026-10-20"),
     "/support": ("support.html", None),
@@ -376,7 +378,9 @@ async def conversion_event(request: Request):
                 or (event.startswith("demo_") and path != "/demo")
                 or (event.startswith("video_") and path != "/")
                 or (event == "document_created" and path != "/tools/daycare-invoice-receipt")
-                or (event == "reminder_generated" and path != "/guides/tuition-reminder-templates")):
+                or (event == "reminder_generated" and path != "/guides/tuition-reminder-templates")
+                or (event in {"resource_next_step", "resource_demo_click"}
+                    and path != growth.RESOURCE_EVENT_PATHS.get(detail))):
             raise ValueError()
         if event == "browser_verified":
             if not traffic.verify_browser(visitor, path, webdriver=detail == "webdriver"):
@@ -835,6 +839,7 @@ def public_pricing(request: Request):
 
 @app.get("/home-daycare-tuition-reminders", response_class=HTMLResponse)
 @app.get("/small-daycare-tuition-reminders", response_class=HTMLResponse)
+@app.get("/preschool-tuition-reminders", response_class=HTMLResponse)
 @app.get("/bilingual-daycare-tuition-reminders", response_class=HTMLResponse)
 def audience_page(request: Request):
     return templates.TemplateResponse(request, "audience.html", {"request": request, "provider": None,
@@ -875,6 +880,14 @@ def compare_brightwheel(request: Request):
                                        "plans": billing.PLANS})
 
 
+@app.get("/compare/spreadsheets", response_class=HTMLResponse)
+def compare_spreadsheets(request: Request):
+    return templates.TemplateResponse(request, "compare-spreadsheets.html", {
+        "request": request, "provider": current_provider(request),
+        "plans": billing.PLANS, "trial_days": billing.TRIAL_DAYS,
+    })
+
+
 @app.get("/guides", response_class=HTMLResponse)
 def guides_hub(request: Request):
     """SEO hub: index of all owner guides."""
@@ -890,7 +903,9 @@ def collection_hub(request: Request):
 
 @app.get("/tools/daycare-invoice-receipt", response_class=HTMLResponse)
 def invoice_tool(request: Request):
-    return templates.TemplateResponse(request, "tool_invoice.html", {"request":request, "provider":None})
+    return templates.TemplateResponse(request, "tool_invoice.html", {
+        "request": request, "provider": None, "plans": billing.PLANS, "trial_days": billing.TRIAL_DAYS,
+    })
 
 
 @app.get("/guides/tuition-reminder-templates", response_class=HTMLResponse)
@@ -898,7 +913,8 @@ def guide_templates(request: Request):
     """SEO guide: copy-paste tuition reminder text templates (EN/ES)."""
     provider = current_provider(request)
     return templates.TemplateResponse(request, "guide_templates.html",
-                                      {"request": request, "provider": provider})
+                                      {"request": request, "provider": provider,
+                                       "plans": billing.PLANS, "trial_days": billing.TRIAL_DAYS})
 
 
 @app.get("/guides/handling-late-paying-parents", response_class=HTMLResponse)
@@ -920,7 +936,8 @@ def tool_late_fee_calc(request: Request):
 @app.get("/tools/tuition-payment-tracker", response_class=HTMLResponse)
 def tool_payment_tracker(request: Request):
     return templates.TemplateResponse(request, "tool_payment_tracker.html",
-                                      {"request": request, "provider": current_provider(request)})
+                                      {"request": request, "provider": current_provider(request),
+                                       "plans": billing.PLANS, "trial_days": billing.TRIAL_DAYS})
 
 
 @app.get("/about", response_class=HTMLResponse)

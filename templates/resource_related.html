@@ -7,9 +7,9 @@
   </ul>
   <h2>Automatic reminders, built for your program</h2>
   <ul>
-    {% for path, label in [('/home-daycare-tuition-reminders', 'Tuition reminders for home daycares'), ('/small-daycare-tuition-reminders', 'Tuition reminder software for small centers'), ('/bilingual-daycare-tuition-reminders', 'English & Spanish tuition reminders')] %}
+    {% for path, label in [('/home-daycare-tuition-reminders', 'Tuition reminders for home daycares'), ('/small-daycare-tuition-reminders', 'Tuition reminder software for small centers'), ('/preschool-tuition-reminders', 'Preschool tuition reminders for monthly billing'), ('/bilingual-daycare-tuition-reminders', 'English & Spanish tuition reminders')] %}
     {% if request.url.path != path %}<li><a href="{{ path }}">{{ label }}</a></li>{% endif %}
     {% endfor %}
   </ul>
-  <p><a href="/guides">Browse all free tools and templates</a> · <a href="/about">About TuitionPing and these resources</a></p>
+  <p><a href="/compare/spreadsheets">Compare payment spreadsheets and scheduled reminders</a> · <a href="/guides">Browse all free tools and templates</a> · <a href="/about">About TuitionPing and these resources</a></p>
 </aside>

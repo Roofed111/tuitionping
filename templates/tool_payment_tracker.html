@@ -15,6 +15,7 @@
     <p class="tracker-format-note">For Google Sheets: upload the .xlsx file to Drive, open it with Google Sheets, then save it as a Google spreadsheet. Check the example totals after import.</p>
     <p class="tracker-format-note">The spreadsheet is a standalone record. It does not connect to TuitionPing or send texts.</p>
     <a href="/static/downloads/daycare-tuition-collection-kit.zip" download>Get the complete free collection kit</a>
+    {% with next_step='tracker' %}{% include "resource_next_step.html" %}{% endwith %}
   </div>
   <figure class="tracker-preview" id="tracker-preview" aria-labelledby="tracker-preview-title">
     <div class="tracker-sheet-heading"><span class="tracker-sheet-icon" aria-hidden="true">▦</span><div><h2 id="tracker-preview-title">A look inside the payment tracker</h2><p>Worked example · Review date: October 12, 2026</p></div></div>

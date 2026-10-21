@@ -7,9 +7,9 @@
     {id:'lee', name:'Lee', amount:850, due:'Oct 8', language:'en', stage:'due', status:'Verified paid', verified:true}
   ];
   let families, messages;
-  let started = false;
+  let started = false, completed = false;
   const el = id => document.getElementById(id);
-  const track = (event, detail) => {if(window.tpTrack) window.tpTrack(event, detail);};
+  const track = (event, detail) => {try { if(window.tpTrack) window.tpTrack(event, detail); } catch (_) {}};
   const family = () => families.find(f => f.id === el('demo-family').value);
   function text(f) {
     if(f.verified) return 'Payment verified in this sample. Scheduled tuition reminders stop for this period.';
@@ -58,7 +58,7 @@
   el('demo-language').addEventListener('change',()=>{interaction();if(el('demo-language').value==='es')track('demo_step','spanish');render();});
   el('demo-send').addEventListener('click',()=>{const f=family();if(f.sent || f.verified)return;interaction();addMessage(`Simulated reminder · ${f.name}`,text(f));f.sent=true;track('demo_step',f.stage);el('demo-feedback').textContent='Reminder simulated. Now try a parent replying PAID.';render();});
   el('demo-reply').addEventListener('click',()=>{const f=family();if(!f.sent || f.reported || f.verified)return;f.reported=true;addMessage(`Simulated parent reply · ${f.name}`,'PAID');addMessage('Simulated acknowledgment','Payment reported. The provider still needs to verify receipt against their payment records.');track('demo_step','reported');el('demo-feedback').textContent='Payment reported, not verified. Review your sample records and verify the payment next.';render();});
-  el('demo-verify').addEventListener('click',()=>{const f=family();if(!f.reported || f.verified)return;f.verified=true;addMessage(`Sample provider verification · ${f.name}`,'Payment verified. Tuition reminders stop for this sample period.');track('demo_step','verified');el('demo-feedback').textContent='Sample payment verified. In your real account, verify only after confirming that the payment arrived.';render();});
+  el('demo-verify').addEventListener('click',()=>{const f=family();if(!f.sent || !f.reported || f.verified)return;f.verified=true;addMessage(`Sample provider verification · ${f.name}`,'Payment verified. Tuition reminders stop for this sample period.');track('demo_step','verified');if(!completed){completed=true;track('demo_completed');}el('demo-feedback').textContent='Sample payment verified. In your real account, verify only after confirming that the payment arrived.';render();});
   el('demo-reset').addEventListener('click',reset);
   reset();el('demo-app').hidden=false;
 }());

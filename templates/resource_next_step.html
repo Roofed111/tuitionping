@@ -1,0 +1,20 @@
+<link rel="stylesheet" href="/static/resource-next-step.css?v=1">
+<section class="card resource-next-step" id="resource-next-step" data-resource-next-step="{{ next_step }}" aria-labelledby="resource-next-title" hidden>
+  <p class="resource-kicker" id="resource-next-status" role="status" aria-live="polite"></p>
+  {% if next_step == 'reminder' %}
+  <h2 id="resource-next-title">Put your monthly tuition reminders on a schedule.</h2>
+  <p>You have a reminder ready to review. See how TuitionPing schedules texts, records a parent's PAID reply and gives you the payment-review step.</p>
+  {% elif next_step == 'tracker' %}
+  <h2 id="resource-next-title">Keep your tracker. Preview scheduled follow-up.</h2>
+  <p>Use the spreadsheet for bills, credits and verified payments. See how scheduled monthly texts can fit alongside those records when you are ready to stop sending each reminder by hand.</p>
+  {% else %}
+  <h2 id="resource-next-title" data-next-invoice>Your invoice is ready. See the reminder that comes next.</h2>
+  <h2 data-next-receipt hidden>Your receipt is ready. See how payment review works.</h2>
+  <p>Preview a scheduled tuition text, a parent's PAID reply and the provider confirming receipt after checking the payment records.</p>
+  {% endif %}
+  <div class="download-actions"><a class="btn" href="/demo" data-resource-action="demo">Try the three-step reminder demo</a><a class="btn btn-ghost" href="/signup?plan=micro">Start a {{ trial_days }}-day free trial</a></div>
+  <p class="resource-next-note">Demo: fictional families, no account or card, no texts sent. Your entries stay on this page and are not copied into the demo.</p>
+  <p class="resource-next-note">Scheduled monthly texts start at <a href="/pricing#plan-micro">${{ plans.micro.price }}/month for up to {{ plans.micro.families }} families</a>. The real trial requires a card at checkout; your selected subscription starts after {{ trial_days }} days unless you cancel. Payments still need your verification.</p>
+  <p><a href="/compare/spreadsheets">Compare the spreadsheet and reminder workflows</a></p>
+</section>
+<script src="/static/resource-next-step.js?v=1" defer></script>

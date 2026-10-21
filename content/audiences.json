@@ -1,4 +1,49 @@
 {
+  "/preschool-tuition-reminders": {
+    "title": "Preschool Tuition Reminders by Text | TuitionPing",
+    "description": "Schedule preschool tuition reminder texts for monthly due dates. Organize families by classroom, review PAID replies and verify payments. See plans and a free demo.",
+    "kicker": "For preschools collecting monthly tuition",
+    "heading": "Preschool tuition reminders that fit your monthly routine.",
+    "intro": "Keep monthly tuition follow-up organized across your preschool classrooms. TuitionPing schedules before-due, due-date and overdue text reminders using each family's tuition amount and monthly due day. Parents use their usual text-message app and can reply PAID. Your team checks the payment records and confirms receipt in the dashboard.",
+    "plan": "starter",
+    "pains_heading": "Give the office a repeatable tuition routine",
+    "pains": [
+      ["Different classrooms, one review process", "Organize families by classroom and location. Review the tuition records you maintain before following up, including different amounts for part-time attendance and approved arrangements."],
+      ["A message between drop-off and pickup", "An ordinary text gives a family a clear amount, due date and payment instruction. Parents can reply from their phone without a TuitionPing account or app."],
+      ["A payment report waiting to be checked", "PAID tells your team that a parent reports sending money. Check the amount and billing period in your bank or payment-service records before confirming receipt and stopping that period's follow-ups."]
+    ],
+    "buying_heading": "Check the fit for your preschool",
+    "buying_points": [
+      ["Monthly tuition schedules", "The reminder subscription follows monthly due-day schedules. The free invoice generator and tracker also work with manually entered weekly or term dates; those tools do not add weekly or term automation to the subscription."],
+      ["The payment method in your agreement", "Continue accepting the checks, transfers or other payment method you already use. TuitionPing schedules texts and records replies. Your staff still handles reconciliation, partial payments and credits in your records."],
+      ["School-year changes need a review", "Before a break, new term or enrollment change, review amounts, monthly due days and which families should receive reminders. The app does not automatically read your preschool calendar, prorate tuition or adjust bills for holidays."]
+    ],
+    "workflow_heading": "Set up your preschool's monthly follow-up",
+    "steps": [
+      ["Prepare the family roster", "Add your location and classrooms, then enter families or use the existing CSV family import. Record the correct tuition amount, monthly due day, contact details and permission for tuition texts."],
+      ["Review your message wording", "Include the payment instructions from your enrollment agreement and check the before-due, due-date and overdue templates. Choose English or Spanish for each family's messages."],
+      ["Preview and send a test text", "Use the setup wizard to preview the message and send your test text. Check the program name, amount, date and instructions before relying on the schedule."],
+      ["Verify payment reports", "When a parent replies PAID, check your actual payment records. Confirm only the payments you have verified. Keep the spreadsheet or bookkeeping system you use for credits and reconciliation."]
+    ],
+    "example_heading": "Example: monthly tuition across two preschool classrooms",
+    "example": "Little Oak Preschool has 24 families across its morning and full-day classrooms. One family's monthly tuition is $600 and due on the 1st; a second family has a different amount due on the 15th. Staff enter each family's own details, then preview the wording: ‘Little Oak Preschool: Tuition of $600 is due on November 1. Please use the payment method in your enrollment agreement and reply PAID once sent.’ A PAID reply moves the record into payment review. The office checks its payment records and confirms receipt. Before the winter break, staff review the next month's tuition and reminder settings against the school's agreement.",
+    "example_note": "Fictional preschool, families and amounts. Scheduled reminders do not prove message reading or payment receipt. Your agreement determines the actual charges and dates.",
+    "fit_heading": "A focused option for an existing billing process",
+    "fit": "This workflow fits a preschool that already has a way to bill families and receive tuition, and wants consistent monthly text follow-up. Attendance, enrollment, online tuition collection, automatic bank reconciliation and school-calendar billing require other tools. The public demo lets you try the reminder, parent reply and provider-confirmation sequence before choosing a plan.",
+    "faq": [
+      ["Can preschool families have different tuition amounts and due days?", "Yes. Set each family's tuition amount and monthly due day on its record. Review those settings when enrollment, attendance arrangements or your agreement changes."],
+      ["Do parents need to install an app?", "No. Parents receive ordinary text messages and can reply PAID from their normal text-message app. Staff use the TuitionPing dashboard."],
+      ["Does TuitionPing collect preschool tuition?", "No. Keep your existing payment method. A parent's PAID reply is a report; your team checks the actual payment records and confirms receipt."],
+      ["Does it support weekly, term or holiday-adjusted billing automatically?", "The reminder subscription uses monthly due-day schedules. It does not automatically apply your school calendar or prorate charges. The free spreadsheet and document generator accept manually entered dates for other billing schedules."],
+      ["Which plan should a preschool choose?", "Choose by the total families and locations on your account. A preschool with 24 families at one location fits Starter. The pricing page shows current monthly and annual prices, family limits and trial terms."],
+      ["Can I try it before creating an account?", "Yes. The public demo uses fictional families, needs no account or card and sends no texts. The real 30-day trial requires a card at secure checkout, with the selected subscription starting afterward unless you cancel."]
+    ],
+    "resources": [
+      ["/compare/spreadsheets", "Compare spreadsheets and scheduled reminders"],
+      ["/tools/daycare-invoice-receipt", "Create a free tuition invoice"],
+      ["/guides/tuition-reminder-templates", "Draft a preschool payment reminder"]
+    ]
+  },
   "/bilingual-daycare-tuition-reminders": {
     "description": "Send daycare tuition reminder texts in each family's preferred English or Spanish. Preview bilingual examples, customize wording and verify payment reports.",
     "example": "English: ‘Sunshine Daycare: Tuition of $1,200 is due today, October 8. Please use our usual payment method and reply PAID once you have sent it.’ The Spanish version carries the same amount, the same date and the same next step — a family can put the two side by side and get one message. The same pairing exists for the heads-up before the due date and for the follow-ups at three and seven days late. If the Spanish version and the English version ever seemed to disagree, the family has still received one clear amount and one clear date — because both templates come from the same family record, not from two separate lists kept in two languages.",

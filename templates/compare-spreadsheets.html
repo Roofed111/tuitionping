@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Daycare Payment Spreadsheet vs. Automated Reminders | TuitionPing{% endblock %}
+{% block meta_description %}<meta name="description" content="Compare a daycare payment spreadsheet with automated tuition reminder texts: recordkeeping, monthly follow-up, payment verification, setup and current TuitionPing prices.">{% endblock %}
+{% block og_title %}Daycare Payment Spreadsheet vs. Automated Tuition Reminders{% endblock %}
+{% block og_description %}See what you keep in your tracker and what scheduled reminder texts can handle. Includes a monthly workflow, free spreadsheet and interactive demo.{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="/static/comparison.css?v=1">
+<header class="resource-intro">
+  <p class="resource-kicker">Choosing a tuition follow-up process</p>
+  <h1>Daycare payment spreadsheet vs. automated reminders</h1>
+  <p>A payment spreadsheet gives you a record of bills, credits and verified payments. Scheduled reminder texts handle the repeat follow-up around monthly due dates. You can use both: keep your tracker for reconciliation and use TuitionPing for the messages and parent replies.</p>
+  <p class="resource-byline">Prepared by TuitionPing · Updated October 20, 2026</p>
+  <div class="download-actions"><a class="btn" href="/demo">Try the reminder workflow</a><a class="btn btn-ghost" href="/tools/tuition-payment-tracker">Get the free spreadsheet</a></div>
+</header>
+<section class="resource-grid" aria-label="Choose the work you need help with">
+  <article class="card"><h2>Keep a spreadsheet when you need a flexible ledger</h2><p>Record weekly or monthly bills, partial payments, approved credits and notes in the format that works for you. Our free Excel tracker includes a worked example and Google Sheets import instructions. You enter and verify the records, then send any reminders yourself.</p></article>
+  <article class="card"><h2>Add scheduled texts when monthly follow-up repeats</h2><p>TuitionPing schedules before-due, due-date and overdue texts, records replies and shows payment reports for review. Families use their normal text-message app. Your existing payment method and reconciliation process remain part of the workflow.</p></article>
+</section>
+<section class="card"><h2>Compare the day-to-day work</h2><div class="resource-table" role="region" aria-label="Spreadsheet and TuitionPing workflow comparison" tabindex="0"><table>
+  <thead><tr><th scope="col">Task</th><th scope="col">Standalone payment spreadsheet</th><th scope="col">TuitionPing reminder subscription</th></tr></thead>
+  <tbody>
+    <tr><th scope="row">Record bills and balances</th><td>Enter bills, credits and checked payments; formulas calculate the remaining balance.</td><td>Set family tuition details for reminders. Keep your ledger for partial payments, credits and reconciliation.</td></tr>
+    <tr><th scope="row">Follow up before and after the due date</th><td>Review the sheet and write or copy each message yourself.</td><td>Schedule monthly before-due, due-date and overdue texts using editable templates.</td></tr>
+    <tr><th scope="row">Handle different billing schedules</th><td>Use a row per bill with its actual weekly, monthly or other due date.</td><td>Monthly due-day schedules. Check the fit before subscribing if you bill weekly or by term.</td></tr>
+    <tr><th scope="row">Receive a parent's payment report</th><td>Make a note from your usual conversation or message.</td><td>A PAID text reply appears for provider payment review.</td></tr>
+    <tr><th scope="row">Verify that money arrived</th><td>Check your payment records before entering a verified payment.</td><td>Check the same records before confirming receipt. The parent's reply is not a bank confirmation.</td></tr>
+    <tr><th scope="row">Receive tuition</th><td>Use the payment method in your agreement.</td><td>Use the payment method in your agreement. TuitionPing does not move money or provide autopay.</td></tr>
+    <tr><th scope="row">Start using the tools</th><td>Download the free workbook and enter one row per bill. No account required.</td><td>Add families or use the separate CSV roster import, review templates, preview and send a test text.</td></tr>
+    <tr><th scope="row">Software cost</th><td>The TuitionPing workbook is free; any spreadsheet-software costs depend on what you use.</td><td>Micro is ${{ plans.micro.price }}/month for up to {{ plans.micro.families }} families. Starter is ${{ plans.starter.price }}/month for up to {{ plans.starter.families }}. Both cover one location. <a href="/pricing">Compare all plans</a>.</td></tr>
+  </tbody>
+</table></div></section>
+<section class="card"><h2>A monthly example: 12 families and one due day</h2>
+  <p>In this fictional program, tuition is due on the 1st. With a spreadsheet, the provider reviews the balances, copies each family's amount into a reminder, sends it privately and records the follow-up. When a family says it paid, the provider checks the payment records and updates the sheet.</p>
+  <p>With TuitionPing alongside the sheet, the provider enters the family roster separately and sets the monthly reminders. A family receives a text, replies PAID and appears in payment review. The provider checks the actual payment, confirms receipt in TuitionPing and updates the ledger. Verified payment stops that family's scheduled follow-up for the period.</p>
+  <p>Twelve families fit Starter at ${{ plans.starter.price }}/month. This example describes the steps, not a measured time-saving or collection-rate claim. TuitionPing does not automatically sync the spreadsheet, import its bill rows or reconcile bank records.</p>
+  <div class="download-actions"><a class="btn" href="/demo">Try the reminder → PAID reply → confirmation steps</a><a class="btn btn-ghost" href="/pricing#plan-starter">See Starter and trial terms</a></div>
+  <p><small>The demo uses fictional families and sends no messages. The real {{ trial_days }}-day trial requires a card at secure checkout. Your selected subscription starts afterward unless you cancel.</small></p>
+</section>
+<section class="resource-related"><h2>Choose the next step for your program</h2><div class="resource-grid">
+  <article class="card"><h3>You need a clearer payment record</h3><p>Start with the free tracker and its worked example. Record payments only after checking your actual records.</p><a href="/tools/tuition-payment-tracker#tracker-preview">Preview the payment spreadsheet</a></article>
+  <article class="card"><h3>You want to write one reminder now</h3><p>Use the free generator with your program name, unpaid balance and due date, then review and copy the message.</p><a href="/guides/tuition-reminder-templates#reminder-generator">Draft a payment reminder</a></article>
+  <article class="card"><h3>You run a preschool with monthly tuition</h3><p>See how classrooms, different monthly due days and school-year changes fit the reminder process.</p><a href="/preschool-tuition-reminders">Explore the preschool workflow</a></article>
+</div></section>
+<section class="card"><h2>Common questions</h2>
+  <h3>Can I keep using Excel or Google Sheets?</h3><p>Yes. Keep the sheet as your ledger and use TuitionPing for scheduled monthly texts and payment reports. The tools do not automatically sync with each other.</p>
+  <h3>Can I upload the free tracker to TuitionPing?</h3><p>The tracker is one row per bill. TuitionPing's CSV import uses a separate family-roster format. Follow the import instructions in your account; uploading the tracker is not a supported way to import bill rows.</p>
+  <h3>Will this automate weekly tuition reminders?</h3><p>The subscription uses monthly due-day schedules. The free tracker, reminder generator and invoice tool can help you manage manually entered weekly dates.</p>
+  <h3>Should I use a broader billing platform instead?</h3><p>If you need payment collection, autopay, attendance or enrollment in one platform, compare those requirements with a broader system. Our <a href="/compare/brightwheel">TuitionPing and brightwheel comparison</a> explains the difference in scope.</p>
+</section>
+{% include "resource_related.html" %}
+{% endblock %}

@@ -24,6 +24,7 @@
     return value;
   }
   function clearOutput() {
+    if (window.tpHideResourceNextStep) window.tpHideResourceNextStep();
     generated = false; $('invoice-document').hidden = true; $('invoice-document').replaceChildren();
     $('invoice-print').disabled = true; $('invoice-empty').hidden = false;
     $('invoice-status').textContent = 'Create a document after making changes.';
@@ -88,7 +89,8 @@
       doc.append(el('p',receipt?'Payment recorded as verified by the provider. This document is not independent bank confirmation.':'Payment requested; this invoice does not establish that money was received.','invoice-doc-footer'));
       doc.append(el('p','Created with the free TuitionPing document generator · tuitionping.com','invoice-doc-footer'));
       doc.hidden=false;$('invoice-empty').hidden=true;$('invoice-print').disabled=false;generated=true;$('invoice-status').textContent='Document ready. Print or choose Save as PDF.';
-      if(window.tpTrack)window.tpTrack('document_created',receipt?'receipt':'invoice');
+      try { if(window.tpTrack)window.tpTrack('document_created',receipt?'receipt':'invoice'); } catch (_) {}
+      if(window.tpResourceNextStep)window.tpResourceNextStep(receipt?'receipt':'invoice');
     } catch(error){$('invoice-error').textContent=error.message;$('invoice-error').hidden=false;}
   });
   form.addEventListener('input',clearOutput);form.addEventListener('change',clearOutput);

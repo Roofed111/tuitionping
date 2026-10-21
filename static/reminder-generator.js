@@ -27,6 +27,7 @@
   }
 
   function invalidate() {
+    if (window.tpHideResourceNextStep) window.tpHideResourceNextStep();
     el('reminder-output').value = '';
     el('reminder-copy').disabled = true;
     el('reminder-count').textContent = 'Generate a reminder to preview your current details.';
@@ -69,6 +70,7 @@
       // Only a fixed event and reminder stage enter existing analytics.
       // Program names, balances, dates and message contents stay in this page.
       try { if (window.tpTrack) window.tpTrack('reminder_generated', stage); } catch (_) {}
+      if (window.tpResourceNextStep) window.tpResourceNextStep('reminder');
     } catch (error) {
       el('reminder-error').textContent = error.message;
       el('reminder-error').hidden = false;
