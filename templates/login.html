@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Log in — TuitionPing{% endblock %}
+{% block meta_description %}<meta name="description" content="Log in to your TuitionPing dashboard to manage families, reminders, and billing.">{% endblock %}
+{% block content %}
+<div class="auth-card">
+  <h1>Log in</h1>
+  {% if request.query_params.get("reset") %}<p style="color:var(--ok)">Password updated — log in with your new password.</p>{% endif %}
+  {% if error %}<p style="color:#b91c1c">{{ error }}</p>{% endif %}
+  <div class="card">
+    <form method="post" action="/login">
+      {{ csrf_input(request) }}
+      <div class="form-stack">
+        <label>Email<input name="email" type="email" required autocomplete="email"></label>
+        <label>Password<input name="password" type="password" required autocomplete="current-password"></label>
+        <div><button class="btn" style="width:100%">Log in</button></div>
+        <p style="font-size:.85em;margin:4px 0 0"><a href="/forgot-password">Forgot your password?</a></p>
+      </div>
+    </form>
+  </div>
+  <p class="muted" style="font-size:.85em">New to TuitionPing? <a href="/signup?plan=growth">Start your free trial</a></p>
+</div>
+{% endblock %}

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Edit location — TuitionPing{% endblock %}
+{% block content %}
+<h1>Edit location</h1>
+<div class="card" style="max-width:560px">
+  <form method="post" action="/locations/edit/{{ location['id'] }}">
+    {{ csrf_input(request) }}
+    <div class="form-grid">
+      <label>Location name<input name="name" required value="{{ location['name'] }}" placeholder="Sunny Sprouts Daycare"></label>
+      <label>Address <span style="font-weight:400">(optional)</span><input name="address" value="{{ location['address'] or '' }}" placeholder="123 Main St, Concord CA"></label>
+      <div>
+        <button class="btn">Save changes</button>
+        <a class="btn btn-ghost" href="/dashboard">Cancel</a>
+      </div>
+    </div>
+  </form>
+</div>
+{% endblock %}

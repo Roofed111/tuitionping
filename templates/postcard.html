@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}TuitionPing — 10% Off for 3 Months (Postcard Offer){% endblock %}
+{% block meta_description %}<meta name="description" content="Got our postcard? Daycare owners get 10% off TuitionPing for 3 months. Automatic tuition reminder texts — parents reply PAID. 30-day free trial.">{% endblock %}
+{% block content %}
+<style>
+  .pc-hero { text-align: center; margin: 28px 0 36px; }
+  .pc-badge { display: inline-block; background: #fef9c3; border: 2px solid #eab308; color: #713f12;
+              font-weight: 800; font-size: .85em; letter-spacing: .04em; text-transform: uppercase;
+              padding: 8px 18px; border-radius: 999px; margin-bottom: 14px; }
+  .pc-hero h1 { font-size: 2.2em; line-height: 1.15; letter-spacing: -.02em; margin: 0 0 12px; }
+  .pc-hero h1 .accent { color: var(--brand); }
+  .pc-hero .lede { font-size: 1.1em; color: var(--ink-soft); max-width: 32em; margin: 0 auto 22px; }
+  .pc-ctas { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .pc-fine { color: var(--muted); font-size: .85em; margin-top: 12px; }
+  @media (max-width: 640px) { .pc-hero h1 { font-size: 1.7em; } }
+
+  .pc-phone { max-width: 320px; margin: 0 auto 8px; }
+  .phone { width: 300px; max-width: 100%; margin: 0 auto; background: #0f172a; border-radius: 44px;
+           padding: 12px; box-shadow: 0 24px 60px -20px rgba(0,145,110,.45); box-sizing: border-box; }
+  .phone-screen { background: #f1f5f9; border-radius: 34px; overflow: hidden; }
+  .phone-bar { background: #fff; padding: 14px 16px 10px; text-align: center;
+               border-bottom: 1px solid var(--line); }
+  .phone-bar b { font-size: .92em; } .phone-bar span { display: block; font-size: .75em; color: var(--muted); }
+  .chat { padding: 16px 12px; display: flex; flex-direction: column; gap: 8px; }
+  .bubble { max-width: 82%; padding: 9px 13px; border-radius: 16px; font-size: .83em; line-height: 1.45; }
+  .bubble.them { background: #fff; border: 1px solid var(--line); border-bottom-left-radius: 4px;
+                 align-self: flex-start; box-shadow: 0 1px 2px rgba(15,23,42,.06); }
+  .bubble.me { background: var(--brand); color: #fff; border-bottom-right-radius: 4px;
+               align-self: flex-end; }
+  .bubble .lbl { display: block; font-size: .72em; opacity: .75; margin-bottom: 2px; font-weight: 600; }
+  .phone-caption { text-align: center; color: var(--muted); font-size: .85em; margin: 10px 0 0; }
+
+  .section { margin: 0 0 44px; }
+  .section h2 { font-size: 1.5em; letter-spacing: -.02em; margin: 0 0 8px; text-align: center; }
+  .section .sub { text-align: center; color: var(--muted); max-width: 36em; margin: 0 auto 24px; }
+
+  .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+  .step { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+          padding: 20px; box-shadow: var(--shadow); }
+  .step .num { width: 34px; height: 34px; border-radius: 50%; background: var(--brand);
+               color: #fff; font-weight: 800; display: flex; align-items: center;
+               justify-content: center; margin-bottom: 10px; }
+  .step h3 { margin: 0 0 6px; font-size: 1em; } .step p { margin: 0; color: var(--ink-soft); font-size: .92em; }
+
+  .plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+  .plan { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+          padding: 22px; box-shadow: var(--shadow); display: flex; flex-direction: column; }
+  .plan.pop { border: 2px solid var(--brand); position: relative; }
+  .plan .pop-tag { position: absolute; top: -13px; left: 50%; transform: translateX(-50%);
+                   background: var(--brand); color: #fff; font-size: .75em; font-weight: 800;
+                   padding: 3px 14px; border-radius: 999px; letter-spacing: .04em; }
+  .plan h3 { margin: 0 0 4px; font-size: 1.05em; }
+  .plan .price { font-size: 1.9em; font-weight: 800; letter-spacing: -.03em; margin: 6px 0 2px; }
+  .plan .price small { font-size: .45em; font-weight: 500; color: var(--muted); }
+  .plan .cap { font-size: .85em; color: var(--muted); margin-bottom: 14px; }
+  .plan .btn { margin-top: auto; text-align: center; }
+  .pricing-note { text-align: center; color: var(--muted); font-size: .88em; margin-top: 16px; }
+
+  .faq { max-width: 640px; margin: 0 auto; }
+  .faq details { background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+                 padding: 13px 16px; margin-bottom: 8px; box-shadow: var(--shadow); }
+  .faq summary { font-weight: 700; cursor: pointer; font-size: .95em; }
+  .faq details p { margin: 8px 0 2px; color: var(--ink-soft); font-size: .92em; }
+
+  .final-cta { text-align: center; background: var(--card); border: 1px solid var(--line);
+               border-radius: 20px; padding: 40px 24px; box-shadow: var(--shadow); }
+  .final-cta h2 { margin: 0 0 10px; font-size: 1.6em; letter-spacing: -.02em; }
+  .final-cta p { color: var(--muted); margin: 0 0 20px; }
+  .offer-strip { background: #fef9c3; border: 1px solid #eab308; border-radius: 10px;
+                 padding: 10px 16px; display: inline-block; font-weight: 700; color: #713f12;
+                 margin-bottom: 16px; font-size: .95em; }
+</style>
+
+<div class="pc-hero">
+  <span class="pc-badge">📬 Postcard offer</span>
+  <h1>10% off for 3 months.<br><span class="accent">Never chase tuition again.</span></h1>
+  <p class="lede">You scanned the QR — the discount applies automatically at checkout. TuitionPing texts your families tuition reminders, they reply <strong>PAID</strong>, and you stop having awkward pickup conversations.</p>
+  <div class="pc-ctas">
+    <a class="btn" href="/signup?plan=growth" style="font-size:1.08em;padding:14px 28px">Claim 10% off — start free trial</a>
+  </div>
+  <p class="pc-fine">30-day free trial · no charge for 30 days · cancel anytime · discount auto-applied</p>
+</div>
+
+<div class="pc-phone">
+  <div class="phone">
+    <div class="phone-screen">
+      <div class="phone-bar"><b>Sunshine Daycare</b><span>TuitionPing reminders</span></div>
+      <div class="chat">
+        <div class="bubble them"><span class="lbl">3 days before</span>TuitionPing: Hi Sarah, friendly reminder that tuition of $1,200 for Sunshine Daycare is due on Oct 1. Thanks!</div>
+        <div class="bubble them"><span class="lbl">Due date</span>TuitionPing: Hi Sarah, just a reminder that tuition of $1,200 for Sunshine Daycare is due today (Oct 1). Thanks!</div>
+        <div class="bubble me">PAID</div>
+        <div class="bubble them">Thanks Sarah! Receipt: $1,200.00 for October 2026 received. 🎉</div>
+      </div>
+    </div>
+  </div>
+  <p class="phone-caption">Real example messages — parents just get normal texts.</p>
+</div>
+
+<div class="section" style="margin-top:36px">
+  <h2>Up and running in 10 minutes</h2>
+  <p class="sub">Three steps, then it runs itself.</p>
+  <div class="steps">
+    <div class="step"><div class="num">1</div><h3>Add your families</h3><p>Name, phone, tuition amount, due date — typed in or imported from a CSV.</p></div>
+    <div class="step"><div class="num">2</div><h3>We text automatically</h3><p>3 days before, on the due date, and at +3/+7 days late — only while unpaid.</p></div>
+    <div class="step"><div class="num">3</div><h3>Parents reply PAID</h3><p>Your dashboard updates itself. Anyone can text STOP to opt out.</p></div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Simple pricing, 10% off for 3 months</h2>
+  <p class="sub">Every plan starts with a 30-day free trial. The postcard discount applies automatically at checkout.</p>
+  <div class="plans">
+    {% for key, p in plans.items() %}
+    <div class="plan{% if key == "growth" %} pop{% endif %}">
+      {% if key == "growth" %}<span class="pop-tag">MOST POPULAR</span>{% endif %}
+      <h3>{{ p.name }}</h3>
+      <div class="price">${{ p.price }}<small>/mo</small></div>
+      <div class="cap">{{ p.blurb.split(" · ")[0] }}</div>
+      <a class="btn{% if key != "growth" %} btn-ghost{% endif %}" href="/signup?plan={{ key }}">Start {{ p.name }} trial</a>
+    </div>
+    {% endfor %}
+  </div>
+  <p class="pricing-note">Card on file at signup, never charged during your 30-day trial. Cancel anytime.</p>
+</div>
+
+<div class="section">
+  <h2>Quick answers</h2>
+  <div class="faq">
+    <details open><summary>Do parents need to install anything?</summary><p>No. Ordinary text messages — they reply like any other text. No app, no account.</p></details>
+    <details><summary>Do I need parents' consent to text them?</summary><p>Yes. Collect it at enrollment or in your tuition agreement. The signup and import flows both ask you to confirm this.</p></details>
+    <details><summary>Can a parent opt out?</summary><p>Yes — reply STOP anytime, honored instantly. They can rejoin with START.</p></details>
+    <details><summary>What happens after the 30-day trial?</summary><p>Your card is charged for the plan you chose (with your 10% postcard discount for the first 3 months). Cancel anytime from Billing.</p></details>
+  </div>
+</div>
+
+<div class="final-cta">
+  <div class="offer-strip">📬 10% off for 3 months — auto-applied at checkout</div>
+  <h2>Your next tuition cycle could collect itself.</h2>
+  <p>30-day free trial · set up in 10 minutes · cancel anytime</p>
+  <a class="btn" href="/signup?plan=growth" style="font-size:1.1em;padding:14px 32px">Start free trial</a>
+</div>
+{% endblock %}

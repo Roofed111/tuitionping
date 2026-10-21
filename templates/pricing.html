@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Daycare Tuition Reminder Software Pricing | TuitionPing{% endblock %}
+{% block meta_description %}<meta name="description" content="Compare TuitionPing's daycare text reminder plans: ${{ plans.micro.price }}, ${{ plans.starter.price }}, ${{ plans.growth.price }} and ${{ plans.multisite.price }}/month. See family limits, annual prices and {{ trial_days }}-day trial terms.">{% endblock %}
+{% block og_title %}TuitionPing Pricing — Daycare Tuition Reminders from ${{ plans.micro.price }}/Month{% endblock %}
+{% block og_description %}Compare monthly and annual plans, family capacity and location limits. Explore the demo before starting a {{ trial_days }}-day trial.{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="/static/pricing.css?v=1"><script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "TuitionPing", "applicationCategory": "BusinessApplication", "operatingSystem": "Web", "url": "https://www.tuitionping.com/pricing", "description": "Daycare tuition reminder software by text message. Providers schedule monthly tuition reminders; parents reply PAID and the provider verifies receipt. {{ trial_days }}-day free trial.", "offers": [{"@type": "Offer", "name": "Micro", "price": "{{ plans.micro.price }}", "priceCurrency": "USD"}, {"@type": "Offer", "name": "Starter", "price": "{{ plans.starter.price }}", "priceCurrency": "USD"}, {"@type": "Offer", "name": "Growth", "price": "{{ plans.growth.price }}", "priceCurrency": "USD"}, {"@type": "Offer", "name": "Multi-site", "price": "{{ plans.multisite.price }}", "priceCurrency": "USD"}]}</script>{% endblock %}
+{% block content %}
+<header class="resource-intro">
+  <p class="resource-kicker">TuitionPing plans &amp; pricing</p>
+  <h1>Daycare tuition reminder software, from ${{ plans.micro.price }}/month.</h1>
+  <p>Put monthly tuition reminders on a text-message schedule. Choose a plan for the families and locations you manage; keep the payment method and bookkeeping you already use.</p>
+  <div class="download-actions"><a class="btn" href="/demo">Try the interactive demo</a><a class="btn btn-ghost" href="#plans">Compare the four plans</a></div>
+  <p><small>The demo needs no account or card. The real {{ trial_days }}-day trial requires a card at secure checkout. No charge during the trial; your selected subscription begins afterward unless you cancel.</small></p>
+</header>
+<section id="plans" class="pricing-plans" aria-label="Monthly and annual TuitionPing plans">
+{% for key, plan in plans.items() %}
+  <article class="card pricing-plan" id="plan-{{ key }}">
+    <p class="resource-kicker">{{ plan.name }}</p><h2>${{ plan.price }}<span>/month</span></h2>
+    <p class="pricing-capacity">{{ plan.blurb }}</p>
+    <p><strong>${{ plan.price * 10 }}/year</strong> when billed annually.<br><small>Save ${{ plan.price * 2 }} compared with 12 monthly payments.</small></p>
+    <ul><li>Before-due, due-date and overdue reminder texts</li><li>Parent PAID replies and provider payment review</li><li>Editable English and Spanish templates</li><li>CSV family import and message history</li></ul>
+    <a class="btn" href="/signup?plan={{ key }}">Start {{ plan.name }} trial</a>
+  </article>
+{% endfor %}
+</section>
+<p class="muted">All prices are in USD. Choose monthly or annual billing during signup. Each published plan includes the reminder features above. Family capacity and location limits determine your tier.</p>
+<section class="resource-related" aria-labelledby="choose-plan"><h2 id="choose-plan">Which plan fits your daycare?</h2><div class="resource-grid">
+  <article class="card"><h3>A home daycare with 6 families</h3><p>Micro covers up to {{ plans.micro.families }} families at one location for ${{ plans.micro.price }}/month. Start with your parent contacts, tuition amounts and monthly due dates.</p><a href="/home-daycare-tuition-reminders">See the home daycare workflow</a></article>
+  <article class="card"><h3>A small center with 24 families</h3><p>Starter covers up to {{ plans.starter.families }} families at one location for ${{ plans.starter.price }}/month. Import your roster and organize families by classroom.</p><a href="/small-daycare-tuition-reminders">See the small-center workflow</a></article>
+  <article class="card"><h3>Two sites with 60 families total</h3><p>Growth covers up to {{ plans.growth.families }} families across unlimited locations for ${{ plans.growth.price }}/month. Count families across your account when choosing capacity.</p><a href="/demo">Explore the sample dashboard</a></article>
+  <article class="card"><h3>A program with 120 families</h3><p>Multi-site covers up to {{ plans.multisite.families }} families across unlimited locations for ${{ plans.multisite.price }}/month. Choose this tier when your total roster exceeds Growth's capacity.</p><a href="/setup-help">Ask for setup help</a></article>
+</div></section>
+<section class="card"><h2>See the reminder and payment-review steps first</h2><p>In the demo, send a sample reminder, simulate a parent's PAID reply, then confirm a fictional payment. Families use ordinary text messages; parents do not need a TuitionPing app or login.</p><p>TuitionPing does not collect tuition, connect to your bank or independently verify deposits. You check your payment records before confirming receipt. Reminder delivery and payment timing can vary.</p><div class="download-actions"><a class="btn" href="/demo">Try the fictional daycare demo</a><a class="btn btn-ghost" href="/compare/brightwheel">Compare reminders with a billing platform</a></div></section>
+<section class="resource-related"><h2>Questions before you start</h2>
+  <details class="card"><summary>When does the subscription charge begin?</summary><p>The {{ trial_days }}-day trial requires a card at secure checkout. There is no subscription charge during the trial. Your chosen monthly or annual plan starts afterward unless you cancel. Review the selected plan, cycle and charge at checkout.</p></details>
+  <details class="card"><summary>Is annual pricing a monthly payment?</summary><p>No. Annual billing charges the full yearly price after the trial: {% for key, plan in plans.items() %}{{ plan.name }} ${{ plan.price * 10 }}{{ ", " if not loop.last else "." }}{% endfor %} Monthly billing charges the displayed monthly amount instead.</p></details>
+  <details class="card"><summary>Are the limits per child or per family?</summary><p>The plan limit is based on family records across your account. Micro and Starter each support one location. Growth and Multi-site support unlimited locations within their total family capacity.</p></details>
+  <details class="card"><summary>Do parents need to install an app?</summary><p>No. Parents receive SMS messages and can reply PAID from their existing text-message app. Obtain permission before adding a parent's number; parents can reply STOP to opt out.</p></details>
+  <details class="card"><summary>Can I keep accepting checks, cash or transfers?</summary><p>Yes. Keep the method agreed with your families, including a payment service you already use. TuitionPing sends reminders and records payment reports; it does not process tuition or reconcile your bank account.</p></details>
+  <details class="card"><summary>What if I want a free tool first?</summary><p><a href="/guides/tuition-reminder-templates#reminder-generator">Generate a payment reminder</a>, <a href="/tools/tuition-payment-tracker#tracker-preview">download the payment tracker</a>, or <a href="/tools/daycare-invoice-receipt">create an invoice or verified-payment receipt</a>. These standalone resources work without a paid subscription.</p></details>
+  <details class="card"><summary>How do I cancel?</summary><p>Cancel from your account's Billing page. During the trial, cancel before it ends to avoid the subscription charge. For a paid subscription, cancellation takes effect at the end of its billing period.</p></details>
+</section>
+<section class="download-box"><h2>Need help choosing or importing your families?</h2><p>Tell TuitionPing support what your program needs. You can request setup help before creating an account.</p><a class="btn" href="/setup-help">Help me get set up</a></section>
+{% endblock %}
