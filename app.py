@@ -104,6 +104,8 @@ PUBLIC_PAGES = {
     "/about": ("about.html", "2026-10-06"),
     "/demo": ("demo.html", "2026-10-20"),
     "/how-it-works": ("walkthrough.html", "2026-10-20"),
+    "/guides/set-up-daycare-tuition-reminders": ("guide_reminder_setup.html", "2026-10-20"),
+    "/daycare-tuition-reminders-cash-check-bank-transfer": ("payment_methods.html", "2026-10-20"),
     "/tools/daycare-past-due-letter": ("tool_past_due.html", "2026-10-20"),
     "/home-daycare-tuition-reminders": ("audience.html", "2026-10-20"),
     "/small-daycare-tuition-reminders": ("audience.html", "2026-10-20"),
@@ -333,7 +335,8 @@ _TRACKED_PREFIXES = ("/compare/",)
 _GROWTH_DOWNLOADS = {"/static/downloads/" + name for name in (
     "daycare-late-fee-policy.pdf", "daycare-late-fee-policy.docx",
     "daycare-tuition-reminders.pdf", "daycare-tuition-reminders.docx",
-    "daycare-tuition-payment-tracker.xlsx", "daycare-tuition-collection-kit.zip")}
+    "daycare-tuition-payment-tracker.xlsx", "daycare-tuition-collection-kit.zip",
+    "tuitionping-family-import-template.csv")}
 
 
 @app.middleware("http")
@@ -843,6 +846,15 @@ def public_demo(request: Request):
 @app.get("/how-it-works", response_class=HTMLResponse)
 def public_walkthrough(request: Request):
     return templates.TemplateResponse(request, "walkthrough.html", {"request": request, "provider": None})
+
+
+@app.get("/guides/set-up-daycare-tuition-reminders", response_class=HTMLResponse)
+@app.get("/daycare-tuition-reminders-cash-check-bank-transfer", response_class=HTMLResponse)
+def public_reminder_workflows(request: Request):
+    return templates.TemplateResponse(request, PUBLIC_PAGES[request.url.path][0], {
+        "request": request, "provider": current_provider(request),
+        "plans": billing.PLANS, "trial_days": billing.TRIAL_DAYS,
+    })
 
 
 @app.get("/tools/daycare-past-due-letter", response_class=HTMLResponse)

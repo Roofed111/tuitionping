@@ -1,0 +1,10 @@
+<section class="download-box" aria-labelledby="workflow-start-heading">
+  <h2 id="workflow-start-heading">Set up your program</h2>
+  <p>Start with your program details, add families, review the reminders and send yourself a test text. Micro is ${{ plans.micro.price }}/month for up to {{ plans.micro.families }} families; <a href="/pricing">compare all plans</a> for larger rosters and multiple locations.</p>
+  <div class="download-actions">
+    {% if provider %}<a class="btn" href="/setup">Open my setup wizard</a>{% else %}<a class="btn" href="/signup?plan=micro">Set up your program — {{ trial_days }}-day free trial</a>{% endif %}
+    <a class="btn btn-ghost" href="/demo">Try it with fictional families first</a>
+  </div>
+  <p><small>The real trial requires a card at secure checkout. Your selected subscription starts after {{ trial_days }} days unless you cancel. The interactive demo needs no account or card and sends no texts.</small></p>
+  <p><a href="/setup-help">Help me get set up</a></p>
+</section>
