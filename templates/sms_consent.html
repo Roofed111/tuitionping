@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}SMS Consent — Model Language for Providers — TuitionPing{% endblock %}
+{% block meta_description %}<meta name="description" content="Model SMS consent language for daycare providers — enrollment form clause, verbal consent script, and record-keeping guidance.">{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>SMS Consent</h1><p class="sub">Model language for your enrollment forms</p></div></div>
+<div class="card">
+  <p>Carriers require provable consent before any parent gets a text. Use the language below in your enrollment packet — paper or digital — or read the verbal script when enrolling by phone or in person. Replace <em>[Daycare Name]</em> with your program's name. Keep signed forms on file.</p>
+
+  <h2>Enrollment form clause</h2>
+  <div style="border:1px solid var(--line); border-radius:8px; padding:16px; margin:12px 0;">
+    <p><strong>Tuition reminders by text message</strong></p>
+    <p>[Daycare Name] sends tuition reminders by text message through TuitionPing. If you agree, you will receive up to 4 messages per billing period about tuition due dates, late payments, and related billing notices, plus replies to requests you make (such as balance checks).</p>
+    <p>Message and data rates may apply. Reply <strong>HELP</strong> for help or <strong>STOP</strong> to opt out at any time. See our <a href="/terms">Terms of Service</a>, <a href="/privacy">Privacy Policy</a>, and <a href="/sms-privacy">SMS Privacy Policy</a>.</p>
+    <p style="margin-top:16px;"><input type="checkbox" disabled> I agree to receive tuition-reminder text messages from [Daycare Name] via TuitionPing at the mobile number below.</p>
+    <p>Mobile number: ___________________________</p>
+    <p>Parent/guardian signature: ___________________________ &nbsp; Date: ____________</p>
+  </div>
+
+  <h2>Verbal consent script</h2>
+  <div style="border:1px solid var(--line); border-radius:8px; padding:16px; margin:12px 0;">
+    <p><em>Read this when a parent enrolls by phone or in person and asks to receive texts:</em></p>
+    <p>"[Daycare Name] can send you tuition reminders by text message through our messaging provider, TuitionPing. You'd get up to 4 messages per billing period about tuition due dates, late payments, and related billing notices. Message and data rates may apply. You can reply HELP for help or STOP to opt out at any time. Our terms and privacy policy are at tuitionping.com/terms and tuitionping.com/privacy. Do I have your permission to send tuition reminders to this mobile number?"</p>
+    <p><em>If they say yes:</em> "Great — you're enrolled. You'll receive a confirmation text shortly."</p>
+    <p><em>Record the date, the number, and who gave consent, and keep it with the family's file.</em></p>
+  </div>
+
+  <h2>Keep proof</h2>
+  <p>Keep signed forms (or your written record of verbal consent: date, number, who consented) for as long as the family receives texts. If a parent replies STOP, TuitionPing unsubscribes them immediately — never text that number again unless they reply START.</p>
+</div>
+{% endblock %}

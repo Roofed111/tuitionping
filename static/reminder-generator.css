@@ -1,0 +1,22 @@
+.reminder-generator { padding:28px; scroll-margin-top:150px; }
+.reminder-generator > h2 { font-size:1.5rem; line-height:1.3; }
+.reminder-generator-grid { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); gap:28px; margin-top:24px; }
+.reminder-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; }
+.reminder-field { min-width:0; }
+.reminder-field-wide { grid-column:1/-1; }
+.reminder-field label { display:block; font-weight:650; margin-bottom:6px; }
+.reminder-field input,.reminder-field select { width:100%; min-width:0; min-height:44px; }
+.reminder-field small { display:block; color:var(--ink-soft); margin-top:6px; font-size:.8rem; }
+.reminder-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:22px; }
+.reminder-actions .btn,.reminder-preview .btn { min-height:44px; }
+.reminder-preview { min-width:0; background:var(--brand-soft); border:1px solid #b7dfcc; border-radius:12px; padding:22px; align-self:start; }
+.reminder-preview h3 { margin:0 0 14px; font-size:1.1rem; }
+.reminder-preview textarea { display:block; width:100%; min-width:0; resize:vertical; min-height:210px; font:inherit; font-size:.95rem; line-height:1.6; padding:14px; background:#fff; border:1px solid #aac7b9; border-radius:8px; }
+.reminder-count,.reminder-fine,.reminder-next small { font-size:.8rem; color:var(--ink-soft); }
+.reminder-preview [role="status"] { color:var(--brand-dark); font-size:.9rem; }
+.reminder-next h2 { font-size:1.35rem; }
+#reminder-templates-download { scroll-margin-top:150px; }
+#reminder-generator-app[hidden],#reminder-error[hidden] { display:none !important; }
+@media(max-width:780px) { .reminder-generator-grid { grid-template-columns:1fr; gap:22px; } }
+@media(max-width:520px) { .reminder-generator { padding:20px; } .reminder-fields { grid-template-columns:1fr; gap:16px; } .reminder-preview { padding:18px; } .reminder-actions { flex-direction:column; } .reminder-next .download-actions { flex-direction:column; } .reminder-next .btn { text-align:center; } }
+@media print { #reminder-form,.reminder-preview .btn,.reminder-actions { display:none; } .reminder-generator-grid { display:block; } .reminder-preview { background:#fff; } }

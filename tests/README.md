@@ -1,0 +1,171 @@
+# Late-fee calculator checks
+
+## Pricing and search landing pages
+
+`test_pricing_seo.py` checks anonymous/expired-account access, canonical host
+redirects, sitemap inclusion, current catalog prices and limits, yearly charge
+disclosure, valid plan signup links, buyer-page payment-review copy and partner
+directory descriptions. The kit retains assigned partner links. Tests use the
+existing disposable test database and do not submit outreach or live checkout.
+
+## Payment reminder generator
+
+`reminder-generator.test.cjs` exercises English and Spanish drafts, all three
+reminder types, strict cents validation, leap days and DST dates across time
+zones, stale-result clearing, inert user text, clipboard fallback and races,
+privacy and analytics failures. `test_reminder_generator.py` checks anonymous
+access, crawlable examples and downloads, event deduplication and attribution,
+and rejection of private event details, wrong paths and fabricated sales.
+Draft generation records only a fixed event and reminder type. It sends no SMS
+and stores no form values, account numbers, names or message contents.
+
+The comparison screenshots come from the working public `/demo` with fictional
+families, captured October 20, 2026. The brightwheel comparison is based on the
+official documentation linked on the page, not a hands-on brightwheel test.
+
+## Admin access and release recovery
+
+`test_admin_access.py` checks admin login and return visits, signed-in navigation
+across all nine Admin pages, regular-account isolation, invalid passwords,
+suspended accounts, session cookies, CSRF and logout. It also checks the retained
+signup and checkout owner notifications, including email failure isolation.
+These checks use a disposable database and mocked external services.
+
+## Admin Pacific Time
+
+`test_admin_time.py` checks PST/PDT, both DST transitions, UTC date rollover,
+older naive UTC timestamps, admin tables and trial dates, the Pacific-midnight
+visitor count, and precise Pacific offsets in the confirmed-subscriber export.
+Stored UTC values and date-only calendar values stay intact. Test accounts and
+databases are temporary; no external messages or billing are used.
+
+## Verified payment statements
+
+`test_payment_confirmation.py` checks that parent PAID reports are excluded from
+private/public statements, annual collected totals, reminder recovery totals and
+statement text recipients until a provider verifies receipt. It covers repeat and
+stale confirmations, original amount/date preservation, later fees, historical
+review, ownership/CSRF checks and migration from the old ledger schema. Legacy
+records are preserved; only the family's explicitly confirmed current period is
+backfilled as verified. Older records without evidence require individual review
+from the annual report or family edit page. SMS is mocked and databases are temporary.
+
+## Referral credit checks
+
+`test_referrals.py` uses a temporary database and simulated Stripe responses.
+It checks referral-link attribution, checkout/trial exclusion, first paid month
+boundaries, annual and month-end dates, old/current Stripe invoice shapes,
+missed and duplicate webhooks, refunds/disputes, early versus end-of-period
+cancellation, independent credit retries, lost responses after 24 hours,
+concurrent delivery, fixed retry amounts, legacy reward preservation,
+dashboard pending/issued counts and the authenticated hourly cron integration.
+No live Stripe transactions, customer accounts, SMS or emails are created.
+
+The application remains a Python app. Node and jsdom are development-only;
+no package.json is added, so Railway keeps its existing build selection.
+
+From the repository root:
+
+```sh
+node --test tests/late-fee-math.test.cjs
+python -m venv /tmp/tuitionping-test-env
+/tmp/tuitionping-test-env/bin/pip install -r requirements.txt httpx
+/tmp/tuitionping-test-env/bin/python -m unittest discover -s tests -p 'test_*.py'
+npm install --prefix /tmp/tuitionping-test-ui jsdom@30.1.2
+NODE_PATH=/tmp/tuitionping-test-ui/node_modules node --test tests/late-fee-ui.test.cjs
+```
+
+The math suite covers all five models, grace boundaries, caps, credits, cents,
+DST/leap-day date arithmetic, invalid inputs and monotonic fee growth. The DOM
+suite checks controls, invalid-state clearing, URL round trips, copying,
+printing dispatch and CSV contents. The route suite uses a temporary database
+and simulated providers to check public access, assets, metadata, sitemap and
+referral logging without storing calculation query parameters.
+
+These are logic checks, not browser visual tests. Before publishing, inspect
+the page at desktop and narrow mobile widths, use the keyboard through the
+form, and inspect the print preview. Check that comparison tables scroll within
+their cards on mobile and that the tool is accessible without signing in.
+
+Fee definitions are explicit: all days are calendar days, grace days are never
+retroactively charged, weekly fees count started weeks, percentages apply to
+unpaid tuition once, and credits are assumed to precede fee accrual. The tool
+cannot reconstruct a dated history of partial payments or determine legal
+applicability. It does not alter account fee rules or create invoices.
+
+## Public resources and workbook
+
+## Demo and acquisition conversions
+
+The public `/demo` is a browser-only fictional roster. It has no account,
+SMS-send or payment endpoint. Run its DOM workflow with:
+
+```sh
+NODE_PATH=/tmp/tuitionping-ui/node_modules node --test tests/demo-ui.test.cjs
+```
+
+`test_growth.py` checks public access, signed identity/token validation,
+first-touch attribution, query exclusion, opt-out/bot filtering, per-account
+deduplication, retention, admin access and live/test/zero-dollar billing
+boundaries. Billing and Twilio are mocked; tests send no real messages and
+create no external accounts or charges. Conversion reporting is at
+`/admin/conversions`. Public campaign labels use `utm_source`, `utm_medium`,
+and `utm_campaign`; the signup dropdown remains a separate self-report.
+Business milestones start with newly attributed accounts, rather than
+backfilling earlier customers. `invoice.paid`/`invoice.payment_succeeded`
+are supported; existing subscription callbacks and billing return-sync
+also confirm a positive paid invoice. No Stripe webhook settings change
+is required. First scheduled tuition reminder records Twilio acceptance, not delivery.
+
+The admin conversion reset starts a new reporting period without deleting
+customer data, partner attribution, or retained analytics history. All displayed
+counters and source/landing tables reset together. Browser events can count again;
+account milestone deduplication remains intact so existing customer webhook retries
+cannot inflate the new period. Tests cover admin/CSRF/POST-only protection, repeat
+resets, returning browsers, same-second activity, time windows and persistence.
+
+The three audience pages have distinct workflows, examples and questions.
+They are linked from the homepage/resources and included in the sitemap.
+
+### Resource workbook checks
+
+The Python suite also checks marketing redirects, auth/download indexing headers,
+free access for expired subscribers, sitemap dates, resource links and ZIP contents.
+For formula checks on the actual shipped spreadsheet (development dependencies only):
+
+```sh
+npm install --prefix /tmp/tuitionping-workbook-qa xlsx xlsx-calc
+NODE_PATH=/tmp/tuitionping-workbook-qa/node_modules node --test tests/payment-tracker.test.cjs
+```
+
+To rebuild the downloads, install development-only `reportlab`, `python-docx` and
+`openpyxl`, then run `python scripts/build_resource_downloads.py`. Shared policy and
+message content lives in `content/provider-resources.json`. Keep the workbook
+Google Sheets import check manual: the Worked example should show $190 and 7 days.
+
+## Traffic classification and sortable Admin reports
+
+`test_traffic.py` exercises normal Chrome/Safari/iPhone, direct/QR/privacy and
+legitimate one-page visits, known bot clients, multiple-signal bursts, scanner
+path sanitization, delayed/background review, unchanged request handling,
+classification history, concurrent counts, human conversion denominators,
+raw bot conversions, positive/live billing checks, partner/QR reporting,
+all eight sortable columns across pagination, Admin filters/security, and
+Pacific midnight / 23- and 25-hour DST days. `growth-ui.test.cjs` uses jsdom
+to check two render frames, a single signed browser beacon, no page-view
+inflation, privacy opt-outs, webdriver and retained trial click tracking.
+All data is temporary and external sends/payments are mocked.
+
+## Engagement and detailed acquisition sources
+
+Admin Visitors and Conversions now default to Engaged: signed browser execution
+plus trusted interaction after eight visible seconds, scrolling after thirty
+visible seconds, or retained server-side account activity linked to a real
+provider. Browser-only and unconfirmed visits remain separate, not presumed bots.
+`test_engagement_sources.py` checks strict versus broad conversion rates, one-page
+Chrome/Safari/iPhone, time thresholds, bot overrides, stable raw hit counts,
+historical account evidence, safe first-touch sources, campaign terms, advertising
+marker privacy, keyword CSV validation and Admin/CSRF protection. The DOM suite
+also covers synthetic events, hidden-tab time, waiting alone and one-time signals.
+Search keywords are aggregate, dated Search Console snapshots; they are never
+guessed for individual visitors or refreshed by a public page request.

@@ -1,0 +1,15 @@
+<aside class="resource-related" aria-label="Related free resources">
+  <h2>Keep your tuition process moving</h2>
+  <ul>
+    {% for path, label in [('/guides/tuition-collection', 'Bill-to-receipt collection workflow'), ('/tools/daycare-invoice-receipt', 'Free invoice and receipt generator'), ('/guide', 'Tuition collection checklist'), ('/late-fee-policy', 'Late-fee policy template'), ('/guides/tuition-reminder-templates', 'Payment reminder generator & templates'), ('/guides/daycare-payment-policy-template', 'Daycare payment policy template'), ('/guides/tuition-increase-letter', 'Tuition increase letter templates'), ('/tools/late-fee-calculator', 'Calculate a tuition late fee'), ('/tools/tuition-payment-tracker', 'Free tuition payment spreadsheet'), ('/guides/handling-late-paying-parents', 'Following up on overdue tuition')] %}
+    {% if request.url.path != path %}<li><a href="{{ path }}">{{ label }}</a></li>{% endif %}
+    {% endfor %}
+  </ul>
+  <h2>Automatic reminders, built for your program</h2>
+  <ul>
+    {% for path, label in [('/home-daycare-tuition-reminders', 'Tuition reminders for home daycares'), ('/small-daycare-tuition-reminders', 'Tuition reminder software for small centers'), ('/preschool-tuition-reminders', 'Preschool tuition reminders for monthly billing'), ('/bilingual-daycare-tuition-reminders', 'English & Spanish tuition reminders'), ('/after-school-tuition-reminders', 'Tuition reminders for after-school programs')] %}
+    {% if request.url.path != path %}<li><a href="{{ path }}">{{ label }}</a></li>{% endif %}
+    {% endfor %}
+  </ul>
+  <p><a href="/compare/spreadsheets">Compare payment spreadsheets and scheduled reminders</a> · <a href="/compare/procare">Compare TuitionPing and Procare</a> · <a href="/guides">Browse all free tools and templates</a> · <a href="/about">About TuitionPing and these resources</a></p>
+</aside>

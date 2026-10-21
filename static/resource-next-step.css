@@ -1,0 +1,8 @@
+.resource-next-step{border:2px solid var(--brand);background:var(--card);margin-top:20px;overflow-wrap:anywhere}
+.resource-next-step[hidden],.resource-next-step [hidden]{display:none!important}
+.resource-next-step h2{font-size:1.35rem;line-height:1.3;margin-top:0}
+.resource-next-step .resource-kicker:empty{display:none}
+.resource-next-step .resource-next-note{font-size:.85rem;color:var(--muted);line-height:1.55}
+.resource-next-step .download-actions{display:flex;flex-wrap:wrap;gap:10px}
+@media(max-width:520px){.resource-next-step .download-actions .btn{width:100%;text-align:center;white-space:normal}}
+@media print{.resource-next-step{display:none!important}}
