@@ -26,6 +26,10 @@ CLIENT_EVENTS['visitor_engaged'] = {'interaction','active_reading'}
 CLIENT_EVENTS['reminder_generated'] = {'before','due','late'}
 CLIENT_EVENTS['demo_completed'] = {''}
 CLIENT_EVENTS['notice_created'] = {''}
+CLIENT_EVENTS['solution_finder_started'] = {''}
+CLIENT_EVENTS['solution_recommended'] = {'reminder_subscription','manual_reminders','tracker','invoice','past_due','late_fee','tax_statement','payment_platform','large_roster'}
+CLIENT_EVENTS['solution_action_click'] = set(CLIENT_EVENTS['solution_recommended'])
+CLIENT_EVENTS['embed_code_copied'] = {''}
 RESOURCE_EVENT_PATHS = {
     'reminder': '/guides/tuition-reminder-templates',
     'tracker': '/tools/tuition-payment-tracker',
@@ -37,6 +41,7 @@ CLIENT_EVENTS['resource_next_step'] = set(RESOURCE_EVENT_PATHS)
 CLIENT_EVENTS['resource_demo_click'] = set(RESOURCE_EVENT_PATHS)
 STAGES = [('page_view', 'Visitors'), ('video_started', 'Walkthrough played'), ('video_completed', 'Walkthrough completed'), ('demo_started', 'Demo used'), ('demo_completed', 'Demo completed'), ('download', 'Resource downloaded'),
           ('document_created', 'Document generated'), ('reminder_generated', 'Reminder drafted'), ('notice_created', 'Past-due letter created'), ('resource_next_step', 'Next-step prompt shown'), ('resource_demo_click', 'Resource → demo clicked'), ('setup_help_requested', 'Setup help requested'), ('trial_click', 'Trial clicked'), ('signup', 'Account created'), ('checkout_started', 'Checkout opened'),
+          ('solution_finder_started', 'Solution selector started'), ('solution_recommended', 'Solution recommendation shown'), ('solution_action_click', 'Recommended next step clicked'), ('embed_code_copied', 'Calculator embed code copied'),
           ('checkout_completed', 'Checkout completed'), ('trial_started', 'Trial started'),
           ('first_reminder', 'First tuition reminder accepted'), ('paid_customer', 'Paid customer')]
 

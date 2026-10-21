@@ -1,5 +1,16 @@
 # Late-fee calculator checks
 
+## Embedded calculator and solution selector
+
+`test_embed_finder.py` verifies framing is restricted to the public standalone
+widget, embedded loads create no acquisition visitors or partner touches,
+click-through partner attribution reaches the existing account link, catalog
+data stays current, and new events preserve path, privacy and bot boundaries.
+`embedded-calculator-ui.test.cjs` reuses the shared fee formulas and checks
+invalid input, stale output, privacy and embed-code copy behavior.
+`solution-finder-ui.test.cjs` checks all plan boundaries, monthly schedule fit,
+manual-tool routes, large rosters, reset/back navigation and fixed-label events.
+
 ## Video watch page and past-due letter
 
 `test_video_notice.py` checks public discovery, canonical URLs, unique IDs,

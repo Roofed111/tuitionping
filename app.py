@@ -45,6 +45,7 @@ import billing
 import growth
 import email_engagement
 import setup_wizard
+import public_growth_tools
 import setup_help
 import partner_resources
 import traffic
@@ -89,6 +90,8 @@ PUBLIC_PAGES = {
     "/guides/tuition-collection": ("collection_hub.html", "2026-10-20"),
     "/tools/daycare-invoice-receipt": ("tool_invoice.html", "2026-10-20"),
     "/partners": ("partners.html", "2026-10-20"),
+    "/partners/embed-calculator": ("embed_calculator_guide.html", "2026-10-20"),
+    "/find-your-tuition-solution": ("solution_finder.html", "2026-10-20"),
     "/guides/tuition-reminder-templates": ("guide_templates.html", "2026-10-20"),
     "/guides/handling-late-paying-parents": ("guide_late_parents.html", "2026-10-20"),
     "/guides/daycare-payment-policy-template": ("guide_payment_policy.html", "2026-10-20"),
@@ -144,6 +147,15 @@ async def security_headers(request: Request, call_next):
         # the redirect target against form-action too. 'self' alone silently
         # blocks the Stripe handoff (Oct 2026).
         "form-action 'self' https://checkout.stripe.com https://billing.stripe.com")
+    if request.url.path == public_growth_tools.EMBED_PATH and resp.status_code == 200:
+        # Only this standalone, anonymous calculator may be framed. Account,
+        # checkout, admin and every other application page retain DENY.
+        del resp.headers["X-Frame-Options"]
+        resp.headers["Referrer-Policy"] = "no-referrer"
+        resp.headers["Content-Security-Policy"] = (
+            "default-src 'none'; script-src 'self'; style-src 'self'; "
+            "base-uri 'none'; form-action 'none'; frame-ancestors https:; "
+            "sandbox allow-scripts allow-popups allow-popups-to-escape-sandbox")
     proto = request.headers.get("X-Forwarded-Proto", request.url.scheme)
     if proto.split(",")[0].strip() == "https":
         # Railway terminates TLS at its router; the header tells us the
@@ -266,6 +278,7 @@ _NO_SUB_EXACT.add("/analytics/event")
 _NO_SUB_EXACT.add("/email-kit")
 _NO_SUB_EXACT.add("/partners/download")
 _NO_SUB_EXACT.add("/setup-help")
+_NO_SUB_EXACT.add(public_growth_tools.EMBED_PATH)
 _NO_SUB_PREFIXES = ("/billing/", "/admin", "/webhooks/", "/internal/",
                     "/static/", "/s/", "/email-list/")
 
@@ -356,7 +369,7 @@ async def track_conversions(request: Request, call_next):
         try:
             source, medium, campaign = growth.attribution(request)
             growth.register(visitor, source, medium, campaign, path, detail=growth.acquisition.describe(request))
-            if path in {"/partners", "/partners/download"}:
+            if path in {"/partners", "/partners/download", public_growth_tools.FINDER_PATH, "/tools/late-fee-calculator"}:
                 partner_resources.touch(visitor, request.query_params.get("partner", ""))
             if path in _GROWTH_DOWNLOADS:
                 growth.record(visitor, "download", path.rsplit("/", 1)[-1], path)
@@ -391,6 +404,8 @@ async def conversion_event(request: Request):
                 or (event.startswith("demo_") and path != "/demo")
                 or (event.startswith("video_") and path not in {"/", "/how-it-works"})
                 or (event == "notice_created" and path != "/tools/daycare-past-due-letter")
+                or (event.startswith("solution_") and path != public_growth_tools.FINDER_PATH)
+                or (event == "embed_code_copied" and path != public_growth_tools.EMBED_GUIDE)
                 or (event == "document_created" and path != "/tools/daycare-invoice-receipt")
                 or (event == "reminder_generated" and path != "/guides/tuition-reminder-templates")
                 or (event in {"resource_next_step", "resource_demo_click"}
@@ -453,6 +468,7 @@ with open(os.path.join(os.path.dirname(__file__), "content", "provider-resources
 with open(os.path.join(os.path.dirname(__file__), "content", "audiences.json"), encoding="utf-8") as audience_file:
     AUDIENCES = json.load(audience_file)
 templates.env.globals["audiences"] = AUDIENCES
+public_growth_tools.register(app, templates, current_provider=lambda request: current_provider(request))
 
 
 @app.middleware("http")
