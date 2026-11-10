@@ -15,6 +15,13 @@
 {% elif checkout == "required" %}
 <div class="banner banner-info">🔒 <strong>One step left:</strong> complete checkout below to unlock your dashboard. Your {{ trial_days }}-day free trial starts as soon as your card is processed — $0 charged today.</div>
 {% endif %}
+{% if cancel == "scheduled" %}
+<div class="banner banner-ok">✅ <strong>Cancellation scheduled.</strong> Your plan stays active until the end of the current period{% if subscription.cancel_at %} ({{ subscription.cancel_at[:10] }}){% endif %}, and you won't be charged again.</div>
+{% elif cancel == "done" %}
+<div class="banner banner-ok">✅ <strong>Your subscription is cancelled.</strong> You won't be charged. You can resubscribe below anytime.</div>
+{% elif cancel == "resumed" %}
+<div class="banner banner-ok">✅ <strong>You're all set</strong> — your subscription will continue as normal.</div>
+{% endif %}
 {% if founding_open and not subscription.founding and founding_spots_left > 0 %}
 <div class="banner banner-ok">🌱 <strong>Founding members get {{ founding_pct }}% off for {{ founding_months }} months.</strong> Only {{ founding_spots_left }} of 25 spots left — subscribe below to lock yours in.</div>
 {% elif founding_open and founding_spots_left == 0 and not subscription.founding %}
@@ -52,11 +59,30 @@
   </div>
   {% endfor %}
 </div>
-{% if subscription.status in ("trialing", "active", "past_due") and stripe_live and not demo %}
+{% if subscription.status in ("trialing", "active", "past_due") and stripe_live and not demo and subscription.has_stripe_customer %}
 <form method="post" action="/billing/portal" style="margin:12px 0">
   {{ csrf_input(request) }}
-  <button class="btn btn-ghost">Manage billing — update card, view invoices, or cancel</button>
+  <button class="btn btn-ghost">Manage billing — update card or view invoices</button>
 </form>
+{% endif %}
+{% if subscription.status in ("trialing", "active", "past_due") %}
+<div class="stat" style="margin:12px 0;text-align:left">
+  {% if subscription.cancel_at_period_end %}
+  <div><strong>Your subscription is set to cancel{% if subscription.cancel_at %} on {{ subscription.cancel_at[:10] }}{% endif %}.</strong></div>
+  <div style="font-size:.9em;color:#555">You won't be charged again, and your reminders keep working until then. Changed your mind?</div>
+  <form method="post" action="/billing/resume" style="margin-top:8px">
+    {{ csrf_input(request) }}
+    <button class="btn">Keep my subscription</button>
+  </form>
+  {% else %}
+  <div><strong>{% if subscription.status == "trialing" %}Cancel your free trial{% else %}Cancel your subscription{% endif %}</strong></div>
+  <div style="font-size:.9em;color:#555">{% if subscription.status == "trialing" %}Cancel before your trial ends{% if subscription.trial_ends_at %} ({{ subscription.trial_ends_at[:10] }}){% endif %} and your card will never be charged.{% else %}Your plan stays active until the end of the current billing period — no charges after that.{% endif %}</div>
+  <form method="post" action="/billing/cancel" style="margin-top:8px" onsubmit="return confirm('Cancel your {% if subscription.status == "trialing" %}free trial{% else %}subscription{% endif %}? You will not be charged again.')">
+    {{ csrf_input(request) }}
+    <button class="btn btn-danger-ghost">{% if subscription.status == "trialing" %}Cancel trial{% else %}Cancel subscription{% endif %}</button>
+  </form>
+  {% endif %}
+</div>
 {% endif %}
 <p style="color:#666;font-size:.9em">Every plan starts with a {{ trial_days }}-day free trial — a full tuition cycle, so you can watch it recover a late payment before you pay anything. Your card is collected at signup but isn't charged until the trial ends. Cancel anytime.</p>
 {% endblock %}
