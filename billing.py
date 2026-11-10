@@ -16,7 +16,7 @@ import os
 import threading
 from datetime import datetime, timezone
 
-from store import get_subscription, set_subscription, set_stripe_ids
+from store import get_subscription, set_subscription, set_stripe_ids, set_cancel_info
 from store import claim_founding_spot as _claim_spot
 from store import founding_claimed_count as _claimed_count
 from store import is_founding as _is_founding
@@ -190,10 +190,27 @@ def founding_price(plan: str, cycle: str = "monthly") -> float:
 def subscription_summary(provider_id: int) -> dict:
     sub = get_subscription(provider_id)
     if not sub:
-        return {"plan": None, "status": "none", "founding": False}
+        return {"plan": None, "status": "none", "founding": False,
+                "cancel_at_period_end": False, "cancel_at": None,
+                "has_stripe_customer": False}
+    try:
+        cancel_at_period_end = bool(sub["cancel_at_period_end"])
+    except (KeyError, IndexError, TypeError):
+        cancel_at_period_end = False
+    try:
+        cancel_at = sub["cancel_at"]
+    except (KeyError, IndexError, TypeError):
+        cancel_at = None
+    try:
+        has_stripe_customer = bool(sub["stripe_customer_id"])
+    except (KeyError, IndexError, TypeError):
+        has_stripe_customer = False
     return {"plan": sub["plan"], "status": sub["status"],
             "trial_ends_at": sub["trial_ends_at"],
-            "founding": _is_founding(provider_id)}
+            "founding": _is_founding(provider_id),
+            "cancel_at_period_end": cancel_at_period_end,
+            "cancel_at": cancel_at,
+            "has_stripe_customer": has_stripe_customer}
 
 
 def sync_subscription_from_stripe(provider_id: int):
@@ -248,6 +265,94 @@ def cancel_provider_billing(provider_id: int) -> dict:
         if "No such subscription" not in str(e):
             return {"ok": False, "error": f"Stripe cancellation failed: {e}"}
     return {"ok": True, "canceled": True}
+
+
+def _cancel_date_from_sub(sub) -> str | None:
+    """ISO date a scheduled cancellation takes effect: the trial end while
+    trialing, otherwise the end of the current paid period."""
+    sub = _as_dict(sub)
+    ts = None
+    if sub.get("status") == "trialing":
+        ts = sub.get("trial_end")
+    if not ts:
+        ts = sub.get("current_period_end")
+    if not ts:
+        items = _as_dict(sub.get("items") or {}).get("data") or []
+        if items:
+            ts = _as_dict(items[0]).get("current_period_end")
+    if not ts:
+        ts = sub.get("trial_end")
+    if not ts:
+        return None
+    return datetime.fromtimestamp(ts, timezone.utc).isoformat()
+
+
+def _stripe_subscription_id(provider_id: int):
+    from store import ensure_stripe_columns, get_subscription
+    ensure_stripe_columns()
+    sub = get_subscription(provider_id)
+    try:
+        return sub, (sub["stripe_subscription_id"] if sub else None)
+    except (KeyError, IndexError, TypeError):
+        return sub, None
+
+
+def cancel_subscription(provider_id: int) -> dict:
+    """Cancel the provider's own trial/subscription from inside the app.
+
+    A live Stripe subscription is set to cancel at period end — a trialing
+    customer is never charged, and a paid customer keeps the access they
+    already paid for. A trial with no Stripe subscription behind it (demo
+    mode, walkthrough accounts) is canceled locally, immediately. Returns
+    {"ok": True, "mode": "period_end" | "immediate", ...summary} or
+    {"ok": False, "error": ...}."""
+    sub, sub_id = _stripe_subscription_id(provider_id)
+    if not sub or sub["status"] not in ("trialing", "active", "past_due"):
+        return {"ok": False, "error": "there is no active subscription to cancel"}
+    stale_stripe_id = False
+    if sub_id:
+        if not stripe_configured():
+            return {"ok": False,
+                    "error": "a Stripe subscription is on file but Stripe is not "
+                             "configured — please contact support so we can cancel it for you"}
+        s = _stripe_lib()
+        try:
+            updated = s.Subscription.modify(sub_id, cancel_at_period_end=True)
+        except Exception as e:
+            if "No such subscription" not in str(e):
+                return {"ok": False, "error": f"Stripe cancellation failed: {e}"}
+            stale_stripe_id = True
+        if not stale_stripe_id:
+            _sync_from_subscription(provider_id, updated)
+            return {"ok": True, "mode": "period_end", **subscription_summary(provider_id)}
+    # No live Stripe subscription behind this trial: cancel locally, now.
+    set_subscription(provider_id, sub["plan"], "canceled",
+                     trial_ends_at=sub["trial_ends_at"])
+    set_cancel_info(provider_id, False, None)
+    return {"ok": True, "mode": "immediate", **subscription_summary(provider_id)}
+
+
+def resume_subscription(provider_id: int) -> dict:
+    """Undo a scheduled cancellation before it takes effect."""
+    sub, sub_id = _stripe_subscription_id(provider_id)
+    if not sub or sub["status"] not in ("trialing", "active", "past_due"):
+        return {"ok": False, "error": "there is no active subscription to resume"}
+    if sub_id:
+        if not stripe_configured():
+            return {"ok": False,
+                    "error": "a Stripe subscription is on file but Stripe is not "
+                             "configured — please contact support"}
+        s = _stripe_lib()
+        try:
+            updated = s.Subscription.modify(sub_id, cancel_at_period_end=False)
+        except Exception as e:
+            if "No such subscription" not in str(e):
+                return {"ok": False, "error": f"Stripe resume failed: {e}"}
+        else:
+            _sync_from_subscription(provider_id, updated)
+            return {"ok": True, **subscription_summary(provider_id)}
+    set_cancel_info(provider_id, False, None)
+    return {"ok": True, **subscription_summary(provider_id)}
 
 
 def _get_or_create_customer(provider: dict) -> str:
@@ -370,6 +475,8 @@ def _sync_from_subscription(provider_id: int, sub) -> None:
     set_subscription(provider_id, plan or "starter", status, trial_ends_at=trial_ends)
     set_stripe_ids(provider_id, customer_id=sub.get("customer"),
                    subscription_id=sub.get("id"))
+    set_cancel_info(provider_id, bool(sub.get("cancel_at_period_end")),
+                    _cancel_date_from_sub(sub) if sub.get("cancel_at_period_end") else None)
     try:
         import email_engagement
         email_engagement.note_subscription(provider_id, sub)
@@ -457,6 +564,7 @@ def handle_stripe_event(event) -> dict:
                 current = get_subscription(lid) or {}
                 set_subscription(lid, current["plan"] if current else "starter", "canceled")
                 set_stripe_ids(lid, subscription_id=sub.get("id"))
+                set_cancel_info(lid, False, None)
             else:
                 _sync_from_subscription(lid, sub)
         return {"received": True, "type": etype}
