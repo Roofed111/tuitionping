@@ -317,12 +317,32 @@ def cancel_subscription(provider_id: int) -> dict:
                              "configured — please contact support so we can cancel it for you"}
         s = _stripe_lib()
         try:
-            updated = s.Subscription.modify(sub_id, cancel_at_period_end=True)
+            current = _as_dict(s.Subscription.retrieve(sub_id))
         except Exception as e:
             if "No such subscription" not in str(e):
                 return {"ok": False, "error": f"Stripe cancellation failed: {e}"}
             stale_stripe_id = True
+            current = {}
         if not stale_stripe_id:
+            if (current.get("status") or "") in ("canceled", "incomplete_expired"):
+                # Already canceled in Stripe (e.g. an old test subscription
+                # whose ID outlived a later local trial): the desired end
+                # state already holds — just bring the local record in sync.
+                _sync_from_subscription(provider_id, current)
+                return {"ok": True, "mode": "immediate", **subscription_summary(provider_id)}
+            try:
+                updated = s.Subscription.modify(sub_id, cancel_at_period_end=True)
+            except Exception as e:
+                if "canceled subscription" not in str(e).lower():
+                    return {"ok": False, "error": f"Stripe cancellation failed: {e}"}
+                # Raced with a cancellation made elsewhere (portal, dashboard):
+                # re-read and sync — again, the end state already holds.
+                try:
+                    current = _as_dict(s.Subscription.retrieve(sub_id))
+                except Exception:
+                    return {"ok": False, "error": f"Stripe cancellation failed: {e}"}
+                _sync_from_subscription(provider_id, current)
+                return {"ok": True, "mode": "immediate", **subscription_summary(provider_id)}
             _sync_from_subscription(provider_id, updated)
             return {"ok": True, "mode": "period_end", **subscription_summary(provider_id)}
     # No live Stripe subscription behind this trial: cancel locally, now.
@@ -344,13 +364,24 @@ def resume_subscription(provider_id: int) -> dict:
                              "configured — please contact support"}
         s = _stripe_lib()
         try:
-            updated = s.Subscription.modify(sub_id, cancel_at_period_end=False)
+            current = _as_dict(s.Subscription.retrieve(sub_id))
         except Exception as e:
             if "No such subscription" not in str(e):
                 return {"ok": False, "error": f"Stripe resume failed: {e}"}
-        else:
-            _sync_from_subscription(provider_id, updated)
+            set_cancel_info(provider_id, False, None)
             return {"ok": True, **subscription_summary(provider_id)}
+        if (current.get("status") or "") in ("canceled", "incomplete_expired"):
+            # Nothing left to resume in Stripe — sync the local record and
+            # point the customer at resubscribing instead of erroring raw.
+            _sync_from_subscription(provider_id, current)
+            return {"ok": False,
+                    "error": "this subscription was already canceled — pick a plan below to start again"}
+        try:
+            updated = s.Subscription.modify(sub_id, cancel_at_period_end=False)
+        except Exception as e:
+            return {"ok": False, "error": f"Stripe resume failed: {e}"}
+        _sync_from_subscription(provider_id, updated)
+        return {"ok": True, **subscription_summary(provider_id)}
     set_cancel_info(provider_id, False, None)
     return {"ok": True, **subscription_summary(provider_id)}
 
