@@ -1954,6 +1954,30 @@ def get_provider_by_stripe_customer(customer_id):
                             (row["provider_id"],)).fetchone()
 
 
+# ------------------------------------------------- scheduled cancellation --
+def ensure_cancel_columns():
+    """Add cancel_at_period_end / cancel_at to subscriptions if missing."""
+    def ddl(col):
+        if col == "cancel_at_period_end":
+            return "ALTER TABLE subscriptions ADD COLUMN cancel_at_period_end INTEGER DEFAULT 0"
+        return f"ALTER TABLE subscriptions ADD COLUMN {col} TEXT"
+    _ensure_columns("subscriptions", ("cancel_at_period_end", "cancel_at"), ddl)
+
+
+def set_cancel_info(provider_id, cancel_at_period_end, cancel_at=None):
+    ensure_cancel_columns()
+    with db() as conn:
+        if not get_subscription(provider_id):
+            conn.execute(
+                "INSERT INTO subscriptions (provider_id, plan, status, updated_at)"
+                " VALUES (?,?,?,?) ON CONFLICT(provider_id) DO NOTHING",
+                (provider_id, "starter", "none", now_iso()))
+        conn.execute(
+            "UPDATE subscriptions SET cancel_at_period_end = ?, cancel_at = ?"
+            " WHERE provider_id = ?",
+            (1 if cancel_at_period_end else 0, cancel_at, provider_id))
+
+
 # ---------------------------------------------------------- founding members --
 def ensure_founding_column():
     """Add the founding flag to subscriptions if missing (0 = no, 1 = yes)."""
