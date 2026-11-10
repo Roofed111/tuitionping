@@ -50,6 +50,7 @@ class StripeCancelTest(unittest.TestCase):
                                trial_ends_at='2026-12-09T00:00:00+00:00')
         store.set_stripe_ids(102, customer_id='cus_x', subscription_id='sub_x')
         self.stripe = MagicMock()
+        self.stripe.Subscription.retrieve.return_value = self._stripe_sub(False)
         self.stripe.Subscription.modify.return_value = self._stripe_sub(True)
         for p in (patch.object(billing, '_stripe_lib', return_value=self.stripe),
                   patch.object(billing, 'stripe_configured', return_value=True)):
@@ -67,6 +68,46 @@ class StripeCancelTest(unittest.TestCase):
         self.assertTrue(summary['cancel_at_period_end'])
         self.assertTrue(summary['cancel_at'].startswith('2026-12-09'))
         self.assertTrue(summary['has_stripe_customer'])
+
+    def test_already_canceled_in_stripe_syncs_instead_of_erroring(self):
+        # Rob's walkthrough account, Nov 9 2026: the local row said trialing
+        # but the Stripe subscription on file (an old test checkout) was
+        # already canceled — modify() refused with "A canceled subscription
+        # can only update its cancellation_details and metadata."
+        store.set_subscription(103, 'micro', 'trialing',
+                               trial_ends_at='2026-12-09T00:00:00+00:00')
+        store.set_stripe_ids(103, customer_id='cus_x', subscription_id='sub_dead')
+        self.stripe.Subscription.retrieve.return_value = {
+            'id': 'sub_dead', 'customer': 'cus_x', 'status': 'canceled',
+            'trial_end': None, 'cancel_at_period_end': False,
+            'metadata': {'plan': 'micro', 'provider_id': '103'},
+            'items': {'data': []}}
+        with patch.object(billing, '_stripe_lib', return_value=self.stripe), \
+                patch.object(billing, 'stripe_configured', return_value=True):
+            result = billing.cancel_subscription(103)
+        self.assertTrue(result['ok'])
+        self.assertEqual(result['mode'], 'immediate')
+        self.assertEqual(billing.subscription_summary(103)['status'], 'canceled')
+
+    def test_modify_race_with_portal_cancellation_still_succeeds(self):
+        store.set_subscription(104, 'micro', 'trialing',
+                               trial_ends_at='2026-12-09T00:00:00+00:00')
+        store.set_stripe_ids(104, customer_id='cus_x', subscription_id='sub_race')
+        live = {'id': 'sub_race', 'customer': 'cus_x', 'status': 'trialing',
+                'trial_end': _trial_end_ts(), 'cancel_at_period_end': False,
+                'metadata': {'plan': 'micro', 'provider_id': '104'},
+                'items': {'data': []}}
+        dead = dict(live, status='canceled', trial_end=None)
+        self.stripe.Subscription.retrieve.side_effect = [live, dead]
+        self.stripe.Subscription.modify.side_effect = Exception(
+            'A canceled subscription can only update its cancellation_details and metadata.')
+        with patch.object(billing, '_stripe_lib', return_value=self.stripe), \
+                patch.object(billing, 'stripe_configured', return_value=True):
+            result = billing.cancel_subscription(104)
+        self.assertTrue(result['ok'])
+        self.assertEqual(billing.subscription_summary(104)['status'], 'canceled')
+        self.stripe.Subscription.retrieve.side_effect = None
+        self.stripe.Subscription.modify.side_effect = None
 
     def test_resume_clears_scheduled_cancellation(self):
         billing.cancel_subscription(102)
