@@ -2676,6 +2676,7 @@ def billing_page(request: Request):
         "subscription": billing.subscription_summary(provider["id"]),
         "demo": billing.DEMO_MODE,
         "checkout": checkout,
+        "cancel": request.query_params.get("cancel", ""),
         "stripe_live": billing.stripe_configured(),
         "founding_spots_left": billing.founding_spots_left(),
         "founding_open": billing.FOUNDING_OPEN,
@@ -2722,6 +2723,33 @@ def billing_portal(request: Request):
         print(f"[stripe] portal error: {e}", flush=True)
         return HTMLResponse("Couldn't open the billing portal. Please try again.", status_code=502)
     return RedirectResponse(portal_url, status_code=303)
+
+
+@app.post("/billing/cancel")
+def billing_cancel(request: Request):
+    provider, redirect = require_login(request)
+    if redirect:
+        return redirect
+    result = billing.cancel_subscription(provider["id"])
+    if not result.get("ok"):
+        return HTMLResponse(
+            f"Couldn't cancel your subscription: {result.get('error', 'unknown error')}. "
+            "Please try again or contact support.", status_code=502)
+    notice = "scheduled" if result.get("mode") == "period_end" else "done"
+    return RedirectResponse(f"/billing?cancel={notice}", status_code=303)
+
+
+@app.post("/billing/resume")
+def billing_resume(request: Request):
+    provider, redirect = require_login(request)
+    if redirect:
+        return redirect
+    result = billing.resume_subscription(provider["id"])
+    if not result.get("ok"):
+        return HTMLResponse(
+            f"Couldn't resume your subscription: {result.get('error', 'unknown error')}. "
+            "Please try again or contact support.", status_code=502)
+    return RedirectResponse("/billing?cancel=resumed", status_code=303)
 
 
 # ------------------------------------------------------- reminder engine ----
